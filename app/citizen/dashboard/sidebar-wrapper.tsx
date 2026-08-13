@@ -18,7 +18,7 @@ export function CitizenSidebarWrapper() {
 
   function handleLogout() {
     clearSession()
-    router.push("/")
+    router.push("/citizen")
   }
 
   return <CitizenSidebar userName={userName} onLogout={handleLogout} />

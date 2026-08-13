@@ -79,20 +79,30 @@ export default function CitizenRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-        <Link href="/citizen" className="text-green-500 text-sm font-semibold tracking-widest uppercase">
+    <div className="relative min-h-screen flex flex-col">
+      {/* Background */}
+      <div className="fixed inset-0 -z-10 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat" />
+      <div className="fixed inset-0 -z-10 bg-black/55" />
+
+      {/* Header */}
+      <nav className="w-full fixed top-0 left-0 z-50 bg-black/40 backdrop-blur-sm border-b border-white/10 py-3.5">
+      <div className="max-w-6xl mx-auto px-4 py-1 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/citizen" className="text-green-400 text-lg font-semibold tracking-widest uppercase drop-shadow">
           Rental System
         </Link>
-        <span className="text-sm text-gray-500">
+
+        <span className="text-sm text-gray-300">
           Already have an account?{" "}
-          <Link href="/citizen/login" className="text-green-500 font-semibold hover:underline">Login</Link>
+          <Link href="/citizen/login" className="text-green-400 font-semibold hover:underline">Login</Link>
         </span>
       </div>
+      </nav>
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex-1 flex items-start justify-center py-10 px-4">
-        <div className="bg-white rounded-lg shadow-md w-full max-w-2xl">
-          <div className="bg-gradient-to-r from-green-600 to-green-500 px-8 py-6 border-b border-gray-100">
+      {/* Form */}
+      <div className="flex-1 flex items-start justify-center py-20 px-4">
+        <div className=" max-w-2xl bg-white rounded-xl shadow-2xl w-full overflow-hidden">
+          <div className="bg-gradient-to-r from-green-600 to-green-500 px-8 py-6">
             <h1 className="text-2xl font-bold text-white">Citizen Registration</h1>
             <p className="text-green-50 text-sm mt-1">Create your GRAMS citizen account.</p>
           </div>
@@ -145,9 +155,8 @@ export default function CitizenRegisterPage() {
                   <label className="text-sm font-medium text-gray-700">I am registering as</label>
                   <select name="rolePreference" value={form.rolePreference} onChange={handleChange}
                     className="w-full border border-gray-300 rounded px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-green-400 transition">
-                    <option value="CITIZEN">Citizen</option>
-                    <option value="LANDLORD">Landlord</option>
                     <option value="TENANT">Tenant</option>
+                    <option value="LANDLORD">Landlord</option>
                   </select>
                 </div>
                 <div />

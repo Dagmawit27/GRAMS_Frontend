@@ -1,10 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
-import { Search, FileText, Building2, CreditCard, UserCircle, PanelLeft } from "lucide-react"
+import { Search, FileText, Building2, CreditCard, UserCircle, LogOut, Settings, User } from "lucide-react"
 import { getSession, clearSession } from "@/lib/api"
 import type { UserSummary } from "@/lib/api"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Card,
   CardContent,
@@ -63,6 +73,12 @@ export default function CitizenDashboardPage() {
     setUser(session.user)
   }, [router])
 
+
+  function handleLogout() {
+    clearSession()
+    router.push("/citizen")
+  }
+
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (!query.trim()) return
@@ -89,23 +105,6 @@ export default function CitizenDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Top bar */}
-      <header className="flex h-12 items-center gap-3 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-4" />
-        <span className="text-sm font-medium text-muted-foreground">
-          Federal Democratic Republic of Ethiopia — GRAMS
-        </span>
-        <div className="ml-auto flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-green-700 flex items-center justify-center text-white text-xs font-bold">
-            {initials}
-          </div>
-          <span className="text-sm font-medium hidden sm:block">
-            {user.firstName} {user.lastName}
-          </span>
-        </div>
-      </header>
-
       <main className="flex-1 p-6 space-y-6 max-w-5xl mx-auto w-full">
 
         {/* Welcome */}

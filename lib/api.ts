@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 async function parseResponse(res: Response) {
   const text = await res.text();
@@ -79,16 +79,19 @@ export async function getMe(token: string): Promise<UserSummary> {
 }
 
 export function saveSession(result: AuthResult) {
+  if (typeof window === "undefined") return;
   localStorage.setItem("accessToken", result.accessToken);
   localStorage.setItem("user", JSON.stringify(result.user));
 }
 
 export function clearSession() {
+  if (typeof window === "undefined") return;
   localStorage.removeItem("accessToken");
   localStorage.removeItem("user");
 }
 
 export function getSession(): { token: string; user: UserSummary } | null {
+  if (typeof window === "undefined") return null;
   const token = localStorage.getItem("accessToken");
   const raw = localStorage.getItem("user");
   if (!token || !raw) return null;
@@ -214,5 +217,24 @@ export async function getPropertiesByStatus(
   });
   const json = await parseResponse(res);
   if (!res.ok) throw new Error(json.message || "Failed to load properties.");
+  return json;
+}
+
+export async function updatePropertyStatus(
+  token: string,
+  id: string,
+  status: PropertyStatus,
+  remarks?: string
+): Promise<PropertyResponse> {
+  const res = await fetch(`${BASE_URL}/properties/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status, remarks }),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update status.");
   return json;
 }

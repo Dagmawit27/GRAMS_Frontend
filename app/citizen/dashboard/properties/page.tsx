@@ -114,20 +114,6 @@ export default function PropertiesPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="flex h-12 items-center gap-3 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-4" />
-        <span className="text-sm font-medium text-muted-foreground">
-          Federal Democratic Republic of Ethiopia — GRAMS
-        </span>
-        <div className="ml-auto flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-green-700 flex items-center justify-center text-white text-xs font-bold">
-            {initials}
-          </div>
-          <span className="text-sm font-medium hidden sm:block">{userName}</span>
-        </div>
-      </header>
-
       <main className="flex-1 p-6 space-y-6 max-w-4xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div>
