@@ -1,58 +1,66 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
-import { Search, FileText, Building2, CreditCard, UserCircle, LogOut, Settings, User } from "lucide-react"
-import { getSession, clearSession } from "@/lib/api"
+import { FileText, Building2, CreditCard, UserCircle } from "lucide-react"
+import { getSession } from "@/lib/api"
 import type { UserSummary } from "@/lib/api"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
+  AreaChart, Area,
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid,
+} from "recharts"
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Data ─────────────────────────────────────────────────────────────────────
 
-interface LandlordResult {
-  id: string
-  firstName: string
-  lastName: string
-  phoneNumber: string
-  email: string
+const monthlyData = [
+  { month: "Jan", agreements: 1, payments: 0 },
+  { month: "Feb", agreements: 1, payments: 1 },
+  { month: "Mar", agreements: 2, payments: 1 },
+  { month: "Apr", agreements: 2, payments: 2 },
+  { month: "May", agreements: 3, payments: 2 },
+  { month: "Jun", agreements: 3, payments: 3 },
+  { month: "Jul", agreements: 4, payments: 3 },
+  { month: "Aug", agreements: 4, payments: 4 },
+]
+
+const paymentData = [
+  { status: "Paid", count: 4 },
+  { status: "Pending", count: 2 },
+  { status: "Overdue", count: 1 },
+]
+
+const areaConfig: ChartConfig = {
+  agreements: { label: "Agreements", color: "#16a34a" },
+  payments:   { label: "Payments",   color: "#3b82f6" },
 }
 
-// ── Mock search (replace with real API call when endpoint is ready) ───────────
-
-async function searchLandlords(query: string): Promise<LandlordResult[]> {
-  // TODO: replace with real fetch to /api/v1/users?role=LANDLORD&q=query
-  await new Promise((r) => setTimeout(r, 400))
-  if (!query.trim()) return []
-  return [
-    { id: "1", firstName: "Abebe", lastName: "Bekele",  phoneNumber: "+251911000001", email: "abebe@example.com" },
-    { id: "2", firstName: "Tigist", lastName: "Haile",  phoneNumber: "+251911000002", email: "tigist@example.com" },
-    { id: "3", firstName: "Dawit", lastName: "Tadesse", phoneNumber: "+251911000003", email: "dawit@example.com" },
-  ].filter(
-    (l) =>
-      `${l.firstName} ${l.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
-      l.email.toLowerCase().includes(query.toLowerCase())
-  )
+const barConfig: ChartConfig = {
+  count: { label: "Count", color: "#16a34a" },
 }
+
+const statCards = [
+  { title: "Active Agreements", value: "3",   sub: "2 pending review",  icon: FileText,   color: "text-green-600",  bg: "bg-green-50",  border: "border-green-100",  bar: "bg-green-500",  barW: "w-3/4" },
+  { title: "Properties Viewed", value: "12",  sub: "4 saved",           icon: Building2,  color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-100",   bar: "bg-blue-500",   barW: "w-2/3" },
+  { title: "Payments Made",     value: "4",   sub: "1 pending",         icon: CreditCard, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100", bar: "bg-purple-500", barW: "w-1/2" },
+  { title: "Profile Complete",  value: "85%", sub: "2 fields missing",  icon: UserCircle, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100", bar: "bg-orange-500", barW: "w-5/6" },
+]
+
+const quickActions = [
+  { icon: FileText,   label: "Rental Agreements", desc: "View & manage contracts",   href: "/citizen/dashboard/agreements", color: "text-green-600",  bg: "bg-green-50",  hoverBorder: "hover:border-green-300"  },
+  { icon: Building2,  label: "Properties",         desc: "Browse available rentals", href: "/citizen/dashboard/properties", color: "text-blue-600",   bg: "bg-blue-50",   hoverBorder: "hover:border-blue-300"   },
+  { icon: CreditCard, label: "Payments",           desc: "Track dues & history",     href: "/citizen/dashboard/payments",   color: "text-purple-600", bg: "bg-purple-50", hoverBorder: "hover:border-purple-300" },
+  { icon: UserCircle, label: "My Profile",         desc: "Update your information",  href: "/citizen/dashboard/profile",    color: "text-orange-600", bg: "bg-orange-50", hoverBorder: "hover:border-orange-300" },
+]
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -60,38 +68,12 @@ export default function CitizenDashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<UserSummary | null>(null)
 
-  // landlord search state
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState<LandlordResult[]>([])
-  const [searching, setSearching] = useState(false)
-  const [searched, setSearched] = useState(false)
-
   useEffect(() => {
     const session = getSession()
     if (!session) { router.push("/citizen/login"); return }
     if (session.user.userType !== "CITIZEN") { router.push("/citizen/login"); return }
     setUser(session.user)
   }, [router])
-
-
-  function handleLogout() {
-    clearSession()
-    router.push("/citizen")
-  }
-
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    if (!query.trim()) return
-    setSearching(true)
-    setSearched(false)
-    try {
-      const data = await searchLandlords(query)
-      setResults(data)
-    } finally {
-      setSearching(false)
-      setSearched(true)
-    }
-  }
 
   if (!user) {
     return (
@@ -101,137 +83,124 @@ export default function CitizenDashboardPage() {
     )
   }
 
-  const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-1 p-6 space-y-6 max-w-5xl mx-auto w-full">
+    <div className="p-6 space-y-6 max-w-6xl mx-auto w-full">
 
-        {/* Welcome */}
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">
-            Welcome, {user.firstName} {user.lastName}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage your rental agreements and search for registered landlords.
-          </p>
-        </div>
+      {/* Welcome */}
+      <div>
+        <h1 className="text-xl font-semibold text-gray-800">
+          Welcome, {user.firstName} {user.lastName} 👋
+        </h1>
+        <p className="text-sm text-gray-400 mt-0.5">Here&apos;s an overview of your rental activity.</p>
+      </div>
 
-        {/* Profile summary cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card size="sm">
-            <CardHeader>
-              <CardDescription>Role</CardDescription>
-              <CardTitle>
-                <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                  {user.roles?.[0] ?? "CITIZEN"}
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((s) => (
+          <Card key={s.title} className={`border ${s.border} shadow-sm bg-white overflow-hidden rounded-xl`}>
+            <CardContent className="p-5 flex flex-col gap-4">
+              <div className="flex items-start justify-between">
+                <div className={`${s.bg} p-2.5 rounded-xl`}>
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+                <span className={`text-xs font-semibold ${s.color} ${s.bg} px-2 py-0.5 rounded-full`}>
+                  Active
                 </span>
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card size="sm">
-            <CardHeader>
-              <CardDescription>Email</CardDescription>
-              <CardTitle className="truncate text-sm font-normal">{user.email}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card size="sm">
-            <CardHeader>
-              <CardDescription>Phone</CardDescription>
-              <CardTitle className="text-sm font-normal">{user.phoneNumber}</CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Landlord Search */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-green-700" />
-              Search Landlords
-            </CardTitle>
-            <CardDescription>
-              Find registered landlords by name or email address.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <Input
-                placeholder="Search by name or email..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="h-9"
-              />
-              <Button
-                type="submit"
-                disabled={searching || !query.trim()}
-                className="bg-green-700 hover:bg-green-800 text-white shrink-0"
-                size="sm"
-              >
-                {searching ? "Searching..." : "Search"}
-              </Button>
-            </form>
-
-            {searched && results.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No landlords found for &quot;{query}&quot;.
-              </p>
-            )}
-
-            {results.length > 0 && (
-              <div className="divide-y divide-border rounded-lg border overflow-hidden">
-                {results.map((landlord) => (
-                  <div
-                    key={landlord.id}
-                    className="flex items-center justify-between px-4 py-3 bg-card hover:bg-muted/40 transition-colors"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {landlord.firstName} {landlord.lastName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{landlord.email}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {landlord.phoneNumber}
-                    </span>
-                  </div>
-                ))}
               </div>
-            )}
+              <div>
+                <p className="text-3xl font-bold text-gray-900 leading-none">{s.value}</p>
+                <p className="text-xs text-gray-500 mt-1">{s.title}</p>
+              </div>
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-[11px] text-gray-400">{s.sub}</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-1.5 ${s.bar} ${s.barW} rounded-full`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Area chart — 2 cols */}
+        <Card className="lg:col-span-2 border border-gray-100 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-gray-700">Rental Activity</CardTitle>
+            <CardDescription className="text-xs">Agreements &amp; payments over the year</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={areaConfig} className="h-52 w-full">
+              <AreaChart data={monthlyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="fillAgreements" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#16a34a" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="fillPayments" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Area type="monotone" dataKey="agreements" stroke="#16a34a" strokeWidth={2} fill="url(#fillAgreements)" dot={{ r: 3 }} />
+                <Area type="monotone" dataKey="payments"   stroke="#3b82f6" strokeWidth={2} fill="url(#fillPayments)"   dot={{ r: 3 }} />
+              </AreaChart>
+            </ChartContainer>
           </CardContent>
         </Card>
 
-        {/* Quick action cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ActionCard icon={<FileText className="h-5 w-5 text-green-700" />} title="Rental Agreements" desc="View, sign, and manage your rental contracts." />
-          <ActionCard icon={<Building2 className="h-5 w-5 text-green-700" />} title="Properties" desc="Browse available rental properties in your area." />
-          <ActionCard icon={<CreditCard className="h-5 w-5 text-green-700" />} title="Payments" desc="View payment history and upcoming dues." />
-          <ActionCard icon={<UserCircle className="h-5 w-5 text-green-700" />} title="My Profile" desc="Update your personal information and credentials." />
-        </div>
+        {/* Bar chart */}
+        <Card className="border border-gray-100 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-gray-700">Payment Status</CardTitle>
+            <CardDescription className="text-xs">Breakdown of your payments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={barConfig} className="h-52 w-full">
+              <BarChart data={paymentData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis dataKey="status" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" fill="#16a34a" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
 
-      </main>
+      </div>
+
+      {/* Quick actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {quickActions.map((item) => (
+            <a key={item.label} href={item.href} className="group">
+              <Card className={`border border-gray-100 shadow-sm bg-white rounded-xl transition-all duration-200 hover:shadow-md ${item.hoverBorder} cursor-pointer`}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className={`${item.bg} p-3 rounded-xl shrink-0 group-hover:scale-110 transition-transform duration-200`}>
+                    <item.icon className={`h-5 w-5 ${item.color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 leading-tight">{item.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-tight">{item.desc}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </a>
+          ))}
+        </div>
+      </div>
+
     </div>
-  )
-}
-
-function ActionCard({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode
-  title: string
-  desc: string
-}) {
-  return (
-    <Card className="hover:ring-green-400 transition-all cursor-pointer">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          {icon}
-          <CardTitle>{title}</CardTitle>
-        </div>
-        <CardDescription>{desc}</CardDescription>
-      </CardHeader>
-    </Card>
   )
 }
