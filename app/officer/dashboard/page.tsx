@@ -191,17 +191,7 @@ export default function OfficerDashboardPage() {
   const [stats, setStats] = useState<ReturnType<typeof computeStats> | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const session = getSession()
-    if (!session || session.user.userType !== "GOVERNMENT_EMPLOYEE") {
-      router.push("/officer/login")
-      return
-    }
-    setUser(session.user)
-    loadStats(session.token)
-  }, [router])
-
-  async function loadStats(token: string) {
+  const loadStats = async (token: string) => {
     setLoading(true)
     try {
       const results = await Promise.allSettled(
@@ -216,6 +206,16 @@ export default function OfficerDashboardPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const session = getSession()
+    if (!session || session.user.userType !== "GOVERNMENT_EMPLOYEE") {
+      router.push("/officer/login")
+      return
+    }
+    setUser(session.user)
+    loadStats(session.token)
+  }, [router])
 
   if (!user) return (
     <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">

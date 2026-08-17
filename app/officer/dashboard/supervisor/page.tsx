@@ -23,17 +23,7 @@ export default function SupervisorQueuePage() {
   const [remarks, setRemarks] = useState("")
   const [acting, setActing] = useState<string | null>(null)
 
-  useEffect(() => {
-    const session = getSession()
-    if (!session || session.user.userType !== "GOVERNMENT_EMPLOYEE") {
-      router.push("/officer/login")
-      return
-    }
-    setToken(session.token)
-    load(session.token)
-  }, [router])
-
-  async function load(t: string) {
+  const load = async (t: string) => {
     setLoading(true)
     setError("")
     try {
@@ -45,6 +35,16 @@ export default function SupervisorQueuePage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const session = getSession()
+    if (!session || session.user.userType !== "GOVERNMENT_EMPLOYEE") {
+      router.push("/officer/login")
+      return
+    }
+    setToken(session.token)
+    load(session.token)
+  }, [router])
 
   async function act(id: string, status: "LISTED" | "REJECTED") {
     if (!token) return

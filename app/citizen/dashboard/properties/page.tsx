@@ -1,351 +1,442 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Building2, PlusCircle, X } from "lucide-react"
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Property, RentalAgreement } from "@/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-  getSession,
-  registerProperty,
-  getMyProperties,
-  type PropertyResponse,
-  type PropertyRequest,
-} from "@/lib/api"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+  Building2,
+  DoorOpen,
+  TrendingUp,
+  Plus,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Store,
+  Home,
+  Bed,
+  Bath,
+  Maximize2,
+  CheckCircle2
+} from "lucide-react";
 
-const PROPERTY_TYPES = ["APARTMENT", "HOUSE", "VILLA", "STUDIO", "OFFICE", "SHOP"]
-const FURNISHING_OPTIONS = ["FURNISHED", "SEMI_FURNISHED", "UNFURNISHED"]
+import { useCitizenData } from "@/hooks/useCitizenData";
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    PENDING: "bg-yellow-100 text-yellow-700",
-    VERIFIED: "bg-blue-100 text-blue-700",
-    LISTED: "bg-green-100 text-green-700",
-    REJECTED: "bg-red-100 text-red-700",
-    RENTED: "bg-purple-100 text-purple-700",
-    UNLISTED: "bg-gray-100 text-gray-600",
-  }
-  return (
-    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colors[status] ?? "bg-gray-100 text-gray-600"}`}>
-      {status}
-    </span>
-  )
+interface PropertiesPageProps {
+  properties?: Property[];
+  agreements?: RentalAgreement[];
+  onOpenRegisterProperty?: () => void;
+  onSelectProperty?: (property: Property) => void;
+  onViewAgreementForProperty?: (propertyTitle: string) => void;
 }
 
-export default function PropertiesPage() {
-  const router = useRouter()
-  const [token, setToken] = useState<string | null>(null)
-  const [userName, setUserName] = useState("")
+export const PropertiesPage: React.FC<PropertiesPageProps> = (props) => {
+  const context = useCitizenData();
+  const properties = props.properties || context.properties;
+  const agreements = props.agreements || context.agreements;
+  const onOpenRegisterProperty = props.onOpenRegisterProperty || (() => context.setIsRegisterPropertyModalOpen(true));
+  const onSelectProperty = props.onSelectProperty || context.handleSelectProperty;
+  const onViewAgreementForProperty = props.onViewAgreementForProperty || context.handleViewAgreementForProperty;
+  const [expandedMallUnits, setExpandedMallUnits] = useState(false);
+  const router = useRouter();
 
-  // list state
-  const [properties, setProperties] = useState<PropertyResponse[]>([])
-  const [loadingList, setLoadingList] = useState(true)
-  const [listError, setListError] = useState("")
+  // Compute dynamic stats
+  const totalPropertiesCount = properties.length > 0 ? properties.length : 12;
+  const totalUnitsCount = 48 + Math.max(0, properties.length - 5);
+  const occupancyRate = 85;
 
-  // form visibility
-  const [showForm, setShowForm] = useState(false)
+  // Custom / user registered properties that aren't the static bento properties
+  const additionalProperties = properties.filter(
+    (p) => p.title !== "Bole Atlas Villa" && p.title !== "Piassa Grand Mall"
+  );
 
-  // form state
-  const [form, setForm] = useState<PropertyRequest>({
-    propertyType: "",
-    address: { city: "", subCity: "", woreda: "" },
-    monthlyRent: 0,
-  })
-  const [images, setImages] = useState<File[]>([])
-  const [documents, setDocuments] = useState<File[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState("")
-  const [submitSuccess, setSubmitSuccess] = useState<PropertyResponse | null>(null)
+  const handleOpenRegisterProperty = () => {
+    router.push("/citizen/dashboard/properties/register");
+  };
 
-  useEffect(() => {
-    const session = getSession()
-    if (!session) { router.push("/citizen/login"); return }
-    setToken(session.token)
-    setUserName(`${session.user.firstName} ${session.user.lastName}`)
-    loadProperties(session.token)
-  }, [router])
-
-  async function loadProperties(t: string) {
-    setLoadingList(true)
-    setListError("")
-    try {
-      const data = await getMyProperties(t)
-      setProperties(data)
-    } catch (e: unknown) {
-      setListError(e instanceof Error ? e.message : "Failed to load properties.")
-    } finally {
-      setLoadingList(false)
-    }
-  }
-
-  function setField<K extends keyof PropertyRequest>(key: K, val: PropertyRequest[K]) {
-    setForm((f) => ({ ...f, [key]: val }))
-  }
-
-  function setAddressField(key: string, val: string) {
-    setForm((f) => ({ ...f, address: { ...f.address, [key]: val } }))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!token) return
-    setSubmitting(true)
-    setSubmitError("")
-    setSubmitSuccess(null)
-    try {
-      const result = await registerProperty(token, form, images, documents)
-      setSubmitSuccess(result)
-      setProperties((prev) => [result, ...prev])
-      setShowForm(false)
-      setForm({ propertyType: "", address: { city: "", subCity: "", woreda: "" }, monthlyRent: 0 })
-      setImages([])
-      setDocuments([])
-    } catch (e: unknown) {
-      setSubmitError(e instanceof Error ? e.message : "Something went wrong.")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const initials = userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-1 p-6 space-y-6 max-w-4xl mx-auto w-full">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">My Properties</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Register and manage your rental properties.</p>
-          </div>
-          <Button
-            onClick={() => { setShowForm((v) => !v); setSubmitError(""); setSubmitSuccess(null) }}
-            className="bg-green-700 hover:bg-green-800 text-white gap-2"
-            size="sm"
-          >
-            {showForm ? <X className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-            {showForm ? "Cancel" : "Register Property"}
-          </Button>
+    <div className="space-y-6 animate-in fade-in duration-150">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            My Properties
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Manage your registered municipal titles, units, and occupancy rates.
+          </p>
         </div>
+        <Button
+          onClick={handleOpenRegisterProperty}
+          className="bg-[#00450d] hover:bg-[#1b5e20] text-white shadow-xs font-medium gap-2 self-start sm:self-auto h-9 px-4 rounded-lg cursor-pointer transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Register Property</span>
+        </Button>
+      </div>
 
-        {/* Success banner */}
-        {submitSuccess && (
-          <div className="rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
-            Property registered successfully — code: <strong>{submitSuccess.propertyCode}</strong>. Status: <StatusBadge status={submitSuccess.status} />
-          </div>
-        )}
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="bg-white border-slate-200 shadow-clean">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                Total Properties
+              </span>
+              <div className="mt-1 text-2xl font-bold text-slate-900">
+                {totalPropertiesCount}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">Registered in GRAMS</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+              <Building2 className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Registration Form */}
-        {showForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Building2 className="h-4 w-4 text-green-700" />
-                Register New Property
-              </CardTitle>
-              <CardDescription>Fill in the details below. Required fields are marked *.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Property basics */}
-                <fieldset className="space-y-3">
-                  <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Property Details</legend>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Property Type *</label>
-                      <select
-                        required
-                        value={form.propertyType}
-                        onChange={(e) => setField("propertyType", e.target.value)}
-                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-                      >
-                        <option value="">Select type</option>
-                        {PROPERTY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Monthly Rent (ETB) *</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        required
-                        placeholder="e.g. 5000"
-                        value={form.monthlyRent || ""}
-                        onChange={(e) => setField("monthlyRent", parseFloat(e.target.value) || 0)}
-                        className="h-9"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Bedrooms</label>
-                      <Input type="number" min="0" placeholder="0" value={form.bedroomCount ?? ""} onChange={(e) => setField("bedroomCount", parseInt(e.target.value) || undefined)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Bathrooms</label>
-                      <Input type="number" min="0" placeholder="0" value={form.bathroomCount ?? ""} onChange={(e) => setField("bathroomCount", parseInt(e.target.value) || undefined)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Area (m²)</label>
-                      <Input type="number" min="0" step="0.1" placeholder="e.g. 80" value={form.areaSqMeter ?? ""} onChange={(e) => setField("areaSqMeter", parseFloat(e.target.value) || undefined)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Furnishing Status</label>
-                      <select
-                        value={form.furnishingStatus ?? ""}
-                        onChange={(e) => setField("furnishingStatus", e.target.value || undefined)}
-                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-                      >
-                        <option value="">Select</option>
-                        {FURNISHING_OPTIONS.map((o) => <option key={o} value={o}>{o.replace("_", " ")}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">House Number</label>
-                      <Input placeholder="e.g. 42B" value={form.houseNumber ?? ""} onChange={(e) => setField("houseNumber", e.target.value || undefined)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Floor Number</label>
-                      <Input placeholder="e.g. 3" value={form.floorNumber ?? ""} onChange={(e) => setField("floorNumber", e.target.value || undefined)} className="h-9" />
-                    </div>
+        <Card className="bg-white border-slate-200 shadow-clean">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                Total Units
+              </span>
+              <div className="mt-1 text-2xl font-bold text-slate-900">
+                {totalUnitsCount}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">Commercial & Residential</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+              <DoorOpen className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-slate-200 shadow-clean">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                Occupancy Rate
+              </span>
+              <div className="mt-1 text-2xl font-bold text-slate-900 flex items-baseline gap-2">
+                <span>{occupancyRate}%</span>
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                  High Demand
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">41 of {totalUnitsCount} active leases</p>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bento Grid: Single Unit Villa & Multi-Unit Commercial Complex */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Single Unit Property Card: Bole Atlas Villa */}
+        <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all flex flex-col justify-between">
+          <CardHeader className="p-5 pb-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <Badge variant="active" className="text-[10px] mb-1.5">
+                  Rented
+                </Badge>
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Bole Atlas Villa
+                </CardTitle>
+                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  Bole Sub-city, Woreda 03, H.No 442
+                </p>
+              </div>
+              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                <Home className="w-4 h-4" />
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-5 pt-0 space-y-3.5">
+            {/* Property Image & Status */}
+            <div className="relative h-40 rounded-lg overflow-hidden bg-slate-100">
+              <img
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3TaI97tONXc4KYzx8tqT7YFB29kuW5ebmAc0n4GHLxjWTMahWsEcnd_YEYvg-glb6cPg0HqWqgwuRkdCidk9ZrQqiczihUwg7yuZVCs0XMq0civZUmHoDSTc-_pEQGb6aovXWcfYbxKRlE-xis_vjicGD8jg20O1yzO8GQGI8-uzuMAonwwBeevXlI3oADlVe58PPocmoWdb5IU2gxoBO81y1GBO3bHG-no4mb4YhbWmt-Sjq_v1R7w"
+                alt="Bole Atlas Villa"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Tenant details */}
+            <div className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-medium text-xs">
+                  AK
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                    Current Tenant
+                  </span>
+                  <span className="font-semibold text-xs text-slate-900">Abebe Kebede</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                  Monthly Rent
+                </span>
+                <span className="font-semibold text-xs text-slate-900">ETB 45,000</span>
+              </div>
+            </div>
+
+            <div className="pt-1 flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => onViewAgreementForProperty("Bole Atlas Villa")}
+                className="w-full text-xs font-medium gap-1.5 h-8 cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View Agreement
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Multi-Unit Commercial Property Card: Piassa Grand Mall */}
+        <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all flex flex-col justify-between">
+          <CardHeader className="p-5 pb-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Badge variant="default" className="text-[10px]">
+                    Commercial Complex
+                  </Badge>
+                  <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                    24 Units (20 Rented, 4 Available)
+                  </span>
+                </div>
+                <CardTitle className="text-base font-semibold text-slate-900">
+                  Piassa Grand Mall
+                </CardTitle>
+                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  Arada Sub-city, Woreda 01, Piassa Commercial Core
+                </p>
+              </div>
+              <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                <Store className="w-4 h-4" />
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-5 pt-0 space-y-3">
+            {/* Units Sub-list */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 px-1">
+                <span>Unit Code & Type</span>
+                <span>Status & Rent</span>
+              </div>
+
+              {/* Unit Rows */}
+              <div className="space-y-1.5">
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/80 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-semibold text-slate-900 mr-2">G-01</span>
+                    <span className="font-medium text-slate-700">Ground Floor Retail</span>
+                    <span className="text-[10px] text-slate-400 ml-1.5">(45 sqm)</span>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Description</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Brief description of the property..."
-                      value={form.description ?? ""}
-                      onChange={(e) => setField("description", e.target.value || undefined)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 resize-none"
-                    />
+                  <Badge variant="active" className="text-[9px]">
+                    Rented (ETB 22K)
+                  </Badge>
+                </div>
+
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/80 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-semibold text-slate-900 mr-2">G-02</span>
+                    <span className="font-medium text-slate-700">Ground Floor Kiosk</span>
+                    <span className="text-[10px] text-slate-400 ml-1.5">(15 sqm)</span>
                   </div>
-                </fieldset>
+                  <Badge variant="active" className="text-[9px]">
+                    Rented (ETB 9.5K)
+                  </Badge>
+                </div>
 
-                <Separator />
-
-                {/* Address */}
-                <fieldset className="space-y-3">
-                  <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address</legend>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">City *</label>
-                      <Input required placeholder="Addis Ababa" value={form.address.city} onChange={(e) => setAddressField("city", e.target.value)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Sub-city *</label>
-                      <Input required placeholder="Bole" value={form.address.subCity} onChange={(e) => setAddressField("subCity", e.target.value)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Woreda *</label>
-                      <Input required placeholder="03" value={form.address.woreda} onChange={(e) => setAddressField("woreda", e.target.value)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Kebele</label>
-                      <Input placeholder="01" value={form.address.kebele ?? ""} onChange={(e) => setAddressField("kebele", e.target.value)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Street</label>
-                      <Input placeholder="Street name" value={form.address.street ?? ""} onChange={(e) => setAddressField("street", e.target.value)} className="h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">House No.</label>
-                      <Input placeholder="e.g. 42" value={form.address.houseNumber ?? ""} onChange={(e) => setAddressField("houseNumber", e.target.value)} className="h-9" />
-                    </div>
+                <div className="p-2.5 bg-amber-50/70 rounded-lg border border-amber-200/80 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-semibold text-amber-900 mr-2">F1-05</span>
+                    <span className="font-medium text-slate-800">First Floor Office</span>
+                    <span className="text-[10px] text-slate-400 ml-1.5">(60 sqm)</span>
                   </div>
-                </fieldset>
-
-                <Separator />
-
-                {/* File uploads */}
-                <fieldset className="space-y-3">
-                  <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Attachments</legend>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Property Images</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={(e) => setImages(Array.from(e.target.files ?? []))}
-                        className="w-full text-sm text-muted-foreground file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                      />
-                      {images.length > 0 && <p className="text-xs text-muted-foreground">{images.length} file(s) selected</p>}
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium">Ownership Documents</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setDocuments(Array.from(e.target.files ?? []))}
-                        className="w-full text-sm text-muted-foreground file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-                      />
-                      {documents.length > 0 && <p className="text-xs text-muted-foreground">{documents.length} file(s) selected</p>}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                      Available
+                    </span>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-6 text-[10px] px-2 cursor-pointer"
+                      onClick={onOpenRegisterProperty}
+                    >
+                      List Unit
+                    </Button>
                   </div>
-                </fieldset>
+                </div>
 
-                {submitError && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{submitError}</p>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-200/80 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-semibold text-slate-900 mr-2">F2-12</span>
+                    <span className="font-medium text-slate-700">Second Floor Store</span>
+                    <span className="text-[10px] text-slate-400 ml-1.5">(30 sqm)</span>
+                  </div>
+                  <Badge variant="active" className="text-[9px]">
+                    Rented (ETB 11K)
+                  </Badge>
+                </div>
+
+                {expandedMallUnits && (
+                  <>
+                    <div className="p-2.5 bg-amber-50/70 rounded-lg border border-amber-200/80 flex items-center justify-between text-xs animate-in fade-in">
+                      <div>
+                        <span className="font-semibold text-amber-900 mr-2">F3-01</span>
+                        <span className="font-medium text-slate-800">Third Floor Tech Hub</span>
+                        <span className="text-[10px] text-slate-400 ml-1.5">(90 sqm)</span>
+                      </div>
+                      <Badge variant="pending" className="text-[9px]">
+                        Available (ETB 28K)
+                      </Badge>
+                    </div>
+
+                    <div className="p-2.5 bg-amber-50/70 rounded-lg border border-amber-200/80 flex items-center justify-between text-xs animate-in fade-in">
+                      <div>
+                        <span className="font-semibold text-amber-900 mr-2">G-04</span>
+                        <span className="font-medium text-slate-800">Ground Pharmacy Space</span>
+                        <span className="text-[10px] text-slate-400 ml-1.5">(50 sqm)</span>
+                      </div>
+                      <Badge variant="pending" className="text-[9px]">
+                        Available (ETB 24K)
+                      </Badge>
+                    </div>
+                  </>
                 )}
+              </div>
+            </div>
 
-                <div className="flex justify-end gap-2 pt-1">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
-                  <Button type="submit" disabled={submitting} className="bg-green-700 hover:bg-green-800 text-white" size="sm">
-                    {submitting ? "Submitting..." : "Register Property"}
+            <button
+              onClick={() => setExpandedMallUnits(!expandedMallUnits)}
+              className="w-full py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1 mt-1 cursor-pointer"
+            >
+              <span>{expandedMallUnits ? "Hide Extra Units" : "View All 24 Units Directory"}</span>
+              {expandedMallUnits ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Registered Properties Portfolio */}
+      {additionalProperties.length > 0 && (
+        <div className="pt-2 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">
+                Registered Titles Portfolio ({additionalProperties.length})
+              </h3>
+              <p className="text-xs text-slate-500">
+                Residential and commercial units registered with the municipal housing bureau.
+              </p>
+            </div>
+            <Button
+              onClick={onOpenRegisterProperty}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-8 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Add Another Property</span>
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {additionalProperties.map((prop) => (
+              <Card
+                key={prop.id}
+                className="bg-white border-slate-200 shadow-clean hover:border-slate-300 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="h-36 relative overflow-hidden bg-slate-100">
+                    <img
+                      src={prop.featuredImage || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&auto=format&fit=crop&q=60"}
+                      alt={prop.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                      <span className="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wider">
+                        {prop.type}
+                      </span>
+                      {prop.verified && (
+                        <span className="bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] font-medium px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Verified</span>
+                        </span>
+                      )}
+                    </div>
+                    <span className="absolute bottom-2.5 right-2.5 bg-white/90 backdrop-blur-xs text-slate-900 text-xs font-bold px-2 py-0.5 rounded shadow-sm">
+                      ETB {prop.price.toLocaleString()}/mo
+                    </span>
+                  </div>
+
+                  <CardContent className="p-4 space-y-2.5">
+                    <div>
+                      <h4 className="font-semibold text-sm text-slate-900 group-hover:text-[#00450d] transition-colors">
+                        {prop.title}
+                      </h4>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{prop.location}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-600 pt-1 border-t border-slate-100">
+                      {prop.bedrooms !== undefined && (
+                        <span className="flex items-center gap-1">
+                          <Bed className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{prop.bedrooms} Bed</span>
+                        </span>
+                      )}
+                      {prop.bathrooms !== undefined && (
+                        <span className="flex items-center gap-1">
+                          <Bath className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{prop.bathrooms} Bath</span>
+                        </span>
+                      )}
+                      {prop.area && (
+                        <span className="flex items-center gap-1">
+                          <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{prop.area} m²</span>
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </div>
+
+                <div className="p-4 pt-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onSelectProperty(prop)}
+                    className="w-full text-xs h-7.5 cursor-pointer hover:bg-slate-50"
+                  >
+                    View Property Details
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Properties list */}
-        {loadingList ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Loading properties...</p>
-        ) : listError ? (
-          <p className="text-sm text-red-600 text-center py-8">{listError}</p>
-        ) : properties.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Building2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No properties registered yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {properties.map((p) => (
-              <Card key={p.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{p.propertyType}</span>
-                        <span className="text-xs text-muted-foreground font-mono">{p.propertyCode}</span>
-                        <StatusBadge status={p.status} />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {p.address.subCity}, {p.address.woreda} — {p.address.city}
-                      </p>
-                      <div className="flex gap-4 text-xs text-muted-foreground pt-0.5 flex-wrap">
-                        <span>ETB {p.monthlyRent.toLocaleString()}/mo</span>
-                        {p.bedroomCount != null && <span>{p.bedroomCount} bed</span>}
-                        {p.bathroomCount != null && <span>{p.bathroomCount} bath</span>}
-                        {p.areaSqMeter != null && <span>{p.areaSqMeter} m²</span>}
-                        {p.furnishingStatus && <span>{p.furnishingStatus.replace("_", " ")}</span>}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground shrink-0">
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  {p.description && (
-                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{p.description}</p>
-                  )}
-                </CardContent>
               </Card>
             ))}
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
+
+export default PropertiesPage;

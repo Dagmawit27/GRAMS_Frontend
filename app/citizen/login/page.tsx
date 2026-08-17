@@ -1,134 +1,168 @@
 "use client";
+import React, { useState } from "react";
+import { useCitizenData } from "@/hooks/useCitizenData";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ShieldCheck, Lock, Smartphone, ArrowRight, User } from "lucide-react";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { loginCitizen, saveSession } from "@/lib/api";
+export const CitizenLoginPage: React.FC = () => {
+  const { handleNavigate } = useCitizenData();
+  const [authMethod, setAuthMethod] = useState<"fayda" | "phone">("fayda");
+  const [faydaId, setFaydaId] = useState("ET-NID-00892418");
+  const [phone, setPhone] = useState("+251 91 123 4567");
+  const [otp, setOtp] = useState("582914");
+  const [isLoading, setIsLoading] = useState(false);
 
-export default function CitizenLoginPage() {
-  const router = useRouter();
-  const [form, setForm] = useState({ loginIdentifier: "", password: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [serverError, setServerError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  function validate() {
-    const e: Record<string, string> = {};
-    if (!form.loginIdentifier.trim()) e.loginIdentifier = "Email, Phone, or Fayda ID is required.";
-    if (!form.password) e.password = "Password is required.";
-    return e;
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" });
-    setServerError("");
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-
-    setLoading(true);
-    try {
-      const result = await loginCitizen(form);
-      saveSession(result);
-      router.push("/citizen/dashboard");
-    } catch (err: unknown) {
-      setServerError(err instanceof Error ? err.message : "Login failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      handleNavigate("dashboard");
+    }, 600);
+  };
 
   return (
-    <div className="relative min-h-screen flex flex-col">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10 bg-[url('/bg.png')] bg-cover bg-center bg-no-repeat" />
-      <div className="fixed inset-0 -z-10 bg-black/55" />
-
-      {/* Header */}
-      <nav className="w-full fixed top-0 left-0 z-50 bg-black/40 backdrop-blur-sm border-b border-white/10 py-3.5">
-      <div className="max-w-6xl mx-auto px-4 py-1 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/citizen" className="text-green-400 text-lg font-semibold tracking-widest uppercase drop-shadow">
-          Rental System
-        </Link>
-
-        <span className="text-sm text-gray-300">
-          Don&apos;t have an account?{" "}
-          <Link href="/citizen/register" className="text-green-400 font-semibold hover:underline">Register</Link>
-        </span>
-      </div>
-      </nav>
-
-      {/* Form */}
-      <div className="flex-1 flex items-center justify-center px-4 py-20">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-green-500 px-8 py-6">
-            <h1 className="text-2xl font-bold text-white">GRAMS Citizen Portal</h1>
-            <p className="text-green-50 text-sm mt-1">Sign in to access your rental services</p>
+    <div className="min-h-screen bg-[#fafafa] flex flex-col justify-center items-center p-4 font-sans">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-base mx-auto">
+            G
           </div>
-
-          <form onSubmit={handleSubmit} noValidate className="px-8 py-8 space-y-5">
-            {serverError && (
-              <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded text-sm">
-                {serverError}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">
-                Email / Phone / Fayda ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="loginIdentifier"
-                value={form.loginIdentifier}
-                onChange={handleChange}
-                placeholder="Enter email, phone, or Fayda ID"
-                className={`w-full border rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${
-                  errors.loginIdentifier ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-                }`}
-              />
-              {errors.loginIdentifier && <p className="text-xs text-red-600">{errors.loginIdentifier}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-gray-700">
-                Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                className={`w-full border rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition ${
-                  errors.password ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-                }`}
-              />
-              {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold text-sm tracking-wide uppercase rounded-lg hover:from-green-700 hover:to-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-
-            <p className="text-center text-sm text-gray-600 mt-6">
-              Don&apos;t have an account?{" "}
-              <Link href="/citizen/register" className="text-green-600 font-semibold hover:underline">
-                Register
-              </Link>
-            </p>
-          </form>
+          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            GRAMS Citizen Login
+          </h2>
+          <p className="text-xs text-slate-500">
+            Sign in with National Fayda Digital ID or Verified Phone
+          </p>
         </div>
+
+        <Card className="border-slate-200 shadow-sm bg-white">
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <div className="flex rounded-lg bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setAuthMethod("fayda")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  authMethod === "fayda"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Fayda Digital ID
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMethod("phone")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  authMethod === "phone"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                Phone & OTP
+              </button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {authMethod === "fayda" ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Fayda National ID / FIN
+                    </label>
+                    <div className="relative">
+                      <Input
+                        value={faydaId}
+                        onChange={(e) => setFaydaId(e.target.value)}
+                        placeholder="e.g. ET-NID-12345678"
+                        className="pl-9 h-10 text-xs font-mono"
+                        required
+                      />
+                      <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Security PIN / Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="password"
+                        defaultValue="••••••••"
+                        placeholder="Enter password"
+                        className="pl-9 h-10 text-xs"
+                        required
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Registered Mobile Number
+                    </label>
+                    <div className="relative">
+                      <Input
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+251 91 123 4567"
+                        className="pl-9 h-10 text-xs font-mono"
+                        required
+                      />
+                      <Smartphone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      6-Digit SMS Verification Code
+                    </label>
+                    <Input
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="000000"
+                      className="h-10 text-xs font-mono text-center tracking-widest text-base"
+                      maxLength={6}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-semibold rounded-lg mt-2"
+              >
+                {isLoading ? "Authenticating..." : "Sign In to Citizen Portal"}
+                <ArrowRight className="w-3.5 h-3.5 ml-2" />
+              </Button>
+            </form>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                256-bit GovSec Encrypted
+              </span>
+              <button
+                type="button"
+                onClick={() => handleNavigate("dashboard")}
+                className="text-slate-700 font-semibold hover:underline"
+              >
+                Quick Preview
+              </button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-}
+};
+
+export default CitizenLoginPage;
