@@ -15,6 +15,8 @@ import { ReceiptModal } from "@/components/ReceiptModal";
 import { AgreementViewModal } from "@/components/AgreementViewModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Router } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
@@ -58,6 +60,8 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
     setIsLogoutModalOpen,
   } = useCitizenData();
 
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col font-sans transition-colors">
       {/* Side Navigation Bar */}
@@ -66,7 +70,7 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
       {/* Main Content Area */}
       <div
         className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
-          isSidebarCollapsed ? "md:pl-[72px]" : "md:pl-[280px]"
+          isSidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"
         }`}
       >
         {/* Top App Bar */}
@@ -161,7 +165,7 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
               variant="destructive"
               onClick={() => {
                 setIsLogoutModalOpen(false);
-                handleNavigate("dashboard");
+                router.push("/citizen");
               }}
             >
               Sign Out

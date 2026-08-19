@@ -39,6 +39,8 @@ import {
   Copy
 } from "lucide-react";
 
+import { useRouter } from "next/navigation";
+
 export interface MallShopUnit {
   id: string;
   shopNumber: string;
@@ -78,10 +80,11 @@ type ApartmentTypology = "studio" | "1-bed" | "2-bed" | "3-bed";
 
 export const RegisterPropertyPage: React.FC = () => {
   const { handleNavigate, handleRegisterProperty } = useCitizenData();
+  const router = useRouter();
 
   // 4-Step Registration Process as shown in the design:
   // 1: Basic Info, 2: Property Details, 3: Documents, 4: Review
-  const [currentStep, setCurrentStep] = useState<number>(2); // Default to Step 2 to match requested screen
+  const [currentStep, setCurrentStep] = useState<number>(1); // Default to Step 2 to match requested screen
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
 
@@ -447,7 +450,7 @@ export const RegisterPropertyPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleNavigate("properties")}
+            onClick={() => router.push("/citizen/dashboard/properties")}
             className="text-xs h-9"
           >
             Cancel
@@ -553,7 +556,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
-              onClick={() => handleNavigate("properties")}
+              onClick={() => router.push("/citizen/dashboard/properties")}
               className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold w-full sm:w-auto"
             >
               View My Properties Portfolio
@@ -580,12 +583,9 @@ export const RegisterPropertyPage: React.FC = () => {
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight">
                   Basic Info & Ownership
                 </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Provide landlord verification credentials and initial listing identifiers.
-                </p>
               </div>
 
-              {/* Legal Capacity */}
+              {/* Legal Capacity 
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-700">
                   Registrant Legal Capacity
@@ -630,7 +630,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     <div className="text-[10px] text-slate-500 mt-0.5">Authorized legal representative</div>
                   </button>
                 </div>
-              </div>
+              </div>*/}
 
               {/* Landlord Identification */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
@@ -691,22 +691,6 @@ export const RegisterPropertyPage: React.FC = () => {
 
               {/* Property Title & Financials */}
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Property Name / Listing Title <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Bole Atlas Luxury Villa Residence"
-                    className="h-10 text-xs font-medium"
-                    required
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    This official name will be used on registered lease documents and municipal searches.
-                  </p>
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -796,7 +780,7 @@ export const RegisterPropertyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPropertyType("Villa")}
-                    className={`relative p-5 rounded-xl border text-center flex flex-col items-center justify-center gap-2.5 transition-all ${
+                    className={`relative p-2 rounded-xl border flex flex-row items-center justify-center gap-2.5 transition-all ${
                       propertyType === "Villa"
                         ? "bg-[#e8f1ea] border-[#00450d] ring-1 ring-[#00450d] text-slate-900"
                         : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
@@ -817,7 +801,7 @@ export const RegisterPropertyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPropertyType("Apartment")}
-                    className={`relative p-5 rounded-xl border text-center flex flex-col items-center justify-center gap-2.5 transition-all ${
+                    className={`relative p-2 rounded-xl border flex flex-row items-center justify-center gap-2.5 transition-all ${
                       propertyType === "Apartment"
                         ? "bg-[#e8f1ea] border-[#00450d] ring-1 ring-[#00450d] text-slate-900"
                         : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
@@ -838,7 +822,7 @@ export const RegisterPropertyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPropertyType("Condominium")}
-                    className={`relative p-5 rounded-xl border text-center flex flex-col items-center justify-center gap-2.5 transition-all ${
+                    className={`relative p-2 rounded-xl border text-center flex flex-row items-center justify-center gap-2.5 transition-all ${
                       propertyType === "Condominium"
                         ? "bg-[#e8f1ea] border-[#00450d] ring-1 ring-[#00450d] text-slate-900"
                         : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
@@ -859,7 +843,7 @@ export const RegisterPropertyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPropertyType("Shopping Mall")}
-                    className={`relative p-5 rounded-xl border text-center flex flex-col items-center justify-center gap-2.5 transition-all ${
+                    className={`relative p-2 rounded-xl border flex flex-row items-center justify-center gap-2.5 transition-all ${
                       propertyType === "Shopping Mall"
                         ? "bg-[#e8f1ea] border-[#00450d] ring-1 ring-[#00450d] text-slate-900"
                         : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
@@ -931,23 +915,6 @@ export const RegisterPropertyPage: React.FC = () => {
                       placeholder="e.g. 456/A"
                       className="h-11 text-xs"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                      Ownership Type
-                    </label>
-                    <select
-                      value={ownershipType}
-                      onChange={(e) => setOwnershipType(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d]"
-                    >
-                      <option value="Private">Private</option>
-                      <option value="Government / Kebele">Government / Kebele Housing</option>
-                      <option value="Commercial Entity">Commercial Entity / Corporate</option>
-                      <option value="Joint / Family Estate">Joint / Family Estate</option>
-                      <option value="Inherited">Inherited Holding</option>
-                    </select>
                   </div>
                 </div>
               </div>

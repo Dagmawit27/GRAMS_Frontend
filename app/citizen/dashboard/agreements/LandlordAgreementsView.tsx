@@ -68,13 +68,6 @@ export const LandlordAgreementsView: React.FC = () => {
             Manage your lease requests and legally certified rental contracts in the national repository.
           </p>
         </div>
-        <Button
-          onClick={() => setIsNewAgreementModalOpen(true)}
-          className="bg-[#00450d] hover:bg-[#1b5e20] text-white shadow-xs font-medium gap-2 self-start sm:self-auto h-9 px-4 rounded-lg"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Agreement</span>
-        </Button>
       </div>
 
       {/* Section 1: New Lease Requests Table (Matching Screenshot 1) */}

@@ -36,6 +36,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [name, setName] = useState("Dagmawit");
 
   return (
     <header className="bg-white sticky top-0 z-30 shadow-2xs border-b border-slate-200/90 h-16 px-4 md:px-8 flex items-center justify-between transition-colors">
@@ -50,22 +51,8 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         </button>
 
         <div className="relative w-full max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search records, properties, agreements, invoices..."
-            className="w-full pl-9 pr-7 py-1.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-2xs"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 bg-slate-200 rounded-full w-4 h-4 flex items-center justify-center"
-            >
-              ×
-            </button>
-          )}
+          <h1 className="sm:text-1xl font-bold text-slate-600 tracking-tight">
+            Welcome back, {name}</h1>
         </div>
       </div>
 

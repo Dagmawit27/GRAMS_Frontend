@@ -86,31 +86,24 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
   const maxChartAmount = 50000;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
-      {/* Welcome Header */}
+    <div className="space-y-3 animate-in fade-in duration-150">
+      {/* Welcome Header 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <h2 >
             Overview Dashboard
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
             Welcome back, Dagmawit. Monitoring your verified properties and active tenancies.
           </p>
         </div>
-        <Button
-          onClick={onOpenNewAgreement}
-          className="bg-[#00450d] hover:bg-[#1b5e20] text-white shadow-xs font-medium gap-2 self-start sm:self-auto h-9 px-4 rounded-lg"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Agreement</span>
-        </Button>
-      </div>
+      </div>*/}
 
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Active Agreements */}
         <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all">
-          <CardContent className="p-4">
+          <CardContent className="px-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Active Agreements
@@ -131,7 +124,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
 
         {/* Total Monthly Rent */}
         <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all">
-          <CardContent className="p-4">
+          <CardContent className="px-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Total Monthly Rent
@@ -151,7 +144,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
 
         {/* Next Payment Due */}
         <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all">
-          <CardContent className="p-4">
+          <CardContent className="px-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Next Payment Due
@@ -170,24 +163,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
           </CardContent>
         </Card>
 
-        {/* Recent Notifications */}
-        <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Notifications
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
-                <Bell className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{unreadNotifsCount}</span>
-              <span className="text-xs text-slate-500">Unread</span>
-            </div>
-            <p className="text-xs text-slate-400 mt-1.5">Housing Bureau updates</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Grid: Rent Trends Chart & Recent Activity */}
@@ -343,7 +318,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
         </Card>
       </div>
 
-      {/* Property Overview Cards */}
+      {/* Property Overview Cards 
       <div className="pt-2">
         <div className="flex items-center justify-between mb-3.5">
           <div>
@@ -412,7 +387,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
             </div>
           ))}
         </div>
-      </div>
+      </div>*/}
     </div>
   );
 };

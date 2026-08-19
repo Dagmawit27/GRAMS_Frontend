@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import {
 
 export const CitizenRegisterPage: React.FC = () => {
   const { handleNavigate } = useCitizenData();
+  const router = useRouter();
 
   // Registration Mode: 'fayda' (National ID + OTP) or 'manual' (Full Information)
   const [registerMode, setRegisterMode] = useState<"fayda" | "manual">("fayda");
@@ -55,27 +57,23 @@ export const CitizenRegisterPage: React.FC = () => {
   // Fayda Verified Profile State
   const [verifiedProfile, setVerifiedProfile] = useState<{
     fin: string;
-    fullNameEn: string;
-    fullNameAm: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
     phoneMasked: string;
     phoneFull: string;
     gender: string;
     dob: string;
-    subCity: string;
-    woreda: string;
-    kebele: string;
     avatarUrl: string;
   }>({
     fin: "ET-NID-00892418",
-    fullNameEn: "Dagmawit Mesfin Tadesse",
-    fullNameAm: "ዳግማዊት መስፈን ታደሰ",
+    firstName: "Dagmawit",
+    middleName: "Mesfin",
+    lastName: "Tadesse",
     phoneMasked: "+251 91 ••• ••67",
     phoneFull: "+251 91 123 4567",
     gender: "Female",
     dob: "14/10/1993",
-    subCity: "Bole Sub City",
-    woreda: "Woreda 03",
-    kebele: "Kebele 08 / House 402",
     avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
   });
 
@@ -87,22 +85,19 @@ export const CitizenRegisterPage: React.FC = () => {
   // ==========================================
   // MANUAL REGISTRATION STATE (FULL INFORMATION)
   // ==========================================
-  const [manualFullNameEn, setManualFullNameEn] = useState<string>("Almaz Bekele Tadesse");
-  const [manualFullNameAm, setManualFullNameAm] = useState<string>("አልማዝ በቀለ ታደሰ");
-  const [manualGender, setManualGender] = useState<string>("Female");
-  const [manualDob, setManualDob] = useState<string>("1992-06-18");
-  const [manualPhone, setManualPhone] = useState<string>("+251 91 234 5678");
-  const [manualEmail, setManualEmail] = useState<string>("almaz.bekele@gov.et");
-  const [manualSubCity, setManualSubCity] = useState<string>("Kirkos Sub City");
-  const [manualWoreda, setManualWoreda] = useState<string>("Woreda 04");
-  const [manualHouseNo, setManualHouseNo] = useState<string>("Bldg 12, Apt 3A");
-  const [manualDocType, setManualDocType] = useState<string>("Kebele Resident ID");
-  const [manualDocId, setManualDocId] = useState<string>("AA-KRK-04-998124");
-  const [manualDocUploaded, setManualDocUploaded] = useState<string>("Kebele_Card_FrontBack_Scan.pdf");
-  const [manualPassword, setManualPassword] = useState<string>("AlmazPass#2025");
-  const [manualConfirmPassword, setManualConfirmPassword] = useState<string>("AlmazPass#2025");
-  const [manualAgreedProclamation, setManualAgreedProclamation] = useState<boolean>(true);
-  const [isManualSubmitting, setIsManualSubmitting] = useState<boolean>(false);
+  const [firstName, setFirstName] = useState<string>("Almaz");
+  const [middleName, setMiddleName] = useState<string>("Bekele");
+  const [lastName, setLastName] = useState<string>("Tadesse");
+  const [gender, setGender] = useState<string>("Female");
+  const [dob, setDob] = useState<string>("1992-06-18");
+  const [phone, setPhone] = useState<string>("+251 91 234 5678");
+  const [email, setEmail] = useState<string>("almaz.bekele@gov.et");
+  const [worksOn, setWorksOn] = useState<string>("CBE");
+  const [role, setRole] = useState<string>("both");
+  const [password, setPassword] = useState<string>("AlmazPass#2025");
+  const [confirmPassword, setConfirmPassword] = useState<string>("AlmazPass#2025");
+  const [agreedProclamation, setAgreedProclamation] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Completion State
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
@@ -221,49 +216,27 @@ export const CitizenRegisterPage: React.FC = () => {
   // Handle Manual Full Registration Form Submission
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualFullNameEn.trim() || !manualPhone.trim()) return;
+    if (!firstName.trim() || !phone.trim()) return;
 
-    if (manualPassword !== manualConfirmPassword) {
+    if (password !== confirmPassword) {
       alert("Passwords do not match. Please re-enter.");
       return;
     }
 
-    setIsManualSubmitting(true);
+    setIsSubmitting(true);
     setTimeout(() => {
-      setIsManualSubmitting(false);
+      setIsSubmitting(false);
       setIsSuccess(true);
       setTimeout(() => {
-        handleNavigate("dashboard");
+        router.push("/citizen/dashboard");
       }, 1200);
     }, 1000);
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center items-center p-3 sm:p-6 font-sans">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center items-center p-3 sm:p-2 font-sans">
       <div className="w-full max-w-2xl space-y-5 my-4">
-        {/* Brand Header */}
-        <div className="text-center space-y-1.5">
-          <div className="inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-xs mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-            <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
-              Federal Democratic Republic of Ethiopia
-            </span>
-          </div>
-
-          <div className="flex items-center justify-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#00450d] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-              G
-            </div>
-            <div className="text-left">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">
-                GRAMS Citizen Portal
-              </h1>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                የመንግስት የኪራይ አስተዳደር እና የማዘጋጃ ቤት አገልግሎት
-              </p>
-            </div>
-          </div>
-        </div>
+       
 
         {/* Success Splash */}
         {isSuccess ? (
@@ -277,7 +250,7 @@ export const CitizenRegisterPage: React.FC = () => {
                 Verified Citizen Account Created
               </Badge>
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight pt-1">
-                Welcome to GRAMS, {registerMode === "fayda" ? verifiedProfile.fullNameEn : manualFullNameEn}!
+                Welcome to GRAMS, {registerMode === "fayda" ? verifiedProfile.firstName : firstName}!
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
                 Your citizen account is now linked with the National Housing Registry. Redirecting you to your personal dashboard...
@@ -334,14 +307,14 @@ export const CitizenRegisterPage: React.FC = () => {
               </button>
             </div>
 
-            <CardContent className="p-5 sm:p-7">
+            <CardContent className="p-2 sm:p-5">
               {/* ========================================================================= */}
               {/* METHOD 1: FAYDA NATIONAL ID (FIN -> OTP -> PROFILE CONFIRMATION)          */}
               {/* ========================================================================= */}
               {registerMode === "fayda" && (
                 <div className="space-y-6">
                   {/* Fayda Progress Indicator */}
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">
                       <div
                         className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -603,10 +576,10 @@ export const CitizenRegisterPage: React.FC = () => {
                           <div>
                             <span className="text-slate-500 block text-[10px]">Full Name (English / Amharic)</span>
                             <span className="font-bold text-slate-900 block">
-                              {verifiedProfile.fullNameEn}
+                              {verifiedProfile.firstName}
                             </span>
                             <span className="text-slate-600 text-[11px] block">
-                              {verifiedProfile.fullNameAm}
+                              {verifiedProfile.middleName}
                             </span>
                           </div>
 
@@ -621,13 +594,6 @@ export const CitizenRegisterPage: React.FC = () => {
                             <span className="text-slate-500 block text-[10px]">Verified Phone Number</span>
                             <span className="font-mono font-medium text-slate-900 block">
                               {verifiedProfile.phoneFull}
-                            </span>
-                          </div>
-
-                          <div>
-                            <span className="text-slate-500 block text-[10px]">Primary Jurisdiction</span>
-                            <span className="font-medium text-slate-900 block">
-                              {verifiedProfile.subCity}, {verifiedProfile.woreda}
                             </span>
                           </div>
                         </div>
@@ -747,33 +713,23 @@ export const CitizenRegisterPage: React.FC = () => {
               {/* ========================================================================= */}
               {registerMode === "manual" && (
                 <form onSubmit={handleManualSubmit} className="space-y-5">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-start gap-3">
-                    <Info className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />
-                    <div className="text-xs">
-                      <span className="font-bold text-slate-900 block">
-                        Manual Citizen Registration Form (የተሟላ መረጃ)
-                      </span>
-                      <span className="text-slate-600 block mt-0.5 leading-relaxed">
-                        If you do not currently hold a Fayda National ID, you may insert your full legal identity details, residency address, and Kebele / Passport identification for municipal review.
-                      </span>
-                    </div>
-                  </div>
+                  
 
                   {/* Section 1: Personal Identity */}
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
                       <User className="w-3.5 h-3.5 text-slate-500" />
                       1. Personal Legal Identity
                     </h4>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          Full Legal Name (English) <span className="text-red-500">*</span>
+                          First Name  <span className="text-red-500">*</span>
                         </label>
                         <Input
-                          value={manualFullNameEn}
-                          onChange={(e) => setManualFullNameEn(e.target.value)}
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
                           placeholder="e.g. Almaz Bekele Tadesse"
                           className="h-9.5 text-xs"
                           required
@@ -782,29 +738,42 @@ export const CitizenRegisterPage: React.FC = () => {
 
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          ሙሉ ስም በአማርኛ (Full Name in Amharic)
+                          Middle Name
                         </label>
                         <Input
-                          value={manualFullNameAm}
-                          onChange={(e) => setManualFullNameAm(e.target.value)}
-                          placeholder="e.g. አልማዝ በቀለ ታደሰ"
+                          value={middleName}
+                          onChange={(e) => setMiddleName(e.target.value)}
+                          placeholder="e.g. Bekele"
                           className="h-9.5 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Last Name <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          placeholder="e.g. Tadesse"
+                          className="h-9.5 text-xs"
+                          required
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
                           Gender
                         </label>
                         <select
-                          value={manualGender}
-                          onChange={(e) => setManualGender(e.target.value)}
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
                           className="w-full h-9.5 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
                         >
-                          <option value="Female">Female (ሴት)</option>
-                          <option value="Male">Male (ወንድ)</option>
+                          <option value="Female">Female</option>
+                          <option value="Male">Male</option>
                         </select>
                       </div>
 
@@ -814,8 +783,8 @@ export const CitizenRegisterPage: React.FC = () => {
                         </label>
                         <Input
                           type="date"
-                          value={manualDob}
-                          onChange={(e) => setManualDob(e.target.value)}
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
                           className="h-9.5 text-xs"
                           required
                         />
@@ -823,11 +792,25 @@ export const CitizenRegisterPage: React.FC = () => {
 
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                          Works On
+                        </label>
+                        <Input
+                          type="text"
+                          value={worksOn}
+                          onChange={(e) => setWorksOn(e.target.value)}
+                          placeholder="Commercial Bank of Ethiopia (Senior Analyst)"
+                          className="h-9.5 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
                           Phone Number <span className="text-red-500">*</span>
                         </label>
                         <Input
-                          value={manualPhone}
-                          onChange={(e) => setManualPhone(e.target.value)}
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
                           placeholder="+251 91 234 5678"
                           className="h-9.5 text-xs font-mono"
                           required
@@ -840,8 +823,8 @@ export const CitizenRegisterPage: React.FC = () => {
                         </label>
                         <Input
                           type="email"
-                          value={manualEmail}
-                          onChange={(e) => setManualEmail(e.target.value)}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
                           placeholder="user@domain.et"
                           className="h-9.5 text-xs"
                         />
@@ -849,7 +832,7 @@ export const CitizenRegisterPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Section 2: Municipal Residency & Address */}
+                  {/* Section 2: Municipal Residency & Address
                   <div className="space-y-3 pt-2">
                     <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
                       <MapPin className="w-3.5 h-3.5 text-slate-500" />
@@ -905,9 +888,9 @@ export const CitizenRegisterPage: React.FC = () => {
                         />
                       </div>
                     </div>
-                  </div>
+                  </div> */}
 
-                  {/* Section 3: Identity Document Upload */}
+                  {/* Section 3: Identity Document Upload 
                   <div className="space-y-3 pt-2">
                     <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
                       <FileText className="w-3.5 h-3.5 text-slate-500" />
@@ -959,14 +942,58 @@ export const CitizenRegisterPage: React.FC = () => {
                         </span>
                       </div>
                     </div>
+                  </div>*/}
+
+                {/* Citizen Role Preference */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                      Select Your Primary Municipal Portal Role
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedRole("both"); setRole("both")}}
+                        className={`p-2.5 rounded-lg border text-center transition-all ${
+                          selectedRole === "both"
+                            ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-xs">Tenant & Landlord</span>
+                        <span className="block text-[10px] text-slate-400 font-normal mt-0.5">All features</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {setSelectedRole("tenant"); setRole("tenant")}}
+                        className={`p-2.5 rounded-lg border text-center transition-all ${
+                          selectedRole === "tenant"
+                            ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-xs">Tenant / Renter</span>
+                        <span className="block text-[10px] text-slate-400 font-normal mt-0.5">Rent & agreements</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {setSelectedRole("landlord"); setRole("landlord")}}
+                        className={`p-2.5 rounded-lg border text-center transition-all ${
+                          selectedRole === "landlord"
+                            ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-xs">Property Owner</span>
+                        <span className="block text-[10px] text-slate-400 font-normal mt-0.5">Listings & leases</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Section 4: Security Password */}
                   <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
-                      <Lock className="w-3.5 h-3.5 text-slate-500" />
-                      4. Portal Password & Security Setup
-                    </h4>
+                    
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -975,8 +1002,8 @@ export const CitizenRegisterPage: React.FC = () => {
                         </label>
                         <Input
                           type="password"
-                          value={manualPassword}
-                          onChange={(e) => setManualPassword(e.target.value)}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
                           placeholder="Minimum 8 characters"
                           className="h-9.5 text-xs"
                           required
@@ -989,8 +1016,8 @@ export const CitizenRegisterPage: React.FC = () => {
                         </label>
                         <Input
                           type="password"
-                          value={manualConfirmPassword}
-                          onChange={(e) => setManualConfirmPassword(e.target.value)}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="Re-enter password"
                           className="h-9.5 text-xs"
                           required
@@ -1001,8 +1028,8 @@ export const CitizenRegisterPage: React.FC = () => {
                     <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-600 select-none pt-1">
                       <input
                         type="checkbox"
-                        checked={manualAgreedProclamation}
-                        onChange={(e) => setManualAgreedProclamation(e.target.checked)}
+                        checked={agreedProclamation}
+                        onChange={(e) => setAgreedProclamation(e.target.checked)}
                         className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#00450d] focus:ring-[#00450d]"
                         required
                       />
@@ -1012,20 +1039,20 @@ export const CitizenRegisterPage: React.FC = () => {
                     </label>
                   </div>
 
-                  <div className="pt-3">
+                  <div className="pt-1">
                     <Button
                       type="submit"
-                      disabled={isManualSubmitting}
+                      disabled={isSubmitting}
                       className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-11 text-xs sm:text-sm font-bold rounded-lg shadow-sm"
                     >
-                      {isManualSubmitting ? (
+                      {isSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
                           <RefreshCw className="w-4 h-4 animate-spin" />
                           Processing Municipal Registration...
                         </span>
                       ) : (
                         <span className="flex items-center justify-center gap-2">
-                          <span>Submit Full Registration for Verification</span>
+                          <span>Submit</span>
                           <ArrowRight className="w-4 h-4" />
                         </span>
                       )}
@@ -1036,22 +1063,17 @@ export const CitizenRegisterPage: React.FC = () => {
             </CardContent>
 
             {/* Card Footer: Sign-in link & Security assurance */}
-            <div className="bg-slate-50 px-5 sm:px-7 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <div className="bg-slate-50 px-5 sm:px-7 py-0.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
               <span className="text-slate-500">
                 Already registered with GRAMS?{" "}
                 <button
                   type="button"
-                  onClick={() => handleNavigate("dashboard")}
+                  onClick={() => handleNavigate("citizen")}
                   className="font-bold text-emerald-800 hover:underline"
                 >
                   Sign In to Citizen Portal
                 </button>
               </span>
-
-              <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>NIDP & Ministry of Innovation (MInT) Certified</span>
-              </div>
             </div>
           </Card>
         )}

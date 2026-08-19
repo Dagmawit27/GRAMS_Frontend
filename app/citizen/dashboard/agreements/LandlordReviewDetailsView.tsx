@@ -70,10 +70,6 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
             </div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
               <span>Submitted on {request.dateSubmitted}</span>
-              <span>•</span>
-              <span className="text-emerald-700 font-medium flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Digital ID Verification Passed
-              </span>
             </p>
           </div>
 

@@ -34,16 +34,16 @@ export interface AuthResult {
 }
 
 export async function registerCitizen(data: {
-  faydaId: number;
   firstName: string;
-  middleName?: string;
+  middleName: string;
   lastName: string;
   gender: "MALE" | "FEMALE";
-  dateOfBirth: string;
-  phoneNumber: string;
+  dob: string;
+  phone: string;
   email: string;
+  worksOn: string;
+  role: string;
   password: string;
-  rolePreference?: string;
 }): Promise<AuthResult> {
   const res = await fetch(`${BASE_URL}/auth/register/citizen`, {
     method: "POST",

@@ -6,6 +6,7 @@ export type NavPage =
   | 'register-property'
   | 'payments' 
   | 'bills' 
+  | 'citizen'
   | 'profile';
 
 export type UserRole = 'landlord' | 'tenant';

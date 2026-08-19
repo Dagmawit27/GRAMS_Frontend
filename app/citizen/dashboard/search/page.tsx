@@ -94,11 +94,11 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
       {/* Header & Clean Hero Search Section */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-clean">
         <div className="max-w-3xl">
-          <div className="flex items-center gap-2 mb-2">
+          {/*<div className="flex items-center gap-2 mb-2">
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
               FDRE Housing Registry
             </span>
-          </div>
+          </div> */}
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             Government-Verified Residential & Commercial Listings
           </h2>
@@ -184,7 +184,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
             </div>
           </div>
 
-          {/* Quick Search Pills */}
+          {/* Quick Search Pills 
           <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
             <span className="text-slate-400 font-medium text-[11px]">Popular:</span>
             {recentSearches.map((pill) => (
@@ -196,7 +196,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                 {pill.label}
               </button>
             ))}
-          </div>
+          </div>*/}
         </div>
       </div>
 

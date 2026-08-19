@@ -18,7 +18,7 @@ export const RentalAgreementsPage: React.FC = () => {
   if (activeAgreementView === "landlord-review" && selectedLeaseRequest) {
     return (
       <div className="space-y-6 animate-in fade-in duration-150">
-        <RoleSwitcherBanner />
+        
         <LandlordReviewDetailsView request={selectedLeaseRequest} />
       </div>
     );
@@ -28,7 +28,7 @@ export const RentalAgreementsPage: React.FC = () => {
   if (activeAgreementView === "tenant-signing" && selectedLeaseRequest) {
     return (
       <div className="space-y-6 animate-in fade-in duration-150">
-        <RoleSwitcherBanner />
+        
         <TenantDigitalSigningView request={selectedLeaseRequest} />
       </div>
     );
@@ -36,8 +36,7 @@ export const RentalAgreementsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      {/* Role Switcher & Testing Navigator */}
-      <RoleSwitcherBanner />
+     
 
       {/* Render matching role view */}
       {userRole === "landlord" ? (
