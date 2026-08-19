@@ -99,9 +99,50 @@ export interface CitizenContextType {
 const CitizenContext = createContext<CitizenContextType | null>(null);
 
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Role & Navigation State
-  const [userRole, setUserRole] = useState<UserRole>("landlord");
-  const [currentPage, setCurrentPage] = useState<NavPage>("dashboard");
+  // Role & Navigation State - Reads role stored in localStorage during login
+  const [userRole, setUserRoleState] = useState<UserRole>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("userRole");
+      if (saved === "tenant" || saved === "landlord" || saved === "officer" || saved === "supervisor") {
+        return saved as UserRole;
+      }
+      const rawUser = localStorage.getItem("user");
+      if (rawUser) {
+        try {
+          const u = JSON.parse(rawUser);
+          if (u.roles && u.roles.length > 0) {
+            const r = u.roles[0].toLowerCase();
+            if (r === "tenant" || r === "landlord" || r === "officer" || r === "supervisor") {
+              return r as UserRole;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return "landlord";
+  });
+
+  const setUserRole = (role: UserRole) => {
+    setUserRoleState(role);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("userRole", role);
+    }
+  };
+
+  useEffect(() => {
+    // Listen for storage events (e.g. login from another tab or modal)
+    const handleStorage = () => {
+      const saved = localStorage.getItem("userRole");
+      if (saved && (saved === "tenant" || saved === "landlord" || saved === "officer" || saved === "supervisor")) {
+        setUserRoleState(saved as UserRole);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+  const [currentPage, setCurrentPage] = useState<NavPage>("landing");
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

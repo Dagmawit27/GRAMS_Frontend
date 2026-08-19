@@ -36,10 +36,9 @@ import {
   Sliders,
   CheckSquare,
   Square,
-  Copy
+  Copy,
+  X
 } from "lucide-react";
-
-import { useRouter } from "next/navigation";
 
 export interface MallShopUnit {
   id: string;
@@ -52,6 +51,22 @@ export interface MallShopUnit {
   submeter: boolean;
   waterSupply: boolean;
   status: 'Available' | 'Rented' | 'Reserved';
+}
+
+export interface TitleDeedDoc {
+  name: string;
+  size: string;
+  number?: string;
+  uploadedAt?: string;
+  file?: File;
+}
+
+export interface UploadedPropertyImage {
+  id: string;
+  url: string;
+  label?: string;
+  isCover?: boolean;
+  file?: File;
 }
 
 const SAMPLE_PROPERTY_IMAGES = [
@@ -73,6 +88,30 @@ const SAMPLE_PROPERTY_IMAGES = [
   }
 ];
 
+const DEFAULT_SAMPLE_IMAGES: UploadedPropertyImage[] = [
+  {
+    id: "sample-1",
+    label: "Modern Bole Apartment",
+    url: SAMPLE_PROPERTY_IMAGES[0].url,
+    isCover: true,
+  },
+  {
+    id: "sample-2",
+    label: "Luxury Villa Compound",
+    url: SAMPLE_PROPERTY_IMAGES[1].url,
+  },
+  {
+    id: "sample-3",
+    label: "Executive Condominium",
+    url: SAMPLE_PROPERTY_IMAGES[2].url,
+  },
+  {
+    id: "sample-4",
+    label: "Commercial Shopping Center",
+    url: SAMPLE_PROPERTY_IMAGES[3].url,
+  }
+];
+
 type MainPropertyType = "Villa" | "Apartment" | "Condominium" | "Shopping Mall";
 type CommercialSubType = "single-shop" | "shopping-mall" | "office-space";
 type CondominiumTypology = "studio" | "1-bed" | "2-bed" | "3-bed";
@@ -80,11 +119,10 @@ type ApartmentTypology = "studio" | "1-bed" | "2-bed" | "3-bed";
 
 export const RegisterPropertyPage: React.FC = () => {
   const { handleNavigate, handleRegisterProperty } = useCitizenData();
-  const router = useRouter();
 
   // 4-Step Registration Process as shown in the design:
   // 1: Basic Info, 2: Property Details, 3: Documents, 4: Review
-  const [currentStep, setCurrentStep] = useState<number>(1); // Default to Step 2 to match requested screen
+  const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
 
@@ -100,7 +138,7 @@ export const RegisterPropertyPage: React.FC = () => {
   const [minLeasePeriod, setMinLeasePeriod] = useState("1 Year");
   const [availableFrom, setAvailableFrom] = useState("Immediate");
 
-  // Step 2: Property Details (from the user image)
+  // Step 2: Property Details
   const [propertyType, setPropertyType] = useState<MainPropertyType>("Villa");
 
   // Address & Ownership
@@ -158,6 +196,71 @@ export const RegisterPropertyPage: React.FC = () => {
   const [mallHasElevatorEscalator, setMallHasElevatorEscalator] = useState(true);
   const [mallHas24Security, setMallHas24Security] = useState(true);
   const [mallHasLoadingDock, setMallHasLoadingDock] = useState(true);
+
+  // Title Deed Upload
+  const [titleDeedFile, setTitleDeedFile] = useState<TitleDeedDoc>({
+    name: "Official_Title_Deed_Certificate_Scan.pdf",
+    size: "2.4 MB",
+    number: "ETH-MUDC-2024-88412",
+    uploadedAt: "Today, 10:15 AM",
+  });
+
+  // Multiple Property Images & Active Selected Image
+  const [propertyImages, setPropertyImages] = useState<UploadedPropertyImage[]>(DEFAULT_SAMPLE_IMAGES);
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
+
+  // Active Display Image (Featured Property Visual)
+  const activePropertyVisual = propertyImages[activeImageIndex]?.url || propertyImages[0]?.url || DEFAULT_SAMPLE_IMAGES[0].url;
+
+  // Handle Multi-Image Upload
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const newFiles: File[] = Array.from(e.target.files);
+    
+    const newImgs: UploadedPropertyImage[] = newFiles.map((file: File, idx: number) => ({
+      id: `custom-img-${Date.now()}-${idx}`,
+      url: URL.createObjectURL(file),
+      label: file.name.replace(/\.[^/.]+$/, ""),
+      isCover: propertyImages.length === 0 && idx === 0,
+      file,
+    }));
+
+    setPropertyImages((prev) => [...prev, ...newImgs]);
+    setActiveImageIndex(propertyImages.length);
+  };
+
+  // Handle Title Deed Upload
+  const handleTitleDeedUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + " MB";
+    setTitleDeedFile({
+      name: file.name,
+      size: sizeMb,
+      number: titleDeedNumber || "ETH-TD-" + Math.floor(100000 + Math.random() * 900000),
+      uploadedAt: "Just now",
+      file,
+    });
+  };
+
+  const handleSetCoverImage = (index: number) => {
+    setPropertyImages((prev) =>
+      prev.map((img, i) => ({
+        ...img,
+        isCover: i === index,
+      }))
+    );
+    setActiveImageIndex(index);
+  };
+
+  const handleRemoveImage = (index: number) => {
+    if (propertyImages.length <= 1) return;
+    const updated = propertyImages.filter((_, i) => i !== index);
+    setPropertyImages(updated);
+    if (activeImageIndex >= updated.length) {
+      setActiveImageIndex(updated.length - 1);
+    }
+  };
 
   // Landlord Unit Inventory List: Each unit shopping house with landlord-editable number & duplicate action
   const [mallUnits, setMallUnits] = useState<MallShopUnit[]>([
@@ -287,8 +390,6 @@ export const RegisterPropertyPage: React.FC = () => {
   // Step 3: Documents & Cadastre
   const [cadastralParcelId, setCadastralParcelId] = useState("AA-BOL-03-P99120");
   const [titleDeedNumber, setTitleDeedNumber] = useState("ETH-MUDC-2024-88412");
-  const [uploadedTitleDeed, setUploadedTitleDeed] = useState("Title_Deed_Carta_Bole456.pdf");
-  const [uploadedTaxClearance, setUploadedTaxClearance] = useState("Tax_Clearance_2024.pdf");
   const [featuredImage, setFeaturedImage] = useState(SAMPLE_PROPERTY_IMAGES[1].url);
   const [description, setDescription] = useState(
     "High-standard registered property located in Addis Ababa, fully compliant with national housing registry and cadastral standards."
@@ -372,8 +473,8 @@ export const RegisterPropertyPage: React.FC = () => {
             : mallTotalFloors,
         status: "Available",
         verified: true,
-        featuredImage,
-        galleryImages: [featuredImage, SAMPLE_PROPERTY_IMAGES[0].url],
+        featuredImage: activePropertyVisual,
+        galleryImages: propertyImages.map((img) => img.url),
         description:
           description ||
           `Government registered ${propertyType} property under GRAMS municipal title verification.`,
@@ -450,7 +551,7 @@ export const RegisterPropertyPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push("/citizen/dashboard/properties")}
+            onClick={() => handleNavigate("properties")}
             className="text-xs h-9"
           >
             Cancel
@@ -458,7 +559,7 @@ export const RegisterPropertyPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4-Step Stepper Header (Exactly matching the design in image) */}
+      {/* 4-Step Stepper Header */}
       <div className="py-2">
         <div className="flex items-center justify-between max-w-3xl mx-auto px-4">
           {steps.map((step, idx) => {
@@ -556,7 +657,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
-              onClick={() => router.push("/citizen/dashboard/properties")}
+              onClick={() => handleNavigate("properties")}
               className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold w-full sm:w-auto"
             >
               View My Properties Portfolio
@@ -565,7 +666,7 @@ export const RegisterPropertyPage: React.FC = () => {
               variant="outline"
               onClick={() => {
                 setIsSubmittedSuccess(false);
-                setCurrentStep(2);
+                setCurrentStep(1);
               }}
               className="text-xs h-10 px-5 w-full sm:w-auto"
             >
@@ -584,53 +685,6 @@ export const RegisterPropertyPage: React.FC = () => {
                   Basic Info & Ownership
                 </h2>
               </div>
-
-              {/* Legal Capacity 
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Registrant Legal Capacity
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRegistrationRole("individual")}
-                    className={`p-3.5 rounded-xl border text-left transition-all ${
-                      registrationRole === "individual"
-                        ? "border-[#00450d] bg-emerald-50/60 ring-1 ring-[#00450d]"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-slate-900">Individual Landlord</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Fayda National ID verified owner</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRegistrationRole("developer")}
-                    className={`p-3.5 rounded-xl border text-left transition-all ${
-                      registrationRole === "developer"
-                        ? "border-[#00450d] bg-emerald-50/60 ring-1 ring-[#00450d]"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-slate-900">Real Estate / Developer</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Commercial company with TIN</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRegistrationRole("representative")}
-                    className={`p-3.5 rounded-xl border text-left transition-all ${
-                      registrationRole === "representative"
-                        ? "border-[#00450d] bg-emerald-50/60 ring-1 ring-[#00450d]"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="text-xs font-bold text-slate-900">Power of Attorney</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Authorized legal representative</div>
-                  </button>
-                </div>
-              </div>*/}
 
               {/* Landlord Identification */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
@@ -760,7 +814,7 @@ export const RegisterPropertyPage: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 2: Property Details (EXACTLY MATCHING THE REQUESTED SCREEN & CONDITIONAL SPECS) */}
+          {/* STEP 2: Property Details */}
           {currentStep === 2 && (
             <div className="p-6 sm:p-8 space-y-6">
               {/* Header Title */}
@@ -868,7 +922,7 @@ export const RegisterPropertyPage: React.FC = () => {
                   Address & Ownership
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">
                       Sub-city
@@ -921,7 +975,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
               {/* 3. DYNAMIC SPECIFICATION FORMS BASED ON USER LOGIC RULES */}
 
-              {/* CASE A: VILLA / COMPOUND HOUSE (Matches the exact layout of screenshot) */}
+              {/* CASE A: VILLA / COMPOUND HOUSE */}
               {propertyType === "Villa" && (
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
@@ -1035,7 +1089,7 @@ export const RegisterPropertyPage: React.FC = () => {
                 </div>
               )}
 
-              {/* CASE B: APARTMENT (Fixed Typology: Studio, 1 Bedroom, 2 Bedrooms, 3 Bedrooms only) */}
+              {/* CASE B: APARTMENT */}
               {propertyType === "Apartment" && (
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
@@ -1047,7 +1101,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </Badge>
                   </div>
 
-                  {/* Room Typology Selector: Studio, 1 Bedroom, 2 Bedrooms, 3 Bedrooms */}
+                  {/* Room Typology Selector */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-2">
                       Apartment Bedroom Layout <span className="text-red-500">*</span>
@@ -1153,7 +1207,7 @@ export const RegisterPropertyPage: React.FC = () => {
                 </div>
               )}
 
-              {/* CASE C: CONDOMINIUM (Fixed Typology: Studio, 1 Bedroom, 2 Bedrooms, 3 Bedrooms only) */}
+              {/* CASE C: CONDOMINIUM */}
               {propertyType === "Condominium" && (
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
@@ -1195,7 +1249,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Room Typology Selector: Studio, 1 Bedroom, 2 Bedrooms, 3 Bedrooms */}
+                  {/* Room Typology Selector */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-2">
                       Condominium Room Typology <span className="text-red-500">*</span>
@@ -1276,7 +1330,7 @@ export const RegisterPropertyPage: React.FC = () => {
                 </div>
               )}
 
-              {/* CASE D: SHOPPING MALL / COMMERCIAL (NO BEDROOMS, DIFFERENT FORM FOR SINGLE SHOP VS MALL) */}
+              {/* CASE D: SHOPPING MALL / COMMERCIAL */}
               {propertyType === "Shopping Mall" && (
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
@@ -1293,7 +1347,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </Badge>
                   </div>
 
-                  {/* Commercial Sub-Type Selector: Single Shop vs Shopping Mall vs Office */}
+                  {/* Commercial Sub-Type Selector */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-2">
                       Select Commercial Category Form
@@ -1789,7 +1843,7 @@ export const RegisterPropertyPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Action Buttons: Cancel and Save & Continue (Matches Image) */}
+              {/* Action Buttons: Cancel and Save & Continue */}
               <div className="pt-6 border-t border-slate-200 flex items-center justify-end gap-3">
                 <Button
                   type="button"
@@ -1810,124 +1864,87 @@ export const RegisterPropertyPage: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 3: Documents & Cadastre */}
+          {/* STEP 3: TITLE DEED & PROPERTY IMAGES */}
           {currentStep === 3 && (
-            <div className="p-6 sm:p-8 space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Municipal Documents & Cadastral Verification
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Upload holding title deeds and verify Unique Parcel Identifier (UPI) with the Land Bureau.
-                </p>
+            <div className="p-6 sm:p-8 space-y-5 text-xs">
+              <div className="border-b border-slate-100 pb-3">
+                <h2 className="text-base font-bold text-slate-900">3. Title Deed Certificate & Property Visuals</h2>
+                <p className="text-slate-500 text-xs">Upload your official title deed scan and multiple property photos.</p>
               </div>
 
-              {/* Cadastral UPI */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                    <span className="text-xs font-bold text-slate-900">
-                      Unique Cadastral Parcel Identifier (UPI)
-                    </span>
-                  </div>
-                  <Badge variant="verified" className="text-[10px]">
-                    Land Registry Synced
-                  </Badge>
+              {/* Title Deed Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div>
+                  <label className="font-semibold block mb-1">Title Deed Document Number</label>
+                  <Input value={titleDeedNumber} onChange={(e) => setTitleDeedNumber(e.target.value)} className="h-8.5 text-xs bg-white font-mono" />
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      Cadastral Parcel Number
-                    </label>
-                    <Input
-                      value={cadastralParcelId}
-                      onChange={(e) => setCadastralParcelId(e.target.value)}
-                      placeholder="AA-BOL-03-P99120"
-                      className="h-10 text-xs font-mono bg-white uppercase"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      Title Deed Certificate No. (ካርታ ቁጥር)
-                    </label>
-                    <Input
-                      value={titleDeedNumber}
-                      onChange={(e) => setTitleDeedNumber(e.target.value)}
-                      placeholder="ETH-MUDC-2024-XXXXX"
-                      className="h-10 text-xs font-mono bg-white"
-                    />
-                  </div>
+                <div>
+                  <label className="font-semibold block mb-1">Upload Title Deed Scan (PDF)</label>
+                  <label className="flex items-center justify-between px-3 py-1.5 bg-white border border-emerald-300 rounded-lg cursor-pointer hover:bg-emerald-50/50">
+                    <span className="truncate text-slate-700">{titleDeedFile?.name || "Choose file..."}</span>
+                    <Upload className="w-4 h-4 text-[#00450d] shrink-0 ml-2" />
+                    <input type="file" accept=".pdf,.png,.jpg" onChange={handleTitleDeedUpload} className="hidden" />
+                  </label>
                 </div>
               </div>
 
-              {/* Document Uploads */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-emerald-700/50 transition-colors bg-white">
-                  <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <span className="text-xs font-bold text-slate-800 block">Title Deed / Carta Scan</span>
-                  <span className="text-[10px] text-slate-400 block mb-2">{uploadedTitleDeed}</span>
-                  <Badge variant="active" className="text-[9px]">Verified PDF</Badge>
-                </div>
-
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-emerald-700/50 transition-colors bg-white">
-                  <FileCheck className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                  <span className="text-xs font-bold text-slate-800 block">Municipal Tax Clearance</span>
-                  <span className="text-[10px] text-slate-400 block mb-2">{uploadedTaxClearance}</span>
-                  <Badge variant="active" className="text-[9px]">2024 Validated</Badge>
-                </div>
-              </div>
-
-              {/* Photo Showcase */}
+              {/* Active Property Visual Display */}
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Featured Property Visual
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {SAMPLE_PROPERTY_IMAGES.map((img, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setFeaturedImage(img.url)}
-                      className={`relative rounded-xl overflow-hidden border-2 aspect-video group text-left ${
-                        featuredImage === img.url
-                          ? "border-[#00450d] ring-2 ring-emerald-100"
-                          : "border-transparent opacity-75 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-2">
-                        <span className="text-[10px] font-medium text-white line-clamp-1">{img.label}</span>
+                <label className="font-semibold block">Featured Property Visual (Active Preview)</label>
+                <div className="relative h-44 rounded-xl overflow-hidden border border-slate-300 bg-slate-950">
+                  <img src={activePropertyVisual} alt="Selected visual" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
+                    <div className="text-white">
+                      <p className="font-bold text-sm">{title}</p>
+                      <p className="text-xs text-emerald-300">{propertyImages.length} Photos Attached &bull; {subCity}, Addis Ababa</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Multiple Images Upload & Gallery */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-semibold text-slate-700">Property Photos ({propertyImages.length})</span>
+                    <label className="cursor-pointer text-xs font-bold text-[#00450d] hover:underline inline-flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Multiple Images</span>
+                      <input type="file" multiple accept="image/*" onChange={handleImageFileUpload} className="hidden" />
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {propertyImages.map((img, idx) => (
+                      <div
+                        key={img.id || idx}
+                        onClick={() => setActiveImageIndex(idx)}
+                        className={`h-16 rounded-lg overflow-hidden border cursor-pointer relative ${
+                          activeImageIndex === idx ? "ring-2 ring-[#00450d] border-[#00450d]" : "border-slate-200 opacity-80"
+                        }`}
+                      >
+                        <img src={img.url} alt="prop" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(idx);
+                          }}
+                          className="absolute top-1 right-1 bg-black/60 text-white rounded p-0.5"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
                       </div>
-                      {featuredImage === img.url && (
-                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#00450d] text-white flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Action Bar */}
-              <div className="pt-6 border-t border-slate-200 flex justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-6 text-xs h-10"
-                >
-                  Back to Property Details
+              <div className="flex justify-between pt-2">
+                <Button variant="outline" onClick={() => setCurrentStep(2)} className="text-xs h-8.5">
+                  Back
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => setCurrentStep(4)}
-                  className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold gap-1.5"
-                >
-                  <span>Proceed to Final Review</span>
-                  <ArrowRight className="w-4 h-4" />
+                <Button onClick={() => setCurrentStep(4)} className="bg-[#00450d] text-white text-xs h-8.5 px-4 gap-1.5">
+                  <span>Continue to Final Review</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>

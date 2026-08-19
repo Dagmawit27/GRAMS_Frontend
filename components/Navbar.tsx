@@ -1,86 +1,71 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "./ui/button";
+import React from "react";
+import { ArrowRight, LogIn, UserPlus, LayoutDashboard, ShieldCheck } from "lucide-react";
 
-export default function Navbar() {
-  const [username, setUsername] = useState<string | null>(null);
-  const router = useRouter();
+interface NavbarProps {
+  onOpenLogin?: () => void;
+  onOpenRegister?: () => void;
+  onOpenDashboard?: () => void;
+}
 
-  useEffect(() => {
-    const token = localStorage.getItem("jwt");
-    const user = localStorage.getItem("username");
-    if (token && user) setUsername(user);
-  }, []);
-
-  function handleLogout() {
-    localStorage.removeItem("jwt");
-    localStorage.removeItem("username");
-    setUsername(null);
-    router.push("/");
-  }
-
+export const Navbar: React.FC<NavbarProps> = ({
+  onOpenLogin,
+  onOpenRegister,
+  onOpenDashboard,
+}) => {
   return (
-    <nav className="w-full fixed top-0 left-0 z-50 bg-black/40 backdrop-blur-md border-b border-white/10 py-3">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/citizen" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 font-bold text-lg shadow-sm group-hover:bg-emerald-500/30 transition">
-            🇪🇹
+    <header className="fixed top-0 left-0 right-0 z-30 px-4 sm:px-8 py-4 transition-all duration-300">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Brand Identity: Matches Image 1 */}
+        <div 
+          onClick={onOpenDashboard}
+          className="flex items-center gap-3 cursor-pointer select-none group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#007a3d] text-white flex items-center justify-center font-bold text-sm tracking-wider shadow-lg shadow-emerald-950/40 group-hover:scale-105 transition-transform border border-emerald-400/30">
+            ET
           </div>
           <div className="flex flex-col">
-            <span className="text-white text-base font-bold tracking-wider uppercase drop-shadow leading-tight">
+            <span className="font-extrabold text-base sm:text-lg tracking-wider text-white leading-tight drop-shadow-sm group-hover:text-emerald-300 transition-colors">
               GRAMS
             </span>
-            <span className="text-[10px] text-emerald-400 font-medium tracking-widest uppercase">
-              Citizen Portal
+            <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-400 tracking-widest uppercase -mt-0.5">
+              CITIZEN PORTAL
             </span>
           </div>
-        </Link>
+        </div>
 
-        {/* Right side */}
-        {username ? (
-          <div className="flex items-center gap-3">
-            {/* Profile avatar + username */}
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 px-3 py-1.5 rounded-full">
-              <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold uppercase shadow">
-                {username.charAt(0)}
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-white">{username}</span>
-            </div>
-            <Link
-              href="/citizen/dashboard"
-              className="px-3.5 py-1.5 text-xs sm:text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg border border-white/20 transition"
+        {/* Right Navigation CTAs */}
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          {onOpenDashboard && (
+            <button
+              onClick={onOpenDashboard}
+              className="hidden md:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 text-xs sm:text-sm font-medium transition-all"
             >
-              Dashboard
-            </Link>
-            <Button 
-              onClick={handleLogout}
-              variant="destructive"
-              size="sm"
-            >
-              Logout
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <Link
-              href="/citizen/login"
-              className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 rounded-lg border border-white/20 transition backdrop-blur-sm"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/citizen/register"
-              className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg shadow-emerald-900/30 transition"
-            >
-              Register
-            </Link>
-          </div>
-        )}
+              <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+              <span>Dashboard</span>
+            </button>
+          )}
+
+          <button
+            onClick={onOpenLogin}
+            className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-black/40 hover:bg-white/15 text-white font-medium text-xs sm:text-sm backdrop-blur-md border border-white/20 shadow-md hover:shadow-lg transition-all duration-200"
+          >
+            <LogIn className="w-3.5 h-3.5 opacity-80" />
+            <span>Sign In</span>
+          </button>
+
+          <button
+            onClick={onOpenRegister}
+            className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-[#007a3d] hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-950/50 hover:shadow-emerald-900/60 hover:-translate-y-0.5 transition-all duration-200 border border-emerald-400/30"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Register</span>
+          </button>
+        </div>
       </div>
-    </nav>
+    </header>
   );
-}
+};
+
+export default Navbar;

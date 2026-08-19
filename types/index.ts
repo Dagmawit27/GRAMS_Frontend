@@ -1,4 +1,5 @@
 export type NavPage = 
+  | 'landing'
   | 'dashboard' 
   | 'search' 
   | 'agreements' 
@@ -6,10 +7,16 @@ export type NavPage =
   | 'register-property'
   | 'payments' 
   | 'bills' 
+  | 'profile'
   | 'citizen'
-  | 'profile';
+  | 'officer-dashboard'
+  | 'officer-property-verifications'
+  | 'officer-agreement-verifications'
+  | 'officer-history'
+  | 'officer-reports'
+  | 'officer-settings';
 
-export type UserRole = 'landlord' | 'tenant';
+export type UserRole = 'landlord' | 'tenant' | 'officer' | 'supervisor';
 
 export interface Property {
   id: string;

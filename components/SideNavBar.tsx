@@ -1,10 +1,9 @@
 "use client";
-
 import React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { NavPage, UserRole } from "@/types/index";
+import { NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
+import { getSession } from "@/lib/api";
+import Link from "next/link";
 import {
   LayoutDashboard,
   Search,
@@ -17,6 +16,17 @@ import {
   Star,
   PanelLeftClose,
   PanelLeftOpen,
+  Home,
+  ShieldCheck,
+  FileCheck2,
+  Clock,
+  Settings,
+  HelpCircle,
+  Archive,
+  BarChart3,
+  PlusCircle,
+  CheckCircle2,
+  History,
 } from "lucide-react";
 
 interface SideNavBarProps {
@@ -32,6 +42,7 @@ interface SideNavBarProps {
   onToggleRole?: (role: UserRole) => void;
 }
 
+
 export const SideNavBar: React.FC<SideNavBarProps> = ({
   currentPage,
   onNavigate,
@@ -42,10 +53,73 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   onLogoutClick,
   pendingAgreementsCount = 2,
   userRole = "landlord",
-  onToggleRole,
 }) => {
-  const pathname = usePathname();
+  const session = getSession();
+  const isOfficer = userRole === "officer" || userRole === "supervisor" || session?.user?.userType === "GOVERNMENT_EMPLOYEE";
+  const isSupervisor = userRole === "supervisor" || session?.user?.roles?.includes("SUPERVISOR");
 
+  
+    // Officer / Supervisor Navigation Items (Exact match to Reference Images 1, 2, 3, 4)
+    const officerNavItems = [
+      {
+        id: "officer-dashboard" as NavPage,
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        href: "/officer/dashboard",
+      },
+      {
+        id: "officer-property-verifications" as NavPage,
+        label: isSupervisor ? "Property Approvals (Final)" : "Property Verifications (Initial)",
+        icon: ShieldCheck,
+        href: "/officer/dashboard/properties",
+      },
+      {
+        id: "officer-agreement-verifications" as NavPage,
+        label: isSupervisor ? "Agreement Approvals (Final)" : "Agreement Verifications (Initial)",
+        icon: FileText,
+        href: "/officer/dashboard/agreements",
+      },
+      {
+        id: "officer-history" as NavPage,
+        label: isSupervisor ? "Reports" : "Approved History",
+        icon: isSupervisor ? BarChart3 : History,
+        href: "/officer/dashboard/history",
+      },
+      {
+        id: "officer-settings" as NavPage,
+        label: "Settings",
+        icon: Settings,
+        href: "/officer/dashboard/settings",
+      },
+    ];
+  
+    // Citizen Nav Items based on Role (Landlord vs Tenant, automatically read from localStorage)
+    const citizenNavItems: Array<{
+      id: NavPage;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      category?: string;
+      badge?: number;
+      href: string;
+    }> = [
+      { id: "dashboard", label: "Dashboard", href: "/citizen/dashboard", icon: LayoutDashboard, category: "Overview" },
+      ...(userRole === "tenant"
+        ? [
+            { id: "search" as NavPage, label: "Search House", icon: Search, category: "Rentals", href: "/citizen/dashboard/search" },
+            { id: "agreements" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
+          ]
+        : [
+            { id: "properties" as NavPage, label: "My Properties", icon: Building2, category: "Management", href: "/citizen/dashboard/properties" },
+            { id: "register-property" as NavPage, label: "+ Register Property", icon: PlusCircle, category: "Management", href: "/citizen/dashboard/register-property" },
+            { id: "agreements" as NavPage, label: "Rental Agreements", icon: FileText, category: "Management", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
+          ]),
+      { id: "payments", label: "Payments", icon: CreditCard, category: "Finance", href: "/citizen/dashboard/payments" },
+      { id: "bills", label: "Bills & Invoices", icon: Receipt, category: "Finance", href: "/citizen/dashboard/bills" },
+      { id: "profile", label: "My Profile", icon: User, category: "Account", href: "/citizen/dashboard/profile" },
+    ];
+  
+    const currentNavItems = isOfficer ? officerNavItems : citizenNavItems;
+  
   const navItems: Array<{
     id: NavPage;
     label: string;
@@ -66,90 +140,81 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white border-r border-slate-200/90 text-slate-900">
       {/* Brand Header */}
-      <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
-        <Link 
-          href="/citizen/dashboard"
-          className="flex items-center gap-3 cursor-pointer select-none"
-          onClick={() => {
-            onNavigate("dashboard");
-            onCloseMobile?.();
-          }}
-        >
-          <div className="w-9 h-9 rounded-lg bg-[#00450d] flex items-center justify-center text-white shadow-xs shrink-0">
-            <Star className="w-4 h-4 fill-current text-white" />
-          </div>
-          {!collapsed && (
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">GRAMS</h1>
-              <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Citizen Portal</p>
-            </div>
-          )}
-        </Link>
-        {onToggleCollapse && (
-          <button
-            onClick={onToggleCollapse}
-            className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label="Toggle sidebar"
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => {
+              onNavigate(isOfficer ? "officer-dashboard" : "dashboard");
+              onCloseMobile?.();
+            }}
           >
-            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-
-       {/* Role Indicator Widget in Sidebar */}
-      {!collapsed && onToggleRole && (
-        <div className="mx-3 mt-3 p-2 bg-slate-50 rounded-xl border border-slate-200/80">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Role</span>
-            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded">
-              {userRole === "landlord" ? "Landlord" : "Tenant"}
-            </span>
+            {isOfficer ? (
+              /* Woreda Admin Official Header (Matching Images 1-4) */
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs shrink-0 overflow-hidden">
+                  {/* Government Seal Emblem */}
+                  <div className="w-7 h-7 rounded-full bg-[#00450d] text-white flex items-center justify-center font-serif text-[11px] font-bold ring-2 ring-emerald-200">
+                    ET
+                  </div>
+                </div>
+                {!collapsed && (
+                  <div>
+                    <h1 className="text-[17px] font-extrabold text-[#00450d] tracking-tight leading-tight">
+                      Woreda Admin
+                    </h1>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+                      Official Portal
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Citizen Portal Header */
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#00450d] flex items-center justify-center text-white shadow-xs shrink-0">
+                  <Star className="w-4 h-4 fill-current text-white" />
+                </div>
+                {!collapsed && (
+                  <div>
+                    <h1 className="text-base font-bold text-slate-900 tracking-tight leading-none">GRAMS</h1>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+                      {userRole === "landlord" ? "Landlord Desk" : "Citizen Portal"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-xs">
+  
+          {onToggleCollapse && (
             <button
-              onClick={() => onToggleRole("landlord")}
-              className={`py-1 px-2 rounded-md font-semibold text-[11px] transition-all text-center ${
-                userRole === "landlord"
-                  ? "bg-[#00450d] text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+              onClick={onToggleCollapse}
+              className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label="Toggle sidebar"
             >
-              Landlord
+              {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </button>
-            <button
-              onClick={() => onToggleRole("tenant")}
-              className={`py-1 px-2 rounded-md font-semibold text-[11px] transition-all text-center ${
-                userRole === "tenant"
-                  ? "bg-[#00450d] text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Tenant
-            </button>
-          </div>
+          )}
         </div>
-      )}
 
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5">
-        {navItems.map((item, index) => {
-          const isActive =
-            currentPage === item.id ||
-            (pathname ? pathname === item.href || (item.id !== "dashboard" && pathname.startsWith(item.href)) : false);
-
+        {currentNavItems.map((item, index) => {
+          const isActive = currentPage === item.id;
           const showCategoryHeader =
+            "category" in item &&
             item.category &&
-            (index === 0 || navItems[index - 1]?.category !== item.category);
+            (index === 0 || (currentNavItems[index - 1] as any)?.category !== item.category);
 
           const Icon = item.icon;
 
           return (
             <React.Fragment key={item.id}>
               {showCategoryHeader && !collapsed && (
-                <div className="pt-4 pb-1 px-3">
+                <div className="pt-3 pb-1 px-4">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                    {item.category}
+                    {(item as any).category}
                   </span>
                 </div>
               )}
@@ -161,25 +226,28 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
                   onCloseMobile?.();
                 }}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 relative text-left",
+                  "w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium transition-all duration-150 relative text-left group",
                   isActive
-                    ? "bg-slate-100 text-[#00450d] font-semibold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    ? "bg-[#d8edd9] text-[#00450d] font-bold border-l-4 border-[#00450d]"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-50/90"
                 )}
                 title={collapsed ? item.label : undefined}
               >
                 <Icon
                   className={cn(
                     "w-4 h-4 shrink-0 transition-transform",
-                    isActive ? "text-[#00450d]" : "text-slate-400"
+                    isActive ? "text-[#00450d] stroke-[2.2]" : "text-slate-500 group-hover:text-slate-800 stroke-[1.75]"
                   )}
                 />
                 {!collapsed && (
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="flex-1 truncate text-xs">{item.label}</span>
                 )}
-                {!collapsed && item.badge !== undefined && item.badge > 0 && (
-                  <span className="px-1.5 py-0.2 text-[10px] font-bold bg-[#00450d] text-white rounded-full">
-                    {item.badge}
+                {!collapsed && "badge" in item && (item as any).badge !== undefined && (item as any).badge > 0 && (
+                  <span className={cn(
+                    "px-1.5 py-0.2 text-[10px] font-bold rounded-full",
+                    isActive ? "bg-[#00450d] text-white" : "bg-slate-200 text-slate-700"
+                  )}>
+                    {(item as any).badge}
                   </span>
                 )}
               </Link>

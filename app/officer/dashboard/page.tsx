@@ -1,402 +1,562 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+"use client";
+import React, { useState, useEffect } from "react";
+import { getSession } from "@/lib/api";
+import { useCitizenData } from "@/hooks/useCitizenData";
+import { Button } from "@/components/ui/button";
 import {
-  ClipboardCheck, CheckCircle, Building2,
-  ListChecks, XCircle, Home, TrendingUp,
-} from "lucide-react"
-import { getSession, getPropertiesByStatus, type PropertyResponse } from "@/lib/api"
-import type { UserSummary } from "@/lib/api"
-import {
-  Card, CardContent, CardHeader, CardTitle, CardDescription,
-} from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Skeleton } from "@/components/ui/skeleton"
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  Hourglass,
+  ShieldCheck,
+  XCircle,
+  FileText,
+  Plus,
+  Download,
+  AlertTriangle,
+  Info,
+} from "lucide-react";
 
-
-// ── constants ──────────────────────────────────────────────────────────────
-
-const ALL_STATUSES = ["PENDING", "VERIFIED", "LISTED", "REJECTED", "RENTED", "UNLISTED"] as const
-
-const STATUS_META: Record<string, { label: string; color: string; hex: string; icon: React.ReactNode }> = {
-  PENDING:  { label: "Pending",  color: "text-amber-600",  hex: "#f59e0b", icon: <ClipboardCheck className="h-4 w-4" /> },
-  VERIFIED: { label: "Verified", color: "text-blue-600",   hex: "#3b82f6", icon: <CheckCircle    className="h-4 w-4" /> },
-  LISTED:   { label: "Listed",   color: "text-emerald-600",hex: "#10b981", icon: <ListChecks     className="h-4 w-4" /> },
-  REJECTED: { label: "Rejected", color: "text-red-500",    hex: "#ef4444", icon: <XCircle        className="h-4 w-4" /> },
-  RENTED:   { label: "Rented",   color: "text-purple-600", hex: "#a855f7", icon: <Home           className="h-4 w-4" /> },
-  UNLISTED: { label: "Unlisted", color: "text-slate-500",  hex: "#94a3b8", icon: <Building2      className="h-4 w-4" /> },
-}
-
-// ── helpers ────────────────────────────────────────────────────────────────
-
-function computeStats(all: PropertyResponse[]) {
-  const counts: Record<string, number> = {}
-  const typeMap: Record<string, number> = {}
-  for (const p of all) {
-    counts[p.status] = (counts[p.status] ?? 0) + 1
-    typeMap[p.propertyType] = (typeMap[p.propertyType] ?? 0) + 1
-  }
-  const byType = Object.entries(typeMap)
-    .map(([type, count]) => ({ type, count }))
-    .sort((a, b) => b.count - a.count)
-  return { counts, byType, total: all.length }
-}
-
-// ── sub-components ─────────────────────────────────────────────────────────
-
-function StatCard({
-  status, value, loading,
-}: { status: string; value: number; loading: boolean }) {
-  const meta = STATUS_META[status]
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="pt-5 pb-4">
-        <div className={`flex items-center justify-between mb-3 ${meta.color}`}>
-          {meta.icon}
-          <TrendingUp className="h-3.5 w-3.5 opacity-40" />
-        </div>
-        {loading
-          ? <Skeleton className="h-8 w-16 mb-1" />
-          : <p className="text-3xl font-bold tracking-tight">{value}</p>
-        }
-        <p className="text-xs text-muted-foreground font-medium mt-0.5">{meta.label}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="space-y-2 pt-2">
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-[180px] w-full rounded-lg" />
-    </div>
-  )
-}
-
-// ── Native SVG bar chart ───────────────────────────────────────────────────
-
-function BarChartSVG({ data }: { data: { type: string; count: number }[] }) {
-  const W = 480, H = 180, PL = 28, PB = 28, PT = 8, PR = 8
-  const chartW = W - PL - PR
-  const chartH = H - PB - PT
-  const max = Math.max(...data.map(d => d.count), 1)
-  const barW = Math.min(48, (chartW / data.length) - 8)
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 180 }}>
-      {/* y gridlines */}
-      {[0, 0.25, 0.5, 0.75, 1].map(f => {
-        const y = PT + chartH * (1 - f)
-        return (
-          <g key={f}>
-            <line x1={PL} x2={W - PR} y1={y} y2={y} stroke="#e2e8f0" strokeWidth={1} />
-            <text x={PL - 4} y={y + 4} textAnchor="end" fontSize={9} fill="#94a3b8">
-              {Math.round(max * f)}
-            </text>
-          </g>
-        )
-      })}
-      {/* bars */}
-      {data.map((d, i) => {
-        const slotW = chartW / data.length
-        const x = PL + slotW * i + slotW / 2 - barW / 2
-        const barH = (d.count / max) * chartH
-        const y = PT + chartH - barH
-        return (
-          <g key={d.type}>
-            <rect x={x} y={y} width={barW} height={barH} rx={4} fill="#3b82f6" />
-            <text
-              x={x + barW / 2} y={H - PB + 14}
-              textAnchor="middle" fontSize={9} fill="#64748b"
-            >
-              {d.type.length > 8 ? d.type.slice(0, 7) + "…" : d.type}
-            </text>
-            <text x={x + barW / 2} y={y - 3} textAnchor="middle" fontSize={9} fill="#3b82f6" fontWeight="600">
-              {d.count}
-            </text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
-
-// ── Native SVG donut chart ─────────────────────────────────────────────────
-
-function DonutChartSVG({ data }: { data: { name: string; value: number }[] }) {
-  const SIZE = 200, cx = 100, cy = 90, R = 65, r = 35
-  const total = data.reduce((s, d) => s + d.value, 0) || 1
-
-  let angle = -Math.PI / 2
-  const slices = data.map(d => {
-    const sweep = (d.value / total) * 2 * Math.PI
-    const start = angle
-    angle += sweep
-    return { ...d, start, sweep }
-  })
-
-  function arc(start: number, sweep: number, outer: number, inner: number) {
-    const x1 = cx + outer * Math.cos(start)
-    const y1 = cy + outer * Math.sin(start)
-    const x2 = cx + outer * Math.cos(start + sweep)
-    const y2 = cy + outer * Math.sin(start + sweep)
-    const ix1 = cx + inner * Math.cos(start + sweep)
-    const iy1 = cy + inner * Math.sin(start + sweep)
-    const ix2 = cx + inner * Math.cos(start)
-    const iy2 = cy + inner * Math.sin(start)
-    const large = sweep > Math.PI ? 1 : 0
-    return `M${x1},${y1} A${outer},${outer},0,${large},1,${x2},${y2} L${ix1},${iy1} A${inner},${inner},0,${large},0,${ix2},${iy2} Z`
-  }
-
-  return (
-    <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full" style={{ height: SIZE }}>
-      {slices.map(s => (
-        <path
-          key={s.name}
-          d={arc(s.start, s.sweep, R, r)}
-          fill={STATUS_META[s.name]?.hex ?? "#94a3b8"}
-        />
-      ))}
-      {/* center total */}
-      <text x={cx} y={cy - 4} textAnchor="middle" fontSize={11} fill="#64748b">Total</text>
-      <text x={cx} y={cy + 11} textAnchor="middle" fontSize={16} fontWeight="700" fill="#1e293b">{total}</text>
-      {/* legend */}
-      {slices.map((s, i) => {
-        const col = i % 2
-        const row = Math.floor(i / 2)
-        const lx = col === 0 ? 8 : SIZE / 2 + 4
-        const ly = 175 + row * 14
-        return (
-          <g key={s.name}>
-            <rect x={lx} y={ly - 7} width={8} height={8} rx={2} fill={STATUS_META[s.name]?.hex ?? "#94a3b8"} />
-            <text x={lx + 11} y={ly} fontSize={9} fill="#64748b">
-              {STATUS_META[s.name]?.label ?? s.name} ({s.value})
-            </text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
-
-// ── page ───────────────────────────────────────────────────────────────────
-
-export default function OfficerDashboardPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<UserSummary | null>(null)
-  const [stats, setStats] = useState<ReturnType<typeof computeStats> | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const loadStats = async (token: string) => {
-    setLoading(true)
-    try {
-      const results = await Promise.allSettled(
-        ALL_STATUSES.map((s) => getPropertiesByStatus(s, token))
-      )
-      const all: PropertyResponse[] = []
-      for (const r of results) {
-        if (r.status === "fulfilled") all.push(...r.value)
-      }
-      setStats(computeStats(all))
-    } finally {
-      setLoading(false)
-    }
-  }
+export const OfficerDashboardOverviewPage: React.FC = () => {
+  const { handleNavigate } = useCitizenData();
+  const [session, setSession] = useState(getSession());
 
   useEffect(() => {
-    const session = getSession()
-    if (!session || session.user.userType !== "GOVERNMENT_EMPLOYEE") {
-      router.push("/officer/login")
-      return
-    }
-    setUser(session.user)
-    loadStats(session.token)
-  }, [router])
+    setSession(getSession());
+  }, []);
 
-  if (!user) return (
-    <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
-      Loading...
-    </div>
-  )
+  const isSupervisor =
+    session?.user?.roles?.includes("SUPERVISOR") ||
+    session?.user?.employeeNumber?.includes("SUP") ||
+    (typeof window !== "undefined" && localStorage.getItem("userRole") === "supervisor");
 
-  const role = user.roles?.[0] ?? ""
-  const isOfficer = role === "WOREDA_OFFICER"
-  const isSupervisor = role === "WOREDA_SUPERVISOR"
-  const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-
-  const pieData = stats
-    ? Object.entries(stats.counts).map(([name, value]) => ({ name, value }))
-    : []
-
-  return (
-    <div className="flex flex-col min-h-screen bg-muted/30">
-
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background px-4 shadow-sm">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-4" />
-        <span className="text-sm font-medium text-muted-foreground hidden sm:block">
-          Federal Democratic Republic of Ethiopia — GRAMS
-        </span>
-        <div className="ml-auto flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center text-white text-xs font-bold ring-2 ring-blue-200">
-            {initials}
-          </div>
-          <div className="hidden sm:block text-right">
-            <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{role.replace(/_/g, " ")}</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 p-6 space-y-6 max-w-6xl mx-auto w-full">
-
-        {/* Page title */}
-        <div className="flex items-start justify-between">
+  // =========================================================================
+  // OFFICER DASHBOARD (IMAGE 1)
+  // =========================================================================
+  if (!isSupervisor) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-150">
+        {/* Header Title & Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Welcome back, {user.firstName}. Here&apos;s an overview of all properties.
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Dashboard Overview
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              Summary of administrative tasks and recent registrations.
             </p>
           </div>
-          {stats && (
-            <div className="text-right hidden sm:block">
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total properties</p>
-            </div>
-          )}
-        </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-          {ALL_STATUSES.map((s) => (
-            <StatCard
-              key={s}
-              status={s}
-              value={stats?.counts[s] ?? 0}
-              loading={loading}
-            />
-          ))}
-        </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => alert("Exporting Woreda summary report (CSV/PDF)...")}
+              className="h-10 text-xs font-semibold gap-1.5 text-slate-700 border-slate-200 bg-white hover:bg-slate-50"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Report</span>
+            </Button>
 
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-
-          {/* Bar chart — wider */}
-          <Card className="lg:col-span-3">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-sm font-semibold">Properties by Type</CardTitle>
-              <CardDescription className="text-xs">Volume per property category</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-3">
-              {loading ? <ChartSkeleton /> : stats?.byType.length === 0 ? (
-                <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">No data yet.</div>
-              ) : (
-                <BarChartSVG data={stats!.byType} />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Pie chart — narrower */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-0">
-              <CardTitle className="text-sm font-semibold">Status Distribution</CardTitle>
-              <CardDescription className="text-xs">Share of each status</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-3">
-              {loading ? <ChartSkeleton /> : pieData.length === 0 ? (
-                <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">No data yet.</div>
-              ) : (
-                <DonutChartSVG data={pieData} />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick actions */}
-        <div>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-            {(isOfficer || !isSupervisor) && (
-              <Link href="/officer/dashboard/review" className="group">
-                <Card className="h-full border-l-4 border-l-blue-500 hover:shadow-md transition-all group-hover:-translate-y-0.5">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-                        <ClipboardCheck className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-sm">Review Queue</CardTitle>
-                        {!loading && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {stats?.counts["PENDING"] ?? 0} pending
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <CardDescription className="text-xs mt-2">
-                      Review PENDING properties and forward verified ones to the supervisor.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            )}
-
-            {(isSupervisor || !isOfficer) && (
-              <Link href="/officer/dashboard/supervisor" className="group">
-                <Card className="h-full border-l-4 border-l-emerald-500 hover:shadow-md transition-all group-hover:-translate-y-0.5">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-                        <CheckCircle className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-sm">Supervisor Queue</CardTitle>
-                        {!loading && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {stats?.counts["VERIFIED"] ?? 0} awaiting approval
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <CardDescription className="text-xs mt-2">
-                      Approve or suspend VERIFIED properties. Approved ones become publicly LISTED.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            )}
-
-            <Card className="h-full border-l-4 border-l-slate-300">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-50 text-slate-500">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-sm">Listed Properties</CardTitle>
-                    {!loading && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {stats?.counts["LISTED"] ?? 0} active
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <CardDescription className="text-xs mt-2">
-                  Browse all currently active listed rental properties.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
+            <Button
+              size="sm"
+              onClick={() => handleNavigate("officer-property-verifications")}
+              className="h-10 text-xs font-semibold gap-1.5 bg-[#00450d] hover:bg-[#164e23] text-white shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Registration</span>
+            </Button>
           </div>
         </div>
 
-      </main>
+        {/* 3 Metric Cards (Matching Image 1) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Card 1 */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                PENDING VERIFICATIONS
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                <FileText className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-3xl sm:text-4xl font-extrabold text-slate-900">42</span>
+              <p className="text-xs font-semibold text-red-600 flex items-center gap-1 mt-1">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>+12% from last week</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2 */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                AGREEMENTS TO REVIEW
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-3xl sm:text-4xl font-extrabold text-slate-900">18</span>
+              <p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-1">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <span>5 require immediate attention</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+            <div className="flex justify-between items-start">
+              <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                VERIFIED THIS MONTH
+              </span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-3xl sm:text-4xl font-extrabold text-slate-900">156</span>
+              <p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>On track for monthly goal</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 2 Review Columns (Matching Image 1) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pending Property Reviews */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">Pending Property Reviews</h3>
+              <button
+                onClick={() => handleNavigate("officer-property-verifications")}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900"
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              <div
+                onClick={() => handleNavigate("officer-property-verifications")}
+                className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/60 transition-all flex items-center justify-between cursor-pointer group"
+              >
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#00450d]">
+                  WRD-9921 - Abebe Bikila
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200/60">
+                  URGENT
+                </span>
+              </div>
+
+              <div
+                onClick={() => handleNavigate("officer-property-verifications")}
+                className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/60 transition-all flex items-center justify-between cursor-pointer group"
+              >
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#00450d]">
+                  WRD-9922 - Tigist Assefa
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                  PENDING
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Agreement Reviews */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">Pending Agreement Reviews</h3>
+              <button
+                onClick={() => handleNavigate("officer-agreement-verifications")}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900"
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              <div
+                onClick={() => handleNavigate("officer-agreement-verifications")}
+                className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/60 transition-all flex items-center justify-between cursor-pointer group"
+              >
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#00450d]">
+                  AGR-4402 - Dawit Mengistu
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60">
+                  IN PROGRESS
+                </span>
+              </div>
+
+              <div
+                onClick={() => handleNavigate("officer-agreement-verifications")}
+                className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/60 transition-all flex items-center justify-between cursor-pointer group"
+              >
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#00450d]">
+                  AGR-4405 - Hanna Tadesse
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                  PENDING
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* History: Forwarded to Supervisor Table (Matching Image 1) */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3.5">
+          <h3 className="text-sm font-bold text-slate-900">
+            History: Forwarded to Supervisor
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500 font-semibold bg-slate-50/60">
+                  <th className="py-2.5 px-3">Reference ID</th>
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Forwarded Date</th>
+                  <th className="py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3 px-3 font-semibold text-slate-900">WRD-9918</td>
+                  <td className="py-3 px-3 text-slate-700">Property</td>
+                  <td className="py-3 px-3 text-slate-600">Oct 23, 2023</td>
+                  <td className="py-3 px-3 font-semibold text-amber-600">Awaiting Supervisor</td>
+                </tr>
+                <tr className="hover:bg-slate-50/60 transition-colors">
+                  <td className="py-3 px-3 font-semibold text-slate-900">AGR-4390</td>
+                  <td className="py-3 px-3 text-slate-700">Agreement</td>
+                  <td className="py-3 px-3 text-slate-600">Oct 22, 2023</td>
+                  <td className="py-3 px-3 font-semibold text-slate-700">Approved by Supervisor</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // SUPERVISOR DASHBOARD (IMAGE 2)
+  // =========================================================================
+  return (
+    <div className="space-y-6 animate-in fade-in duration-150">
+      {/* Header Title & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Supervisor Dashboard
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Overview of pending verifications and woreda metrics.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => alert("Exporting Supervisor Analytics Dossier...")}
+            className="h-10 text-xs font-semibold gap-1.5 text-slate-700 border-slate-200 bg-white hover:bg-slate-50"
+          >
+            <Download className="w-4 h-4" />
+            <span>EXPORT REPORT</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* 4 KPI Cards (Matching Image 2) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1 */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+          <div className="flex justify-between items-start">
+            <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+              AWAITING FINAL APPROVAL
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Hourglass className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-3xl font-extrabold text-slate-900">124</span>
+            <p className="text-xs text-slate-500 mt-1">Verified by Officers</p>
+          </div>
+        </div>
+
+        {/* KPI 2 */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+          <div className="flex justify-between items-start">
+            <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+              VERIFIED TODAY
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-3xl font-extrabold text-slate-900">48</span>
+            <p className="text-xs font-semibold text-emerald-600 mt-1">↑ 5% from yesterday</p>
+          </div>
+        </div>
+
+        {/* KPI 3 */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+          <div className="flex justify-between items-start">
+            <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+              TOTAL APPROVED
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-3xl font-extrabold text-slate-900">3,492</span>
+            <p className="text-xs text-slate-500 mt-1">YTD Volume</p>
+          </div>
+        </div>
+
+        {/* KPI 4 */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">
+          <div className="flex justify-between items-start">
+            <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+              REJECTION RATE
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+              <XCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-3xl font-extrabold text-slate-900">8.4%</span>
+            <p className="text-xs font-semibold text-emerald-600 mt-1">↓ 1.2% from last month</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2-Column Grid (Left: Approval Queue, Right: Monthly Chart & Alerts) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (2/3): Approval Queue */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900">Approval Queue</h3>
+            <select className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 font-semibold focus:outline-none">
+              <option>All Pending</option>
+              <option>High Priority</option>
+              <option>Flagged Discrepancies</option>
+            </select>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  <th className="py-2.5 px-3">PROPERTY ID</th>
+                  <th className="py-2.5 px-3">VERIFIED BY (OFFICER)</th>
+                  <th className="py-2.5 px-3">VERIFICATION DATE</th>
+                  <th className="py-2.5 px-3 text-right">ACTION</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr
+                  onClick={() => handleNavigate("officer-property-verifications")}
+                  className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 px-3 font-bold text-slate-900">PRP-2023-0891</td>
+                  <td className="py-3 px-3">
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                        OA
+                      </span>
+                      <span className="text-slate-800">Officer Abebe</span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-600">Oct 24, 2023</td>
+                  <td className="py-3 px-3 text-right">
+                    <span className="text-xs font-bold text-[#00450d] hover:underline">Review</span>
+                  </td>
+                </tr>
+
+                <tr
+                  onClick={() => handleNavigate("officer-property-verifications")}
+                  className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 px-3 font-bold text-slate-900">PRP-2023-0892</td>
+                  <td className="py-3 px-3">
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                        MK
+                      </span>
+                      <span className="text-slate-800">Officer Martha K.</span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-600">Oct 24, 2023</td>
+                  <td className="py-3 px-3 text-right">
+                    <span className="text-xs font-bold text-[#00450d] hover:underline">Review</span>
+                  </td>
+                </tr>
+
+                <tr
+                  onClick={() => handleNavigate("officer-property-verifications")}
+                  className="hover:bg-red-50/30 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 px-3 font-bold text-red-600">
+                    PRP-2023-0888 <span className="text-[10px] font-normal text-red-500">(Flagged)</span>
+                  </td>
+                  <td className="py-3 px-3">
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 text-[10px] font-bold flex items-center justify-center">
+                        YG
+                      </span>
+                      <span className="text-slate-800">Officer Yonas G.</span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-600">Oct 23, 2023</td>
+                  <td className="py-3 px-3 text-right">
+                    <span className="text-xs font-bold text-red-700 hover:underline">Investigate</span>
+                  </td>
+                </tr>
+
+                <tr
+                  onClick={() => handleNavigate("officer-property-verifications")}
+                  className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 px-3 font-bold text-slate-900">PRP-2023-0895</td>
+                  <td className="py-3 px-3">
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                        OA
+                      </span>
+                      <span className="text-slate-800">Officer Abebe</span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-600">Oct 24, 2023</td>
+                  <td className="py-3 px-3 text-right">
+                    <span className="text-xs font-bold text-[#00450d] hover:underline">Review</span>
+                  </td>
+                </tr>
+
+                <tr
+                  onClick={() => handleNavigate("officer-property-verifications")}
+                  className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 px-3 font-bold text-slate-900">PRP-2023-0896</td>
+                  <td className="py-3 px-3">
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                        MK
+                      </span>
+                      <span className="text-slate-800">Officer Martha K.</span>
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-600">Oct 24, 2023</td>
+                  <td className="py-3 px-3 text-right">
+                    <span className="text-xs font-bold text-[#00450d] hover:underline">Review</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pt-2 text-center border-t border-slate-100">
+            <button
+              onClick={() => alert("Displaying all 124 queued items...")}
+              className="text-xs font-bold text-slate-800 hover:text-[#00450d] uppercase tracking-wider"
+            >
+              VIEW ALL QUEUE (124)
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column (1/3): Monthly Chart & System Alerts */}
+        <div className="space-y-5">
+          {/* Approval Summary (Monthly) Visual Bar Chart (Image 2) */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Approval Summary (Monthly)</h3>
+
+            <div className="h-40 flex items-end justify-between gap-3 pt-6 pb-2 px-2 border-b border-slate-100">
+              <div className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex items-end justify-center gap-1 h-28">
+                  <div className="w-4 bg-[#1b5e20] rounded-t-sm" style={{ height: "60%" }} title="Approved: 60" />
+                  <div className="w-3 bg-red-700 rounded-t-sm" style={{ height: "15%" }} title="Rejected: 15" />
+                </div>
+                <span className="text-[10px] font-medium text-slate-500">Jul</span>
+              </div>
+
+              <div className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex items-end justify-center gap-1 h-28">
+                  <div className="w-4 bg-[#1b5e20] rounded-t-sm" style={{ height: "85%" }} title="Approved: 85" />
+                  <div className="w-3 bg-red-700 rounded-t-sm" style={{ height: "10%" }} title="Rejected: 10" />
+                </div>
+                <span className="text-[10px] font-medium text-slate-500">Aug</span>
+              </div>
+
+              <div className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex items-end justify-center gap-1 h-28">
+                  <div className="w-4 bg-[#1b5e20] rounded-t-sm" style={{ height: "65%" }} title="Approved: 65" />
+                  <div className="w-3 bg-red-700 rounded-t-sm" style={{ height: "20%" }} title="Rejected: 20" />
+                </div>
+                <span className="text-[10px] font-medium text-slate-500">Sep</span>
+              </div>
+
+              <div className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex items-end justify-center gap-1 h-28">
+                  <div className="w-4 bg-[#1b5e20] rounded-t-sm" style={{ height: "95%" }} title="Approved: 95" />
+                  <div className="w-3 bg-red-700 rounded-t-sm" style={{ height: "8%" }} title="Rejected: 8" />
+                </div>
+                <span className="text-[10px] font-medium text-slate-500">Oct</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 text-xs">
+              <span className="flex items-center gap-1.5 text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#1b5e20]" />
+                <span>Approved</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-700" />
+                <span>Rejected</span>
+              </span>
+            </div>
+          </div>
+
+          {/* System Alerts */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3">
+            <h3 className="text-sm font-bold text-slate-900">System Alerts</h3>
+
+            <div className="p-3.5 bg-red-50/80 border border-red-200 rounded-xl flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-red-950">SLA Breach Warning</h4>
+                <p className="text-[11px] text-red-800 leading-snug mt-0.5">
+                  12 properties in queue exceeding 48hr verification SLA.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
+              <Info className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Scheduled Maintenance</h4>
+                <p className="text-[11px] text-slate-600 leading-snug mt-0.5">
+                  Portal will be down for maintenance on Sunday 02:00 AM.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  )
-}
+  );
+};
+
+export default OfficerDashboardOverviewPage;
