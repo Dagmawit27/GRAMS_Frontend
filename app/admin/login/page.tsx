@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { saveSession, type AuthResult } from "@/lib/api";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 const MOCK_ADMIN_AUTH: AuthResult = {
   accessToken: "admin-demo-token",
@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/auth/login/admin`, {
+      const res = await fetch(`${BASE_URL}/auth/login/employee`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

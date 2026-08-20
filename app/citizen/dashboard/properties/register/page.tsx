@@ -634,6 +634,7 @@ export const RegisterPropertyPage: React.FC = () => {
             <div className="flex justify-between py-1 border-b border-slate-200/60">
               <span className="text-slate-500">Registry Reference:</span>
               <span className="font-mono font-bold text-slate-900">
+                {/* eslint-disable-next-line react-hooks/purity */}
                 ETH-GRAMS-{Date.now().toString().slice(-6)}
               </span>
             </div>

@@ -16,7 +16,7 @@ export type NavPage =
   | 'officer-reports'
   | 'officer-settings';
 
-export type UserRole = 'landlord' | 'tenant' | 'officer' | 'supervisor';
+export type UserRole = 'landlord' | 'tenant' | 'citizen' | 'woreda_officer' | 'woreda_supervisor';
 
 export interface Property {
   id: string;

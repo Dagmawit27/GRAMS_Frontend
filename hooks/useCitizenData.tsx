@@ -18,6 +18,7 @@ import {
   INITIAL_RECEIPTS,
   INITIAL_NOTIFICATIONS,
 } from "@/data/mockData";
+import { getMyProperties, registerProperty as apiRegisterProperty, getSession, clearSession } from "@/lib/api";
 
 export interface CitizenContextType {
   // Role & Navigation
@@ -77,6 +78,7 @@ export interface CitizenContextType {
   setIsLogoutModalOpen: (v: boolean) => void;
 
   // Actions
+  handleLogout: () => void;
   handleNavigate: (page: NavPage) => void;
   handleSelectProperty: (property: Property) => void;
   handleBackFromPropertyDetails: () => void;
@@ -98,30 +100,44 @@ export interface CitizenContextType {
 
 const CitizenContext = createContext<CitizenContextType | null>(null);
 
+const VALID_ROLES: UserRole[] = [
+  "citizen",
+  "tenant",
+  "landlord",
+  "woreda_officer",
+  "woreda_supervisor",
+];
+
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Role & Navigation State - Reads role stored in localStorage during login
   const [userRole, setUserRoleState] = useState<UserRole>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("userRole");
-      if (saved === "tenant" || saved === "landlord" || saved === "officer" || saved === "supervisor") {
-        return saved as UserRole;
-      }
-      const rawUser = localStorage.getItem("user");
-      if (rawUser) {
-        try {
-          const u = JSON.parse(rawUser);
-          if (u.roles && u.roles.length > 0) {
-            const r = u.roles[0].toLowerCase();
-            if (r === "tenant" || r === "landlord" || r === "officer" || r === "supervisor") {
-              return r as UserRole;
-            }
-          }
-        } catch {
-          // ignore
+    if (typeof window === "undefined") {
+      return "citizen";
+    }
+
+    const saved = localStorage.getItem("userRole");
+
+    if (saved && VALID_ROLES.includes(saved as UserRole)) {
+      return saved as UserRole;
+    }
+
+    const rawUser = localStorage.getItem("user");
+
+    if (rawUser) {
+      try {
+        const user = JSON.parse(rawUser);
+
+        const role = user.roles?.[0]?.toLowerCase();
+
+        if (role && VALID_ROLES.includes(role as UserRole)) {
+          return role as UserRole;
         }
+      } catch {
+        // Ignore invalid user data
       }
     }
-    return "landlord";
+
+    return "citizen";
   });
 
   const setUserRole = (role: UserRole) => {
@@ -135,7 +151,7 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Listen for storage events (e.g. login from another tab or modal)
     const handleStorage = () => {
       const saved = localStorage.getItem("userRole");
-      if (saved && (saved === "tenant" || saved === "landlord" || saved === "officer" || saved === "supervisor")) {
+      if (saved && VALID_ROLES.includes(saved as UserRole)) {
         setUserRoleState(saved as UserRole);
       }
     };
@@ -159,6 +175,44 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [receipts, setReceipts] = useState<Receipt[]>(INITIAL_RECEIPTS);
   const [notifications, setNotifications] = useState<ActivityNotification[]>(INITIAL_NOTIFICATIONS);
 
+  useEffect(() => {
+    const session = getSession();
+    if (session) {
+      getMyProperties(session.token).then(data => {
+        const mapped: Property[] = data.map(pr => ({
+          id: pr.id,
+          title: pr.propertyCode || pr.propertyType + " Property",
+          type: pr.propertyType as any,
+          price: pr.monthlyRent,
+          location: pr.address?.city || "",
+          subCity: pr.address?.subCity || "",
+          woreda: pr.address?.woreda || "",
+          houseNo: pr.houseNumber || "",
+          bedrooms: pr.bedroomCount || 0,
+          bathrooms: pr.bathroomCount || 0,
+          area: pr.areaSqMeter || 0,
+          floor: pr.floorNumber || "",
+          status: pr.status === 'LISTED' ? 'Available' : 'Under Maintenance',
+          verified: pr.status === 'VERIFIED' || pr.status === 'LISTED',
+          featuredImage: pr.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80",
+          galleryImages: pr.images?.map(i => i.imageUrl) || [],
+          description: pr.description || "",
+          amenities: [],
+          securityDepositMonths: 2,
+          minLeasePeriod: "1 Year",
+          utilitiesIncluded: false,
+          availableFrom: pr.createdAt || new Date().toISOString(),
+          landlordName: session.user.firstName + " " + session.user.lastName,
+        }));
+        
+        setProperties(prev => {
+          const newIds = new Set(mapped.map(p => p.id));
+          return [...mapped, ...prev.filter(p => !newIds.has(p.id))];
+        });
+      }).catch(err => console.error("Failed to load properties:", err));
+    }
+  }, []);
+
   // Search & Theme State
   const [globalSearch, setGlobalSearch] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -180,6 +234,15 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       document.documentElement.classList.remove("dark");
     }
   }, [isDarkMode]);
+
+  const handleLogout = () => {
+    clearSession();
+
+    setIsLogoutModalOpen(false);
+    setSelectedProperty(null);
+    setSelectedLeaseRequest(null);
+    setActiveAgreementView("list");
+  };
 
   const handleNavigate = (page: NavPage) => {
     setSelectedProperty(null);
@@ -226,7 +289,33 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ]);
   };
 
-  const handleRegisterProperty = (newProp: Property) => {
+  const handleRegisterProperty = async (newProp: Property) => {
+    try {
+      const session = getSession();
+      if (session) {
+        const reqData = {
+          propertyType: newProp.type,
+          address: {
+            city: newProp.location || "Addis Ababa",
+            subCity: newProp.subCity || "Bole",
+            woreda: newProp.woreda || "01",
+          },
+          houseNumber: newProp.houseNo,
+          floorNumber: newProp.floor,
+          bedroomCount: newProp.bedrooms,
+          bathroomCount: newProp.bathrooms,
+          areaSqMeter: newProp.area,
+          monthlyRent: newProp.price,
+          description: newProp.description,
+        };
+        const backendProp = await apiRegisterProperty(session.token, reqData as any);
+        newProp.id = backendProp.id;
+        newProp.verified = backendProp.status === 'VERIFIED' || backendProp.status === 'LISTED';
+      }
+    } catch (error) {
+      console.error("Failed to register property with backend:", error);
+    }
+
     setProperties((prev) => [newProp, ...prev]);
     setNotifications((prev) => [
       {
@@ -510,6 +599,7 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setViewingAgreement,
         isLogoutModalOpen,
         setIsLogoutModalOpen,
+        handleLogout,
         handleNavigate,
         handleSelectProperty,
         handleBackFromPropertyDetails,

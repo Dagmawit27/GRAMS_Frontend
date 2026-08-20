@@ -1,9 +1,10 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/api";
 import Link from "next/link";
+import { useCitizenData } from "@/hooks/useCitizenData";
 import {
   LayoutDashboard,
   Search,
@@ -52,11 +53,36 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   onCloseMobile,
   onLogoutClick,
   pendingAgreementsCount = 2,
-  userRole = "landlord",
+  userRole: propUserRole,
 }) => {
+  const { userRole: localStorageRole } = useCitizenData();
   const session = getSession();
-  const isOfficer = userRole === "officer" || userRole === "supervisor" || session?.user?.userType === "GOVERNMENT_EMPLOYEE";
-  const isSupervisor = userRole === "supervisor" || session?.user?.roles?.includes("SUPERVISOR");
+  // Use localStorage role if available, otherwise fall back to prop
+  const rawRole = localStorageRole || propUserRole;
+  // Normalize to lowercase so comparisons work regardless of how the role is stored
+  const userRole = (rawRole ?? "citizen").toLowerCase() as UserRole;
+
+  const isOfficer = userRole === "woreda_officer" || userRole === "woreda_supervisor" || session?.user?.userType === "GOVERNMENT_EMPLOYEE";
+  const isSupervisor = userRole === "woreda_supervisor" || session?.user?.roles?.includes("SUPERVISOR");
+
+  const isTenant = userRole === "tenant" || userRole === "citizen";
+  const isLandlord = userRole === "landlord" || userRole === "citizen";
+
+  // Get user name from localStorage
+  const [userName, setUserName] = useState("");
+  
+  useEffect(() => {
+    const userJson = localStorage.getItem("user");
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        const fullName = `${user.firstName} ${user.middleName ? user.middleName + " " : ""}${user.lastName}`;
+        setUserName(fullName);
+      } catch (e) {
+        console.error("Failed to parse user data:", e);
+      }
+    }
+  }, []);
 
   
     // Officer / Supervisor Navigation Items (Exact match to Reference Images 1, 2, 3, 4)
@@ -103,39 +129,25 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       href: string;
     }> = [
       { id: "dashboard", label: "Dashboard", href: "/citizen/dashboard", icon: LayoutDashboard, category: "Overview" },
-      ...(userRole === "tenant"
+      ...(isTenant
         ? [
             { id: "search" as NavPage, label: "Search House", icon: Search, category: "Rentals", href: "/citizen/dashboard/search" },
-            { id: "agreements" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
+            { id: "agreements-t" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
           ]
-        : [
+        : []),
+      ...(isLandlord
+        ? [
             { id: "properties" as NavPage, label: "My Properties", icon: Building2, category: "Management", href: "/citizen/dashboard/properties" },
-            { id: "register-property" as NavPage, label: "+ Register Property", icon: PlusCircle, category: "Management", href: "/citizen/dashboard/register-property" },
+            { id: "register-property" as NavPage, label: "Register Property", icon: PlusCircle, category: "Management", href: "/citizen/dashboard/properties/register" },
             { id: "agreements" as NavPage, label: "Rental Agreements", icon: FileText, category: "Management", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
-          ]),
+          ]
+        : []),
       { id: "payments", label: "Payments", icon: CreditCard, category: "Finance", href: "/citizen/dashboard/payments" },
       { id: "bills", label: "Bills & Invoices", icon: Receipt, category: "Finance", href: "/citizen/dashboard/bills" },
       { id: "profile", label: "My Profile", icon: User, category: "Account", href: "/citizen/dashboard/profile" },
     ];
   
-    const currentNavItems = isOfficer ? officerNavItems : citizenNavItems;
-  
-  const navItems: Array<{
-    id: NavPage;
-    label: string;
-    href: string;
-    icon: React.ComponentType<{ className?: string }>;
-    category?: string;
-    badge?: number;
-  }> = [
-    { id: "dashboard", label: "Dashboard", href: "/citizen/dashboard", icon: LayoutDashboard },
-    { id: "search", label: "Search House", href: "/citizen/dashboard/search", icon: Search },
-    { id: "agreements", label: userRole === "landlord" ? "Rental Agreements" : "My Lease Requests", href: "/citizen/dashboard/agreements", icon: FileText, category: "Management", badge: pendingAgreementsCount },
-    { id: "properties", label: "Properties", href: "/citizen/dashboard/properties", icon: Building2, category: "Management" },
-    { id: "payments", label: "Payments", href: "/citizen/dashboard/payments", icon: CreditCard, category: "Payment" },
-    { id: "bills", label: "Bills", href: "/citizen/dashboard/bills", icon: Receipt, category: "Payment" },
-    { id: "profile", label: "My Profile", href: "/citizen/dashboard/profile", icon: User, category: "Account" },
-  ];
+  const currentNavItems = isOfficer ? officerNavItems : citizenNavItems;
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white border-r border-slate-200/90 text-slate-900">
@@ -262,9 +274,9 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-900">Dagmawit Mesfin</p>
+                <p className="text-xs font-semibold text-slate-900">{userName || "User"}</p>
                 <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                  Ministry of Urban Dev.
+                  {session?.user?.userType === "GOVERNMENT_EMPLOYEE" ? "Government Employee" : "Citizen Account"}
                 </p>
               </div>
               <button

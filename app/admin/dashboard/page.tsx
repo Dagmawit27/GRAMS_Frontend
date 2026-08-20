@@ -2,31 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getSession } from "@/lib/api";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>({email: "dagi"});
+  const [user, setUser] = useState<any>(null);
 
-  // useEffect(() => {
-  //   const userStr = localStorage.getItem("user");
-  //   if (!userStr) {
-  //     router.push("/login");
-  //     return;
-  //   }
-  //   try {
-  //     const userData = JSON.parse(userStr);
-  //     const hasAdminRole = userData.roles?.includes("SYSTEM_ADMINISTRATOR") || userData.roles?.includes("ROLE_SYSTEM_ADMINISTRATOR");
-  //     if (!hasAdminRole) {
-  //       router.push("/unauthorized");
-  //       return;
-  //     }
-  //     setUser(userData);
-  //   } catch {
-  //     router.push("/login");
-  //   }
-  // }, [router]);
+  useEffect(() => {
+    const session = getSession();
+    if (!session) {
+      router.push("/admin/login");
+      return;
+    }
+    const hasAdminRole = session.user.roles?.includes("SYSTEM_ADMINISTRATOR") || session.user.roles?.includes("ROLE_SYSTEM_ADMINISTRATOR");
+    if (!hasAdminRole) {
+      router.push("/admin/login"); // or redirect to unauthorized page
+      return;
+    }
+    setUser(session.user);
+  }, [router]);
 
-  if (!user) return <div className="p-8">Loading System Admin Portal...</div>;
+  if (!user) return <div className="p-8 bg-slate-900 text-white min-h-screen">Loading System Admin Portal...</div>;
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">

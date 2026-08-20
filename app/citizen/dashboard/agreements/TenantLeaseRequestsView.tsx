@@ -229,7 +229,7 @@ export const TenantLeaseRequestsView: React.FC = () => {
                         <span>NOTE FROM LANDLORD</span>
                       </div>
                       <p className="leading-relaxed text-slate-700 italic">
-                        "{req.declineReason || "Thank you for your interest. Unfortunately, we have decided to proceed with another applicant who requested a longer lease term and provided immediate advance payment."}"
+                        &quot;{req.declineReason || "Thank you for your interest. Unfortunately, we have decided to proceed with another applicant who requested a longer lease term and provided immediate advance payment."}&quot;
                       </p>
                     </div>
                   )}

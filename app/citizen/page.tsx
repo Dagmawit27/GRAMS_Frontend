@@ -33,10 +33,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { loginCitizen, registerCitizen, saveSession } from "@/lib/api";
+import { useRouter } from "next/dist/client/components/navigation";
 
 type AuthFormMode = "signin" | "register";
 type RegisterMode = "fayda" | "manual";
-type SignInMethod = "fayda" | "phone";
 
 export const CitizenHome: React.FC = () => {
   const { handleNavigate, setUserRole } = useCitizenData();
@@ -51,11 +52,8 @@ export const CitizenHome: React.FC = () => {
   // ==========================================
   // SIGN IN STATE
   // ==========================================
-  const [signInMethod, setSignInMethod] = useState<SignInMethod>("fayda");
-  const [loginFaydaId, setLoginFaydaId] = useState<string>("ET-NID-00892418");
-  const [loginPhone, setLoginPhone] = useState<string>("+251 91 123 4567");
-  const [loginPassword, setLoginPassword] = useState<string>("••••••••");
-  const [loginOtp, setLoginOtp] = useState<string>("582914");
+  const [loginEmail, setLoginEmail] = useState<string>("citizen.test@example.com");
+  const [loginPassword, setLoginPassword] = useState<string>("SecurePass123!");
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>("");
 
@@ -85,7 +83,7 @@ export const CitizenHome: React.FC = () => {
     phoneMasked: string;
     phoneFull: string;
     gender: string;
-    dob: string;
+    dateOfBirth: string;
     avatarUrl: string;
   }>({
     fin: "ET-NID-00892418",
@@ -95,7 +93,7 @@ export const CitizenHome: React.FC = () => {
     phoneMasked: "+251 91 ••• ••67",
     phoneFull: "+251 91 123 4567",
     gender: "Female",
-    dob: "14/10/1993",
+    dateOfBirth: "14/10/1993",
     avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
   });
 
@@ -111,8 +109,8 @@ export const CitizenHome: React.FC = () => {
   const [middleName, setMiddleName] = useState<string>("Bekele");
   const [lastName, setLastName] = useState<string>("Tadesse");
   const [gender, setGender] = useState<string>("Female");
-  const [dob, setDob] = useState<string>("1992-06-18");
-  const [phone, setPhone] = useState<string>("+251 91 234 5678");
+  const [dateOfBirth, setDateOfBirth] = useState<string>("1992-06-18");
+  const [phoneNumber, setPhoneNumber] = useState<string>("+251 91 234 5678");
   const [email, setEmail] = useState<string>("almaz.bekele@gov.et");
   const [worksOn, setWorksOn] = useState<string>("Commercial Bank of Ethiopia (Senior Analyst)");
   const [role, setRole] = useState<string>("both");
@@ -120,6 +118,7 @@ export const CitizenHome: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState<string>("AlmazPass#2025");
   const [agreedProclamation, setAgreedProclamation] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string>("");
 
   // Completion State
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
@@ -130,7 +129,7 @@ export const CitizenHome: React.FC = () => {
     setIsAuthOpen(true);
     setIsSuccess(false);
   };
-
+const router = useRouter();
   // Close Auth and return to initial hero
   const closeAuth = () => {
     setIsAuthOpen(false);
@@ -163,18 +162,27 @@ export const CitizenHome: React.FC = () => {
   }, [isAuthOpen, authMode, registerMode, faydaStep, countdown]);
 
   // Handle Login Submission
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     setLoginError("");
 
-    setTimeout(() => {
-      setIsLoggingIn(false);
+    try {
+      const data = await loginCitizen({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
+
+      saveSession(data);
       setIsSuccess(true);
       setTimeout(() => {
-        handleNavigate("dashboard");
+        router.push("/citizen/dashboard");
       }, 950);
-    }, 700);
+    } catch (err: unknown) {
+      setLoginError(err instanceof Error ? err.message : "An error occurred during login.");
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   // Handle Fayda FIN Verification Submission
@@ -266,38 +274,74 @@ export const CitizenHome: React.FC = () => {
   };
 
   // Handle Final Fayda Registration Completion
-  const handleCompleteFaydaRegistration = (e: React.FormEvent) => {
+  const handleCompleteFaydaRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedRole === "tenant") setUserRole("tenant");
     else setUserRole("landlord");
 
-    setIsSuccess(true);
-    setTimeout(() => {
-      handleNavigate("dashboard");
-    }, 1100);
-  };
+    try {
+      // Convert DD/MM/YYYY to YYYY-MM-DD
+      const [dd, mm, yyyy] = verifiedProfile.dateOfBirth.split("/");
+      const formattedDob = `${yyyy}-${mm}-${dd}`;
 
-  // Handle Manual Full Registration Form Submission
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firstName.trim() || !phone.trim()) return;
+      const data = await registerCitizen({
+        firstName: verifiedProfile.firstName,
+        middleName: verifiedProfile.middleName,
+        lastName: verifiedProfile.lastName,
+        gender: verifiedProfile.gender.toUpperCase() as "MALE" | "FEMALE",
+        dateOfBirth: formattedDob,
+        phoneNumber: verifiedProfile.phoneFull.replace(/\s/g, ""),
+        email: `${verifiedProfile.firstName.toLowerCase()}@example.com`,
+        worksOn: "",
+        rolePreference: selectedRole.toUpperCase(),
+        password: portalPassword,
+      });
 
-    if (password !== confirmPassword) {
-      alert("Passwords do not match. Please re-enter.");
-      return;
-    }
-
-    if (role === "tenant") setUserRole("tenant");
-    else setUserRole("landlord");
-
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+      saveSession(data);
       setIsSuccess(true);
       setTimeout(() => {
         handleNavigate("dashboard");
       }, 1100);
-    }, 850);
+    } catch (err: any) {
+      setSubmitError(err.message || "An error occurred during Fayda registration.");
+    }
+  };
+
+  // Handle Manual Full Registration Form Submission
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+     setSubmitError("");
+    if (!firstName.trim() || !phoneNumber.trim()) return;
+
+    if (password !== confirmPassword) {
+      setSubmitError("Passwords do not match. Please re-enter.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await registerCitizen({
+        firstName,
+        middleName,
+        lastName,
+        gender: gender.toUpperCase() as "MALE" | "FEMALE",
+        dateOfBirth: dateOfBirth,
+        phoneNumber: phoneNumber.replace(/\s/g, ""),
+        email,
+        worksOn,
+        rolePreference: role.toUpperCase(),
+        password,
+      });
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.push("/citizen/dashboard");
+      }, 1100);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -540,610 +584,348 @@ export const CitizenHome: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Success State */}
-                  {isSuccess ? (
-                    <div className="py-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
-                      <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#00450d] flex items-center justify-center mx-auto border border-emerald-200 shadow-xs">
-                        <CheckCircle2 className="w-10 h-10" />
-                      </div>
-                      <div className="space-y-1">
-                        <Badge variant="verified" className="mx-auto text-xs py-0.5 px-3">
-                          <ShieldCheck className="w-3.5 h-3.5 mr-1" />
-                          Verified Citizen Account Created
-                        </Badge>
-                        <h3 className="text-xl font-bold text-slate-900 pt-1">
-                          Welcome to GRAMS, {authMode === "signin" ? "Dagmawit" : (registerMode === "fayda" ? verifiedProfile.firstName : firstName)}!
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-                          Your citizen account is now linked with the National Housing Registry. Redirecting to your dashboard...
-                        </p>
-                      </div>
-                      <div className="pt-2">
-                        <Button
-                          onClick={() => handleNavigate("dashboard")}
-                          className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold rounded-xl"
+                  {/* ========================================================= */}
+                  {/* MODE 1: CREATE CITIZEN ACCOUNT (REGISTRATION FORM)         */}
+                  {/* ========================================================= */}
+                  {authMode === "register" && (
+                    <div className="space-y-4">
+                      {/* Registration Method Switcher Tabs */}
+                      <div className="grid grid-cols-2 p-1.5 bg-slate-100/90 border border-slate-200/80 rounded-xl text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterMode("fayda")}
+                          className={`py-2 px-2.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
+                            registerMode === "fayda"
+                              ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
                         >
-                          Go to Dashboard Now
-                          <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* ========================================================= */}
-                      {/* MODE 1: CREATE CITIZEN ACCOUNT (REGISTRATION FORM)         */}
-                      {/* ========================================================= */}
-                      {authMode === "register" && (
-                        <div className="space-y-4">
-                          {/* Registration Method Switcher Tabs */}
-                          <div className="grid grid-cols-2 p-1.5 bg-slate-100/90 border border-slate-200/80 rounded-xl text-xs">
-                            <button
-                              type="button"
-                              onClick={() => setRegisterMode("fayda")}
-                              className={`py-2 px-2.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
-                                registerMode === "fayda"
-                                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
-                                  : "text-slate-500 hover:text-slate-800"
-                              }`}
-                            >
-                              <ShieldCheck className={`w-4 h-4 shrink-0 ${registerMode === "fayda" ? "text-emerald-700" : "text-slate-400"}`} />
-                              <div className="text-left leading-tight">
-                                <span className="block font-bold text-[11px] sm:text-xs">Register with Fayda ID</span>
-                                <span className="block text-[9px] sm:text-[10px] font-normal text-emerald-700">
-                                  FIN & OTP Verification (Instant)
-                                </span>
-                              </div>
-                            </button>
+                          <ShieldCheck className={`w-4 h-4 shrink-0 ${registerMode === "fayda" ? "text-emerald-700" : "text-slate-400"}`} />
+                          <div className="text-left leading-tight">
+                            <span className="block font-bold text-[11px] sm:text-xs">Register with Fayda ID</span>
+                            <span className="block text-[9px] sm:text-[10px] font-normal text-emerald-700">
+                              FIN & OTP Verification (Instant)
+                            </span>
+                          </div>
+                        </button>
 
-                            <button
-                              type="button"
-                              onClick={() => setRegisterMode("manual")}
-                              className={`py-2 px-2.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
-                                registerMode === "manual"
-                                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
-                                  : "text-slate-500 hover:text-slate-800"
-                              }`}
-                            >
-                              <FileText className={`w-4 h-4 shrink-0 ${registerMode === "manual" ? "text-slate-900" : "text-slate-400"}`} />
-                              <div className="text-left leading-tight">
-                                <span className="block font-bold text-[11px] sm:text-xs">Manual Registration</span>
-                                <span className="block text-[9px] sm:text-[10px] font-normal text-slate-500">
-                                  Insert Full Information
-                                </span>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterMode("manual")}
+                          className={`py-2 px-2.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
+                            registerMode === "manual"
+                              ? "bg-white text-slate-900 shadow-xs border border-slate-200/60"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                        >
+                          <FileText className={`w-4 h-4 shrink-0 ${registerMode === "manual" ? "text-slate-900" : "text-slate-400"}`} />
+                          <div className="text-left leading-tight">
+                            <span className="block font-bold text-[11px] sm:text-xs">Manual Registration</span>
+                            <span className="block text-[9px] sm:text-[10px] font-normal text-slate-500">
+                              Insert Full Information
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* --------------------------------------------------------- */}
+                      {/* METHOD A: FAYDA NATIONAL ID (FIN -> OTP -> CONFIRMATION)  */}
+                      {/* --------------------------------------------------------- */}
+                      {registerMode === "fayda" && (
+                        <div className="space-y-4">
+                          {/* Fayda Progress Indicator */}
+                          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                                  faydaStep >= 1 ? "bg-[#00450d] text-white" : "bg-slate-100 text-slate-400"
+                                }`}
+                              >
+                                {faydaStep > 1 ? <Check className="w-3 h-3 stroke-[3]" /> : "1"}
                               </div>
-                            </button>
+                              <span className={`text-[11px] font-bold ${faydaStep === 1 ? "text-slate-900" : "text-slate-500"}`}>
+                                Fayda FIN
+                              </span>
+                            </div>
+
+                            <div className={`flex-1 h-[2px] mx-2 ${faydaStep >= 2 ? "bg-[#00450d]" : "bg-slate-200"}`} />
+
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                                  faydaStep >= 2 ? "bg-[#00450d] text-white" : "bg-slate-100 text-slate-400"
+                                }`}
+                              >
+                                {faydaStep > 2 ? <Check className="w-3 h-3 stroke-[3]" /> : "2"}
+                              </div>
+                              <span className={`text-[11px] font-bold ${faydaStep === 2 ? "text-slate-900" : "text-slate-500"}`}>
+                                SMS OTP
+                              </span>
+                            </div>
+
+                            <div className={`flex-1 h-[2px] mx-2 ${faydaStep >= 3 ? "bg-[#00450d]" : "bg-slate-200"}`} />
+
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                                  faydaStep === 3 ? "bg-[#00450d] text-white" : "bg-slate-100 text-slate-400"
+                                }`}
+                              >
+                                3
+                              </div>
+                              <span className={`text-[11px] font-bold ${faydaStep === 3 ? "text-slate-900" : "text-slate-500"}`}>
+                                Confirm Profile
+                              </span>
+                            </div>
                           </div>
 
-                          {/* --------------------------------------------------------- */}
-                          {/* METHOD A: FAYDA NATIONAL ID (FIN -> OTP -> CONFIRMATION)  */}
-                          {/* --------------------------------------------------------- */}
-                          {registerMode === "fayda" && (
-                            <div className="space-y-4">
-                              {/* Fayda Progress Indicator */}
-                              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                                      faydaStep >= 1 ? "bg-[#00450d] text-white" : "bg-slate-100 text-slate-400"
-                                    }`}
-                                  >
-                                    {faydaStep > 1 ? <Check className="w-3 h-3 stroke-[3]" /> : "1"}
-                                  </div>
-                                  <span className={`text-[11px] font-bold ${faydaStep === 1 ? "text-slate-900" : "text-slate-500"}`}>
-                                    Fayda FIN
+                          {/* FAYDA STEP 1: FIN INPUT */}
+                          {faydaStep === 1 && (
+                            <form onSubmit={handleVerifyFin} className="space-y-3.5">
+                              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3 flex items-start gap-2.5">
+                                <ShieldCheck className="w-4 h-4 text-[#00450d] shrink-0 mt-0.5" />
+                                <div className="text-xs">
+                                  <span className="font-bold text-slate-900 block text-[11px]">
+                                    Direct Integration with National ID Program (NIDP)
                                   </span>
-                                </div>
-
-                                <div className={`flex-1 h-[2px] mx-2 ${faydaStep >= 2 ? "bg-[#00450d]" : "bg-slate-200"}`} />
-
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                                      faydaStep >= 2 ? "bg-[#00450d] text-white" : "bg-slate-100 text-slate-400"
-                                    }`}
-                                  >
-                                    {faydaStep > 2 ? <Check className="w-3 h-3 stroke-[3]" /> : "2"}
-                                  </div>
-                                  <span className={`text-[11px] font-bold ${faydaStep === 2 ? "text-slate-900" : "text-slate-500"}`}>
-                                    SMS OTP
-                                  </span>
-                                </div>
-
-                                <div className={`flex-1 h-[2px] mx-2 ${faydaStep >= 3 ? "bg-[#00450d]" : "bg-slate-200"}`} />
-
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                                      faydaStep === 3 ? "bg-[#00450d] text-white" : "bg-slate-100 text-slate-400"
-                                    }`}
-                                  >
-                                    3
-                                  </div>
-                                  <span className={`text-[11px] font-bold ${faydaStep === 3 ? "text-slate-900" : "text-slate-500"}`}>
-                                    Confirm Profile
+                                  <span className="text-slate-600 block mt-0.5 text-[11px] leading-relaxed">
+                                    Enter your 12 to 16 digit Fayda Identification Number (FIN / NID). We will verify your identity and send an SMS OTP to your registered phone.
                                   </span>
                                 </div>
                               </div>
 
-                              {/* FAYDA STEP 1: FIN INPUT */}
-                              {faydaStep === 1 && (
-                                <form onSubmit={handleVerifyFin} className="space-y-3.5">
-                                  <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3 flex items-start gap-2.5">
-                                    <ShieldCheck className="w-4 h-4 text-[#00450d] shrink-0 mt-0.5" />
-                                    <div className="text-xs">
-                                      <span className="font-bold text-slate-900 block text-[11px]">
-                                        Direct Integration with National ID Program (NIDP)
-                                      </span>
-                                      <span className="text-slate-600 block mt-0.5 text-[11px] leading-relaxed">
-                                        Enter your 12 to 16 digit Fayda Identification Number (FIN / NID). We will verify your identity and send an SMS OTP to your registered phone.
-                                      </span>
-                                    </div>
-                                  </div>
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-slate-800">
+                                    Fayda Identification Number (FIN / NID) <span className="text-red-500">*</span>
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => setFinNumber("ET-NID-00892418")}
+                                    className="text-[11px] font-semibold text-emerald-800 hover:underline flex items-center gap-1"
+                                  >
+                                    <Sparkles className="w-3 h-3" />
+                                    Use Demo FIN
+                                  </button>
+                                </div>
 
-                                  <div className="space-y-1">
-                                    <div className="flex items-center justify-between">
-                                      <label className="text-xs font-bold text-slate-800">
-                                        Fayda Identification Number (FIN / NID) <span className="text-red-500">*</span>
-                                      </label>
-                                      <button
-                                        type="button"
-                                        onClick={() => setFinNumber("ET-NID-00892418")}
-                                        className="text-[11px] font-semibold text-emerald-800 hover:underline flex items-center gap-1"
-                                      >
-                                        <Sparkles className="w-3 h-3" />
-                                        Use Demo FIN
-                                      </button>
-                                    </div>
+                                <div className="relative">
+                                  <Input
+                                    value={finNumber}
+                                    onChange={(e) => setFinNumber(e.target.value.toUpperCase())}
+                                    placeholder="e.g. ET-NID-00892418 or 1234-5678-9012"
+                                    className="h-10 text-xs font-mono tracking-wider pl-9 bg-slate-50/50 border-slate-300 focus:bg-white"
+                                    required
+                                  />
+                                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  Found on the front of your physical Fayda card or Fayda digital mobile wallet.
+                                </p>
+                              </div>
 
-                                    <div className="relative">
-                                      <Input
-                                        value={finNumber}
-                                        onChange={(e) => setFinNumber(e.target.value.toUpperCase())}
-                                        placeholder="e.g. ET-NID-00892418 or 1234-5678-9012"
-                                        className="h-10 text-xs font-mono tracking-wider pl-9 bg-slate-50/50 border-slate-300 focus:bg-white"
-                                        required
-                                      />
-                                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                                    </div>
-                                    <p className="text-[10px] text-slate-400">
-                                      Found on the front of your physical Fayda card or Fayda digital mobile wallet.
-                                    </p>
-                                  </div>
+                              {finError && (
+                                <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{finError}</span>
+                                </div>
+                              )}
 
-                                  {finError && (
-                                    <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                      <span>{finError}</span>
-                                    </div>
+                              <div className="pt-0.5">
+                                <label className="flex items-start gap-2 cursor-pointer text-[11px] text-slate-600 select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={faydaConsent}
+                                    onChange={(e) => setFaydaConsent(e.target.checked)}
+                                    className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#00450d] focus:ring-[#00450d]"
+                                  />
+                                  <span>
+                                    I authorize the Ethiopian National ID Program (NIDP) to share my verified demographic data with the Government Rental Administration and Municipal Services (GRAMS).
+                                  </span>
+                                </label>
+                              </div>
+
+                              <div className="pt-1">
+                                <Button
+                                  type="submit"
+                                  disabled={isFinVerifying}
+                                  className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
+                                >
+                                  {isFinVerifying ? (
+                                    <span className="flex items-center gap-2">
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                      Connecting to National ID Registry...
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center justify-center gap-2">
+                                      <span>Verify FIN & Send SMS OTP</span>
+                                      <ArrowRight className="w-4 h-4" />
+                                    </span>
                                   )}
-
-                                  <div className="pt-0.5">
-                                    <label className="flex items-start gap-2 cursor-pointer text-[11px] text-slate-600 select-none">
-                                      <input
-                                        type="checkbox"
-                                        checked={faydaConsent}
-                                        onChange={(e) => setFaydaConsent(e.target.checked)}
-                                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#00450d] focus:ring-[#00450d]"
-                                      />
-                                      <span>
-                                        I authorize the Ethiopian National ID Program (NIDP) to share my verified demographic data with the Government Rental Administration and Municipal Services (GRAMS).
-                                      </span>
-                                    </label>
-                                  </div>
-
-                                  <div className="pt-1">
-                                    <Button
-                                      type="submit"
-                                      disabled={isFinVerifying}
-                                      className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
-                                    >
-                                      {isFinVerifying ? (
-                                        <span className="flex items-center gap-2">
-                                          <RefreshCw className="w-4 h-4 animate-spin" />
-                                          Connecting to National ID Registry...
-                                        </span>
-                                      ) : (
-                                        <span className="flex items-center justify-center gap-2">
-                                          <span>Verify FIN & Send SMS OTP</span>
-                                          <ArrowRight className="w-4 h-4" />
-                                        </span>
-                                      )}
-                                    </Button>
-                                  </div>
-                                </form>
-                              )}
-
-                              {/* FAYDA STEP 2: OTP INPUT */}
-                              {faydaStep === 2 && (
-                                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                                  <div className="text-center space-y-1">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#00450d] flex items-center justify-center mx-auto border border-emerald-200">
-                                      <Smartphone className="w-5 h-5" />
-                                    </div>
-                                    <h3 className="text-sm font-bold text-slate-900">
-                                      Enter 6-Digit SMS Verification Code
-                                    </h3>
-                                    <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                                      We sent an OTP code to your Fayda registered mobile number:{" "}
-                                      <span className="font-mono font-bold text-slate-900">{verifiedProfile.phoneMasked}</span>
-                                    </p>
-                                  </div>
-
-                                  {/* Segmented OTP 6-Digit Inputs */}
-                                  <div className="space-y-2">
-                                    <div className="flex justify-center items-center gap-1.5 sm:gap-2">
-                                      {otpDigits.map((digit, idx) => (
-                                        <input
-                                          key={idx}
-                                          ref={(el) => {(otpInputRefs.current[idx] = el)}}
-                                          type="text"
-                                          inputMode="numeric"
-                                          maxLength={1}
-                                          value={digit}
-                                          onChange={(e) => handleOtpChange(idx, e.target.value)}
-                                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                                          onPaste={handleOtpPaste}
-                                          className="w-9 h-11 sm:w-10 sm:h-12 text-center text-lg font-bold font-mono border-2 border-slate-200 rounded-xl bg-white focus:border-[#00450d] focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
-                                        />
-                                      ))}
-                                    </div>
-
-                                    <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => setOtpDigits(["5", "8", "2", "9", "1", "4"])}
-                                        className="font-medium text-emerald-800 hover:underline flex items-center gap-1"
-                                      >
-                                        <Sparkles className="w-3 h-3" />
-                                        Auto-fill Demo (582914)
-                                      </button>
-
-                                      <div>
-                                        {countdown > 0 ? (
-                                          <span className="text-slate-400">
-                                            Resend code in <strong className="text-slate-700">{countdown}s</strong>
-                                          </span>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={handleResendOtp}
-                                            className="font-bold text-[#00450d] hover:underline flex items-center gap-1"
-                                          >
-                                            <RefreshCw className="w-3 h-3" />
-                                            Resend OTP
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {otpError && (
-                                    <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                      <span>{otpError}</span>
-                                    </div>
-                                  )}
-
-                                  <div className="pt-1 flex items-center gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() => setFaydaStep(1)}
-                                      className="text-xs h-10 px-3"
-                                    >
-                                      <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-                                      Back
-                                    </Button>
-                                    <Button
-                                      type="submit"
-                                      disabled={isOtpVerifying}
-                                      className="flex-1 bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
-                                    >
-                                      {isOtpVerifying ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                          <RefreshCw className="w-4 h-4 animate-spin" />
-                                          Verifying Token...
-                                        </span>
-                                      ) : (
-                                        <span className="flex items-center justify-center gap-2">
-                                          <span>Verify Code & Retrieve Profile</span>
-                                          <ArrowRight className="w-4 h-4" />
-                                        </span>
-                                      )}
-                                    </Button>
-                                  </div>
-                                </form>
-                              )}
-
-                              {/* FAYDA STEP 3: PROFILE CONFIRMATION & PORTAL PASSWORD */}
-                              {faydaStep === 3 && (
-                                <form onSubmit={handleCompleteFaydaRegistration} className="space-y-4">
-                                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
-                                    <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
-                                      <div className="flex items-center gap-2">
-                                        <BadgeCheck className="w-4 h-4 text-emerald-700" />
-                                        <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
-                                          National ID Record Verified
-                                        </span>
-                                      </div>
-                                      <Badge variant="verified" className="text-[10px] py-0.5">
-                                        NIDP Match 100%
-                                      </Badge>
-                                    </div>
-
-                                    {/* Citizen Verified Details Card */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                                      <div>
-                                        <span className="text-slate-500 block text-[10px]">Full Name</span>
-                                        <span className="font-bold text-slate-900 block">
-                                          {verifiedProfile.firstName} {verifiedProfile.middleName} {verifiedProfile.lastName}
-                                        </span>
-                                      </div>
-
-                                      <div>
-                                        <span className="text-slate-500 block text-[10px]">Fayda FIN Identifier</span>
-                                        <span className="font-mono font-bold text-emerald-800 block">
-                                          {verifiedProfile.fin}
-                                        </span>
-                                      </div>
-
-                                      <div>
-                                        <span className="text-slate-500 block text-[10px]">Verified Phone Number</span>
-                                        <span className="font-mono font-medium text-slate-900 block">
-                                          {verifiedProfile.phoneFull}
-                                        </span>
-                                      </div>
-
-                                      <div>
-                                        <span className="text-slate-500 block text-[10px]">Date of Birth / Gender</span>
-                                        <span className="text-slate-900 block">
-                                          {verifiedProfile.dob} &bull; {verifiedProfile.gender}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Citizen Role Preference */}
-                                  <div>
-                                    <label className="text-[11px] font-bold text-slate-800 block mb-1">
-                                      Select Your Primary Municipal Portal Role
-                                    </label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setSelectedRole("both")}
-                                        className={`p-2 rounded-lg border text-center transition-all ${
-                                          selectedRole === "both"
-                                            ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
-                                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                                        }`}
-                                      >
-                                        <span className="block text-xs font-bold">Both</span>
-                                        <span className="block text-[9px] text-slate-400 font-normal">All features</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => setSelectedRole("tenant")}
-                                        className={`p-2 rounded-lg border text-center transition-all ${
-                                          selectedRole === "tenant"
-                                            ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
-                                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                                        }`}
-                                      >
-                                        <span className="block text-xs font-bold">Tenant</span>
-                                        <span className="block text-[9px] text-slate-400 font-normal">Rent & lease</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => setSelectedRole("landlord")}
-                                        className={`p-2 rounded-lg border text-center transition-all ${
-                                          selectedRole === "landlord"
-                                            ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
-                                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                                        }`}
-                                      >
-                                        <span className="block text-xs font-bold">Landlord</span>
-                                        <span className="block text-[9px] text-slate-400 font-normal">List & manage</span>
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Security Setup: Password & PIN */}
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                                    <div>
-                                      <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                                        Create Password <span className="text-red-500">*</span>
-                                      </label>
-                                      <div className="relative">
-                                        <Input
-                                          type={showPassword ? "text" : "password"}
-                                          value={portalPassword}
-                                          onChange={(e) => setPortalPassword(e.target.value)}
-                                          placeholder="Minimum 8 characters"
-                                          className="h-8.5 text-xs pr-8 bg-white"
-                                          required
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => setShowPassword(!showPassword)}
-                                          className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
-                                        >
-                                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    <div>
-                                      <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                                        4-Digit Security PIN
-                                      </label>
-                                      <Input
-                                        type="password"
-                                        maxLength={4}
-                                        value={portalPin}
-                                        onChange={(e) => setPortalPin(e.target.value)}
-                                        placeholder="4 Digits (e.g. 4829)"
-                                        className="h-8.5 text-xs font-mono tracking-widest bg-white"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="pt-1 flex items-center justify-between gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() => setFaydaStep(2)}
-                                      className="text-xs h-10 px-3"
-                                    >
-                                      Back
-                                    </Button>
-                                    <Button
-                                      type="submit"
-                                      className="flex-1 bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
-                                    >
-                                      Complete Registration & Launch Portal
-                                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                                    </Button>
-                                  </div>
-                                </form>
-                              )}
-                            </div>
+                                </Button>
+                              </div>
+                            </form>
                           )}
 
-                          {/* --------------------------------------------------------- */}
-                          {/* METHOD B: MANUAL REGISTRATION (FULL INFORMATION FORM)     */}
-                          {/* --------------------------------------------------------- */}
-                          {registerMode === "manual" && (
-                            <form onSubmit={handleManualSubmit} className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1">
-                              {/* Section 1: Personal Legal Identity */}
+                          {/* FAYDA STEP 2: OTP INPUT */}
+                          {faydaStep === 2 && (
+                            <form onSubmit={handleVerifyOtp} className="space-y-4">
+                              <div className="text-center space-y-1">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#00450d] flex items-center justify-center mx-auto border border-emerald-200">
+                                  <Smartphone className="w-5 h-5" />
+                                </div>
+                                <h3 className="text-sm font-bold text-slate-900">
+                                  Enter 6-Digit SMS Verification Code
+                                </h3>
+                                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                                  We sent an OTP code to your Fayda registered mobile number:{" "}
+                                  <span className="font-mono font-bold text-slate-900">{verifiedProfile.phoneMasked}</span>
+                                </p>
+                              </div>
+
+                              {/* Segmented OTP 6-Digit Inputs */}
                               <div className="space-y-2">
-                                <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
-                                  <User className="w-3.5 h-3.5 text-slate-500" />
-                                  1. Personal Legal Identity
-                                </h4>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      First Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <Input
-                                      value={firstName}
-                                      onChange={(e) => setFirstName(e.target.value)}
-                                      placeholder="e.g. Almaz"
-                                      className="h-8.5 text-xs"
-                                      required
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Middle Name
-                                    </label>
-                                    <Input
-                                      value={middleName}
-                                      onChange={(e) => setMiddleName(e.target.value)}
-                                      placeholder="e.g. Bekele"
-                                      className="h-8.5 text-xs"
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Last Name <span className="text-red-500">*</span>
-                                    </label>
-                                    <Input
-                                      value={lastName}
-                                      onChange={(e) => setLastName(e.target.value)}
-                                      placeholder="e.g. Tadesse"
-                                      className="h-8.5 text-xs"
-                                      required
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Gender
-                                    </label>
-                                    <select
-                                      value={gender}
-                                      onChange={(e) => setGender(e.target.value)}
-                                      className="w-full h-8.5 px-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
-                                    >
-                                      <option value="Female">Female</option>
-                                      <option value="Male">Male</option>
-                                    </select>
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Date of Birth
-                                    </label>
-                                    <Input
-                                      type="date"
-                                      value={dob}
-                                      onChange={(e) => setDob(e.target.value)}
-                                      className="h-8.5 text-xs"
-                                      required
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Works On
-                                    </label>
-                                    <Input
+                                <div className="flex justify-center items-center gap-1.5 sm:gap-2">
+                                  {otpDigits.map((digit, idx) => (
+                                    <input
+                                      key={idx}
+                                      ref={(el) => {(otpInputRefs.current[idx] = el)}}
                                       type="text"
-                                      value={worksOn}
-                                      onChange={(e) => setWorksOn(e.target.value)}
-                                      placeholder="Organization / Employer"
-                                      className="h-8.5 text-xs"
+                                      inputMode="numeric"
+                                      maxLength={1}
+                                      value={digit}
+                                      onChange={(e) => handleOtpChange(idx, e.target.value)}
+                                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                                      onPaste={handleOtpPaste}
+                                      className="w-9 h-11 sm:w-10 sm:h-12 text-center text-lg font-bold font-mono border-2 border-slate-200 rounded-xl bg-white focus:border-[#00450d] focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
                                     />
-                                  </div>
+                                  ))}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setOtpDigits(["5", "8", "2", "9", "1", "4"])}
+                                    className="font-medium text-emerald-800 hover:underline flex items-center gap-1"
+                                  >
+                                    <Sparkles className="w-3 h-3" />
+                                    Auto-fill Demo (582914)
+                                  </button>
+
                                   <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Phone Number <span className="text-red-500">*</span>
-                                    </label>
-                                    <Input
-                                      value={phone}
-                                      onChange={(e) => setPhone(e.target.value)}
-                                      placeholder="+251 91 234 5678"
-                                      className="h-8.5 text-xs font-mono"
-                                      required
-                                    />
+                                    {countdown > 0 ? (
+                                      <span className="text-slate-400">
+                                        Resend code in <strong className="text-slate-700">{countdown}s</strong>
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={handleResendOtp}
+                                        className="font-bold text-[#00450d] hover:underline flex items-center gap-1"
+                                      >
+                                        <RefreshCw className="w-3 h-3" />
+                                        Resend OTP
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {otpError && (
+                                <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{otpError}</span>
+                                </div>
+                              )}
+
+                              <div className="pt-1 flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setFaydaStep(1)}
+                                  className="text-xs h-10 px-3"
+                                >
+                                  <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+                                  Back
+                                </Button>
+                                <Button
+                                  type="submit"
+                                  disabled={isOtpVerifying}
+                                  className="flex-1 bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
+                                >
+                                  {isOtpVerifying ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                      Verifying Token...
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center justify-center gap-2">
+                                      <span>Verify Code & Retrieve Profile</span>
+                                      <ArrowRight className="w-4 h-4" />
+                                    </span>
+                                  )}
+                                </Button>
+                              </div>
+                            </form>
+                          )}
+
+                          {/* FAYDA STEP 3: PROFILE CONFIRMATION & PORTAL PASSWORD */}
+                          {faydaStep === 3 && (
+                            <form onSubmit={handleCompleteFaydaRegistration} className="space-y-4">
+                              <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
+                                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <BadgeCheck className="w-4 h-4 text-emerald-700" />
+                                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                                      National ID Record Verified
+                                    </span>
+                                  </div>
+                                  <Badge variant="verified" className="text-[10px] py-0.5">
+                                    NIDP Match 100%
+                                  </Badge>
+                                </div>
+
+                                {/* Citizen Verified Details Card */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px]">Full Name</span>
+                                    <span className="font-bold text-slate-900 block">
+                                      {verifiedProfile.firstName} {verifiedProfile.middleName} {verifiedProfile.lastName}
+                                    </span>
                                   </div>
 
                                   <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Email Address
-                                    </label>
-                                    <Input
-                                      type="email"
-                                      value={email}
-                                      onChange={(e) => setEmail(e.target.value)}
-                                      placeholder="user@domain.et"
-                                      className="h-8.5 text-xs"
-                                    />
+                                    <span className="text-slate-500 block text-[10px]">Fayda FIN Identifier</span>
+                                    <span className="font-mono font-bold text-emerald-800 block">
+                                      {verifiedProfile.fin}
+                                    </span>
+                                  </div>
+
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px]">Verified Phone Number</span>
+                                    <span className="font-mono font-medium text-slate-900 block">
+                                      {verifiedProfile.phoneFull}
+                                    </span>
+                                  </div>
+
+                                  <div>
+                                    <span className="text-slate-500 block text-[10px]">Date of Birth / Gender</span>
+                                    <span className="text-slate-900 block">
+                                      {verifiedProfile.dateOfBirth} &bull; {verifiedProfile.gender}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Citizen Role Preference */}
-                              <div className="pt-1">
-                                <label className="text-[10px] font-bold text-slate-800 block mb-1">
+                              <div>
+                                <label className="text-[11px] font-bold text-slate-800 block mb-1">
                                   Select Your Primary Municipal Portal Role
                                 </label>
                                 <div className="grid grid-cols-3 gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => { setSelectedRole("both"); setRole("both"); }}
+                                    onClick={() => setSelectedRole("both")}
                                     className={`p-2 rounded-lg border text-center transition-all ${
                                       selectedRole === "both"
                                         ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
@@ -1156,7 +938,7 @@ export const CitizenHome: React.FC = () => {
 
                                   <button
                                     type="button"
-                                    onClick={() => { setSelectedRole("tenant"); setRole("tenant"); }}
+                                    onClick={() => setSelectedRole("tenant")}
                                     className={`p-2 rounded-lg border text-center transition-all ${
                                       selectedRole === "tenant"
                                         ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
@@ -1169,7 +951,7 @@ export const CitizenHome: React.FC = () => {
 
                                   <button
                                     type="button"
-                                    onClick={() => { setSelectedRole("landlord"); setRole("landlord"); }}
+                                    onClick={() => setSelectedRole("landlord")}
                                     className={`p-2 rounded-lg border text-center transition-all ${
                                       selectedRole === "landlord"
                                         ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
@@ -1182,237 +964,400 @@ export const CitizenHome: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Section: Security Password */}
-                              <div className="space-y-2 pt-1">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Account Password <span className="text-red-500">*</span>
-                                    </label>
+                              {/* Security Setup: Password & PIN */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                                    Create Password <span className="text-red-500">*</span>
+                                  </label>
+                                  <div className="relative">
                                     <Input
-                                      type="password"
-                                      value={password}
-                                      onChange={(e) => setPassword(e.target.value)}
+                                      type={showPassword ? "text" : "password"}
+                                      value={portalPassword}
+                                      onChange={(e) => setPortalPassword(e.target.value)}
                                       placeholder="Minimum 8 characters"
-                                      className="h-8.5 text-xs"
+                                      className="h-8.5 text-xs pr-8 bg-white"
                                       required
                                     />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-[10px] font-semibold text-slate-700 block mb-1">
-                                      Confirm Password <span className="text-red-500">*</span>
-                                    </label>
-                                    <Input
-                                      type="password"
-                                      value={confirmPassword}
-                                      onChange={(e) => setConfirmPassword(e.target.value)}
-                                      placeholder="Re-enter password"
-                                      className="h-8.5 text-xs"
-                                      required
-                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                                    >
+                                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                    </button>
                                   </div>
                                 </div>
 
-                                <label className="flex items-start gap-2 cursor-pointer text-[10px] text-slate-600 select-none pt-1">
-                                  <input
-                                    type="checkbox"
-                                    checked={agreedProclamation}
-                                    onChange={(e) => setAgreedProclamation(e.target.checked)}
-                                    className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#00450d] focus:ring-[#00450d]"
-                                    required
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                                    4-Digit Security PIN
+                                  </label>
+                                  <Input
+                                    type="password"
+                                    maxLength={4}
+                                    value={portalPin}
+                                    onChange={(e) => setPortalPin(e.target.value)}
+                                    placeholder="4 Digits (e.g. 4829)"
+                                    className="h-8.5 text-xs font-mono tracking-widest bg-white"
                                   />
-                                  <span>
-                                    I declare that all submitted information is accurate under Ethiopian Proclamation No. 1320/2024 and agree to GRAMS terms of municipal service.
-                                  </span>
-                                </label>
+                                </div>
                               </div>
 
-                              <div className="pt-1">
+                              <div className="pt-1 flex items-center justify-between gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => setFaydaStep(2)}
+                                  className="text-xs h-10 px-3"
+                                >
+                                  Back
+                                </Button>
                                 <Button
                                   type="submit"
-                                  disabled={isSubmitting}
-                                  className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
+                                  className="flex-1 bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
                                 >
-                                  {isSubmitting ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                      <RefreshCw className="w-4 h-4 animate-spin" />
-                                      Processing Registration...
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center justify-center gap-2">
-                                      <span>Submit Citizen Registration</span>
-                                      <ArrowRight className="w-4 h-4" />
-                                    </span>
-                                  )}
+                                  Complete Registration & Launch Portal
+                                  <ArrowRight className="w-3.5 h-3.5 ml-1" />
                                 </Button>
                               </div>
                             </form>
                           )}
-
-                          {/* Footer Switcher */}
-                          <div className="pt-1 text-center text-xs text-slate-500">
-                            Already registered with GRAMS?{" "}
-                            <button
-                              type="button"
-                              onClick={() => setAuthMode("signin")}
-                              className="font-bold text-[#00450d] hover:underline"
-                            >
-                              Sign In to Portal
-                            </button>
-                          </div>
                         </div>
                       )}
 
-                      {/* ========================================================= */}
-                      {/* MODE 2: SIGN IN FORM                                      */}
-                      {/* ========================================================= */}
-                      {authMode === "signin" && (
-                        <form onSubmit={handleLoginSubmit} className="space-y-3.5">
-                          {/* Authentication Method Selector */}
-                          <div className="flex rounded-lg bg-slate-50 p-1 border border-slate-200/80 text-[11px] font-semibold">
-                            <button
-                              type="button"
-                              onClick={() => setSignInMethod("fayda")}
-                              className={`flex-1 py-1.5 rounded-md transition-all text-center ${
-                                signInMethod === "fayda"
-                                  ? "bg-white text-slate-900 shadow-2xs font-bold"
-                                  : "text-slate-500 hover:text-slate-800"
-                              }`}
-                            >
-                              Fayda Digital ID
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSignInMethod("phone")}
-                              className={`flex-1 py-1.5 rounded-md transition-all text-center ${
-                                signInMethod === "phone"
-                                  ? "bg-white text-slate-900 shadow-2xs font-bold"
-                                  : "text-slate-500 hover:text-slate-800"
-                              }`}
-                            >
-                              Phone & OTP
-                            </button>
-                          </div>
+                      {/* --------------------------------------------------------- */}
+                      {/* METHOD B: MANUAL REGISTRATION (FULL INFORMATION FORM)     */}
+                      {/* --------------------------------------------------------- */}
+                      {registerMode === "manual" && (
+                        <form onSubmit={handleManualSubmit} className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1">
+                          {/* Section 1: Personal Legal Identity */}
+                          <div className="space-y-2">
+                            <p className="text-red-500 text-xs">{submitError}</p>
+                            <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                              <User className="w-3.5 h-3.5 text-slate-500" />
+                              1. Personal Legal Identity
+                            </h4>
 
-                          {signInMethod === "fayda" ? (
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                               <div>
-                                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                                  Fayda National ID (FIN)
-                                </label>
-                                <div className="relative">
-                                  <Input
-                                    value={loginFaydaId}
-                                    onChange={(e) => setLoginFaydaId(e.target.value.toUpperCase())}
-                                    placeholder="ET-NID-00892418"
-                                    className="pl-9 h-10 text-xs font-mono bg-slate-50/50"
-                                    required
-                                  />
-                                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="flex items-center justify-between mb-1">
-                                  <label className="text-[11px] font-bold text-slate-700 block">
-                                    Password / PIN
-                                  </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => setLoginFaydaId("ET-NID-00892418")}
-                                    className="text-[10px] text-emerald-700 hover:underline flex items-center gap-0.5"
-                                  >
-                                    <Sparkles className="w-3 h-3" />
-                                    Use Demo FIN
-                                  </button>
-                                </div>
-                                <div className="relative">
-                                  <Input
-                                    type="password"
-                                    value={loginPassword}
-                                    onChange={(e) => setLoginPassword(e.target.value)}
-                                    placeholder="Enter password"
-                                    className="pl-9 h-10 text-xs bg-slate-50/50"
-                                    required
-                                  />
-                                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                                  Registered Phone Number
-                                </label>
-                                <div className="relative">
-                                  <Input
-                                    value={loginPhone}
-                                    onChange={(e) => setLoginPhone(e.target.value)}
-                                    placeholder="+251 91 123 4567"
-                                    className="pl-9 h-10 text-xs font-mono bg-slate-50/50"
-                                    required
-                                  />
-                                  <Smartphone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                                  6-Digit SMS Verification Code
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  First Name <span className="text-red-500">*</span>
                                 </label>
                                 <Input
-                                  value={loginOtp}
-                                  onChange={(e) => setLoginOtp(e.target.value)}
-                                  placeholder="582914"
-                                  className="h-10 text-xs font-mono text-center tracking-widest text-sm bg-slate-50/50"
-                                  maxLength={6}
+                                  value={firstName}
+                                  onChange={(e) => setFirstName(e.target.value)}
+                                  placeholder="e.g. Almaz"
+                                  className="h-8.5 text-xs"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Middle Name
+                                </label>
+                                <Input
+                                  value={middleName}
+                                  onChange={(e) => setMiddleName(e.target.value)}
+                                  placeholder="e.g. Bekele"
+                                  className="h-8.5 text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Last Name <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                  value={lastName}
+                                  onChange={(e) => setLastName(e.target.value)}
+                                  placeholder="e.g. Tadesse"
+                                  className="h-8.5 text-xs"
                                   required
                                 />
                               </div>
                             </div>
-                          )}
 
-                          {loginError && (
-                            <div className="p-2 rounded-lg bg-red-50 text-red-700 text-xs flex items-center gap-1.5">
-                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                              <span>{loginError}</span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Gender
+                                </label>
+                                <select
+                                  value={gender}
+                                  onChange={(e) => setGender(e.target.value)}
+                                  className="w-full h-8.5 px-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
+                                >
+                                  <option value="Female">Female</option>
+                                  <option value="Male">Male</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Date of Birth
+                                </label>
+                                <Input
+                                  type="date"
+                                  value={dateOfBirth}
+                                  onChange={(e) => setDateOfBirth(e.target.value)}
+                                  className="h-8.5 text-xs"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Works On
+                                </label>
+                                <Input
+                                  type="text"
+                                  value={worksOn}
+                                  onChange={(e) => setWorksOn(e.target.value)}
+                                  placeholder="Organization / Employer"
+                                  className="h-8.5 text-xs"
+                                />
+                              </div>
                             </div>
-                          )}
 
-                          <button
-                            type="submit"
-                            disabled={isLoggingIn}
-                            className="w-full h-10 rounded-xl bg-[#00450d] hover:bg-[#1b5e20] text-white font-bold text-xs tracking-wide uppercase shadow-lg shadow-emerald-950/20 hover:shadow-emerald-900/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-1"
-                          >
-                            {isLoggingIn ? (
-                              <span className="flex items-center gap-2">
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                Authenticating...
-                              </span>
-                            ) : (
-                              <span className="flex items-center justify-center gap-2">
-                                <span>LOGIN TO PORTAL</span>
-                                <ArrowRight className="w-4 h-4" />
-                              </span>
-                            )}
-                          </button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Phone Number <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                  value={phoneNumber}
+                                  onChange={(e) => setPhoneNumber(e.target.value)}
+                                  placeholder="+251 91 234 5678"
+                                  className="h-8.5 text-xs font-mono"
+                                  required
+                                />
+                              </div>
 
-                          <div className="pt-1 text-center text-xs text-slate-500">
-                            Don't have a citizen account?{" "}
-                            <button
-                              type="button"
-                              onClick={() => setAuthMode("register")}
-                              className="font-bold text-[#00450d] hover:underline"
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Email Address
+                                </label>
+                                <Input
+                                  type="email"
+                                  value={email}
+                                  onChange={(e) => setEmail(e.target.value)}
+                                  placeholder="user@domain.et"
+                                  className="h-8.5 text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Citizen Role Preference */}
+                          <div className="pt-1">
+                            <label className="text-[10px] font-bold text-slate-800 block mb-1">
+                              Select Your Primary Municipal Portal Role
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setSelectedRole("both"); setRole("both"); }}
+                                className={`p-2 rounded-lg border text-center transition-all ${
+                                  selectedRole === "both"
+                                    ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
+                                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                }`}
+                              >
+                                <span className="block text-xs font-bold">Both</span>
+                                <span className="block text-[9px] text-slate-400 font-normal">All features</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => { setSelectedRole("tenant"); setRole("tenant"); }}
+                                className={`p-2 rounded-lg border text-center transition-all ${
+                                  selectedRole === "tenant"
+                                    ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
+                                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                }`}
+                              >
+                                <span className="block text-xs font-bold">Tenant</span>
+                                <span className="block text-[9px] text-slate-400 font-normal">Rent & lease</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => { setSelectedRole("landlord"); setRole("landlord"); }}
+                                className={`p-2 rounded-lg border text-center transition-all ${
+                                  selectedRole === "landlord"
+                                    ? "border-[#00450d] bg-emerald-50/50 ring-1 ring-[#00450d] text-slate-900 font-bold"
+                                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                }`}
+                              >
+                                <span className="block text-xs font-bold">Landlord</span>
+                                <span className="block text-[9px] text-slate-400 font-normal">List & manage</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Section: Security Password */}
+                          <div className="space-y-2 pt-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Account Password <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                  type="password"
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  placeholder="Minimum 8 characters"
+                                  className="h-8.5 text-xs"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Confirm Password <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                  type="password"
+                                  value={confirmPassword}
+                                  onChange={(e) => setConfirmPassword(e.target.value)}
+                                  placeholder="Re-enter password"
+                                  className="h-8.5 text-xs"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <label className="flex items-start gap-2 cursor-pointer text-[10px] text-slate-600 select-none pt-1">
+                              <input
+                                type="checkbox"
+                                checked={agreedProclamation}
+                                onChange={(e) => setAgreedProclamation(e.target.checked)}
+                                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#00450d] focus:ring-[#00450d]"
+                                required
+                              />
+                              <span>
+                                I declare that all submitted information is accurate under Ethiopian Proclamation No. 1320/2024 and agree to GRAMS terms of municipal service.
+                              </span>
+                            </label>
+                          </div>
+
+                          <div className="pt-1">
+                            <Button
+                              type="submit"
+                              disabled={isSubmitting}
+                              className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-10 text-xs font-bold rounded-xl shadow-sm"
                             >
-                              Create Account
-                            </button>
+                              {isSubmitting ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  Processing Registration...
+                                </span>
+                              ) : (
+                                <span className="flex items-center justify-center gap-2">
+                                  <span>Submit Citizen Registration</span>
+                                  <ArrowRight className="w-4 h-4" />
+                                </span>
+                              )}
+                            </Button>
                           </div>
                         </form>
                       )}
-                    </>
+
+                      {/* Footer Switcher */}
+                      <div className="pt-1 text-center text-xs text-slate-500">
+                        Already registered with GRAMS?{" "}
+                        <button
+                          type="button"
+                          onClick={() => setAuthMode("signin")}
+                          className="font-bold text-[#00450d] hover:underline"
+                        >
+                          Sign In to Portal
+                        </button>
+                      </div>
+                    </div>
                   )}
+
+                  {/* ========================================================= */}
+                  {/* MODE 2: SIGN IN FORM                                      */}
+                  {/* ========================================================= */}
+                  {authMode === "signin" && (
+                    <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Email Address
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="email"
+                              value={loginEmail}
+                              onChange={(e) => setLoginEmail(e.target.value)}
+                              placeholder="citizen.test@example.com"
+                              className="pl-9 h-10 text-xs bg-slate-50/50"
+                              required
+                            />
+                            <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Password
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="password"
+                              value={loginPassword}
+                              onChange={(e) => setLoginPassword(e.target.value)}
+                              placeholder="Enter password"
+                              className="pl-9 h-10 text-xs bg-slate-50/50"
+                              required
+                            />
+                            <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {loginError && (
+                        <div className="p-2 rounded-lg bg-red-50 text-red-700 text-xs flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{loginError}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isLoggingIn}
+                        className="w-full h-10 rounded-xl bg-[#00450d] hover:bg-[#1b5e20] text-white font-bold text-xs tracking-wide uppercase shadow-lg shadow-emerald-950/20 hover:shadow-emerald-900/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-1"
+                      >
+                        {isLoggingIn ? (
+                          <span className="flex items-center gap-2">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Authenticating...
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            <span>LOGIN TO PORTAL</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </span>
+                        )}
+                      </button>
+
+                      <div className="pt-1 text-center text-xs text-slate-500">
+                        Don&apos;t have a citizen account?{" "}
+                        <button
+                          type="button"
+                          onClick={() => setAuthMode("register")}
+                          className="font-bold text-[#00450d] hover:underline"
+                        >
+                          Create Account
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                  
                 </div>
               </motion.div>
             </motion.div>

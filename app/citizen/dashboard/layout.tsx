@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { SidebarWrapper } from "@/app/citizen/dashboard/sidebar-wrapper";
 import { TopAppBar } from "@/components/TopAppBar";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { getSession } from "@/lib/api";
+import { UserRole } from "@/types";
 
 // Interactive Modals
 import { NewAgreementModal } from "@/components/NewAgreementModal";
@@ -15,7 +17,6 @@ import { ReceiptModal } from "@/components/ReceiptModal";
 import { AgreementViewModal } from "@/components/AgreementViewModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Router } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -58,9 +59,32 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
     setViewingAgreement,
     isLogoutModalOpen,
     setIsLogoutModalOpen,
+
+    //action
+    handleLogout,
   } = useCitizenData();
 
   const router = useRouter();
+
+  // On mount: sync userRole from localStorage so it always reflects the
+  // role written by saveSession() before navigating here.
+  useEffect(() => {
+    const session = getSession();
+    if (!session) {
+      router.push("/citizen");
+      return;
+    }
+
+    // Derive the correct role from the session, normalised to lowercase
+    const storedRole = localStorage.getItem("userRole");
+    const sessionRole = session.user.roles?.[0]?.toLowerCase();
+    const resolvedRole = (storedRole || sessionRole || "citizen") as UserRole;
+
+    if (resolvedRole !== userRole) {
+      setUserRole(resolvedRole);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col font-sans transition-colors">
@@ -164,7 +188,7 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
             <Button
               variant="destructive"
               onClick={() => {
-                setIsLogoutModalOpen(false);
+                handleLogout();
                 router.push("/citizen");
               }}
             >

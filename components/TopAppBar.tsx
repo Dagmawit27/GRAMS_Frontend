@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home } from "lucide-react";
 import { ActivityNotification, NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
+import { getSession } from "@/lib/api";
 
 interface TopAppBarProps {
   onOpenMobileMenu: () => void;
@@ -35,6 +36,22 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [userName, setUserName] = useState("");
+  const session = getSession();
+
+  useEffect(() => {
+    const userJson = localStorage.getItem("user");
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        const fullName = `${user.firstName} ${user.middleName ? user.middleName + " " : ""}${user.lastName}`;
+        setUserName(fullName);
+      } catch (e) {
+        console.error("Failed to parse user data:", e);
+      }
+    }
+  }, []);
+
 
   return (
     <header className="bg-white sticky top-0 z-30 shadow-2xs border-b border-slate-200/90 h-16 px-4 md:px-8 flex items-center justify-between transition-colors">
@@ -70,19 +87,10 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 
       {/* Right Controls */}
       <div className="flex items-center gap-2 md:gap-3 relative">
-        <button
-          onClick={() => onNavigate("landing")}
-          className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
-          title="Return to Citizen Home Portal"
-        >
-          <Home className="w-3.5 h-3.5 text-emerald-700" />
-          <span>Home Portal</span>
-        </button>
-
         {/* Read-only Role Indicator */}
         <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-[#00450d] border border-emerald-200/80 rounded-lg text-xs font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-          <span>{userRole === "landlord" ? "Landlord Account" : "Tenant Account"}</span>
+          <span>{userRole === "landlord" ? "Landlord Account" : userRole === "tenant" ? "Tenant Account" : "Citizen Account"}</span>
         </div>
 
         {/* Notifications Dropdown */}
@@ -203,9 +211,9 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         >
           <div className="text-right hidden sm:block">
             <span className="text-xs font-semibold text-slate-900 group-hover:text-[#00450d] block leading-tight">
-              Dagmawit Mesfin
+              {userName || "User"}
             </span>
-            <span className="text-[10px] text-slate-400 block">Citizen Account</span>
+            <span className="text-[10px] text-slate-400 block">{session?.user?.userType === "GOVERNMENT_EMPLOYEE" ? "Government Employee" : "Citizen Account"}</span>
           </div>
           <div className="relative">
             <img

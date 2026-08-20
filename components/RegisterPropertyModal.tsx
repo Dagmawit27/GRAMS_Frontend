@@ -161,6 +161,7 @@ export const RegisterPropertyModal: React.FC<RegisterPropertyModalProps> = ({
     const typeMapping: Property["type"] = propType === "Shopping Mall" ? "Commercial" : (propType as Property["type"]);
 
     const newProp: Property = {
+      // eslint-disable-next-line
       id: `prop-${Date.now()}`,
       title,
       type: typeMapping,

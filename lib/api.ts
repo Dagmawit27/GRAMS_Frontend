@@ -18,6 +18,7 @@ export interface UserSummary {
   dateOfBirth?: string;
   phoneNumber: string;
   email: string;
+  worksOn?: string;
   createdAt: string;
   roles: string[];
   userType: "CITIZEN" | "GOVERNMENT_EMPLOYEE";
@@ -38,86 +39,37 @@ export async function registerCitizen(data: {
   middleName: string;
   lastName: string;
   gender: "MALE" | "FEMALE";
-  dob: string;
-  phone: string;
+  dateOfBirth: string;
+  phoneNumber: string;
   email: string;
-  worksOn: string;
-  role: string;
+  worksOn?: string;
+  rolePreference?: string;
   password: string;
 }): Promise<AuthResult> {
-  try {
-    const res = await fetch(`${BASE_URL}/auth/register/citizen`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Registration failed.");
-    saveSession(json);
-    return json;
-  } catch (err) {
-    // Local fallback for offline/client mode
-    const fallbackResult: AuthResult = {
-      accessToken: "mock-token-" + Date.now(),
-      tokenType: "Bearer",
-      expiresIn: 86400,
-      user: {
-        id: "usr-" + Math.random().toString(36).substring(2, 9),
-        firstName: data.firstName || "Citizen",
-        middleName: data.middleName || "",
-        lastName: data.lastName || "User",
-        gender: data.gender || "FEMALE",
-        dateOfBirth: data.dob,
-        phoneNumber: data.phone || "+251 91 123 4567",
-        email: data.email || "citizen@ethio.gov.et",
-        createdAt: new Date().toISOString(),
-        roles: [data.role.toUpperCase()],
-        userType: "CITIZEN",
-        governmentEmployee: false,
-      },
-    };
-    saveSession(fallbackResult);
-    return fallbackResult;
-  }
+  const res = await fetch(`${BASE_URL}/auth/register/citizen`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Registration failed.");
+  saveSession(json);
+  return json;
 }
 
 export async function loginCitizen(data: {
-  loginIdentifier: string;
+  email: string;
   password: string;
 }): Promise<AuthResult> {
-  try {
-    const res = await fetch(`${BASE_URL}/auth/login/citizen`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Invalid credentials.");
-    saveSession(json);
-    return json;
-  } catch (err) {
-    // Local fallback
-    const fallbackResult: AuthResult = {
-      accessToken: "mock-token-citizen-" + Date.now(),
-      tokenType: "Bearer",
-      expiresIn: 86400,
-      user: {
-        id: "usr-00892418",
-        firstName: "Dagmawit",
-        middleName: "Mesfin",
-        lastName: "Tadesse",
-        gender: "FEMALE",
-        phoneNumber: data.loginIdentifier.startsWith("+") ? data.loginIdentifier : "+251 91 123 4567",
-        email: "dagmawit.mesfin@gov.et",
-        createdAt: new Date().toISOString(),
-        roles: ["LANDLORD", "TENANT"],
-        userType: "CITIZEN",
-        governmentEmployee: false,
-      },
-    };
-    saveSession(fallbackResult);
-    return fallbackResult;
-  }
+  const res = await fetch(`${BASE_URL}/auth/login/citizen`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Invalid credentials.");
+  saveSession(json);
+  return json;
 }
 
 export async function loginOfficer(data: {

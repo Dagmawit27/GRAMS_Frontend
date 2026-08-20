@@ -3,8 +3,10 @@ import React, { useState, useEffect } from "react";
 import { OfficerSidebarWrapper } from "@/app/officer/dashboard/sidebar-wrapper";
 import { getSession, clearSession } from "@/lib/api";
 import { Input } from "@/components/ui/input";
-import { NavPage } from "@/types";
+import { NavPage, UserRole } from "@/types";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { useRouter } from "next/navigation";
+
 import {
   Search,
   Bell,
@@ -27,8 +29,12 @@ export const OfficerDashboardLayout: React.FC<OfficerDashboardLayoutProps> = ({
   activeNav = "officer-dashboard",
   onNavigate,
 }) => {
-  const { handleNavigate: citizenNavigate } = useCitizenData();
+  const {
+  handleNavigate: citizenNavigate,
+  userRole: contextUserRole,
+} = useCitizenData();
   const navigate = onNavigate || citizenNavigate;
+  const router = useRouter();
 
   const [session, setSession] = useState(getSession());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -40,12 +46,26 @@ export const OfficerDashboardLayout: React.FC<OfficerDashboardLayoutProps> = ({
     setSession(getSession());
   }, []);
 
-  const isSupervisor =
-    session?.user?.roles?.includes("SUPERVISOR") ||
-    session?.user?.employeeNumber?.includes("SUP") ||
-    (typeof window !== "undefined" && localStorage.getItem("userRole") === "supervisor");
+ const userRole: UserRole =
+  contextUserRole ||
+  (session?.user?.roles?.[0]?.toLowerCase() as UserRole) ||
+  "citizen";
 
-  const userRole: "officer" | "supervisor" = isSupervisor ? "supervisor" : "officer";
+const isOfficer =
+  userRole === "woreda_officer" ||
+  userRole === "woreda_supervisor";
+
+const isSupervisor = userRole === "woreda_supervisor";
+
+useEffect(() => {
+  if (!isOfficer) {
+    router.replace("/citizen");
+  }
+}, [isOfficer, router]);
+
+if (!isOfficer) {
+  return null;
+}
 
   const handleLogout = () => {
     clearSession();

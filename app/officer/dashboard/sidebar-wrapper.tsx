@@ -2,6 +2,7 @@
 import React from "react";
 import { SideNavBar } from "@/components/SideNavBar";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { UserRole } from "@/types";
 
 interface OfficerSidebarWrapperProps {
   currentPage?: any;
@@ -11,7 +12,7 @@ interface OfficerSidebarWrapperProps {
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
   onLogoutClick?: () => void;
-  userRole?: "officer" | "supervisor";
+  userRole?: UserRole;
 }
 
 export const OfficerSidebarWrapper: React.FC<OfficerSidebarWrapperProps> = ({
@@ -22,7 +23,7 @@ export const OfficerSidebarWrapper: React.FC<OfficerSidebarWrapperProps> = ({
   isMobileOpen = false,
   onCloseMobile,
   onLogoutClick,
-  userRole = "officer",
+  userRole,
 }) => {
   const { handleNavigate } = useCitizenData();
 

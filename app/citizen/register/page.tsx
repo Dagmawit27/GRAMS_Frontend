@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCitizenData } from "@/hooks/useCitizenData";
 import { useRouter } from "next/navigation";
+import { registerCitizen } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +91,7 @@ export const CitizenRegisterPage: React.FC = () => {
   const [lastName, setLastName] = useState<string>("Tadesse");
   const [gender, setGender] = useState<string>("Female");
   const [dob, setDob] = useState<string>("1992-06-18");
-  const [phone, setPhone] = useState<string>("+251 91 234 5678");
+  const [phoneNumber, setPhoneNumber] = useState<string>("+251  234 5678");
   const [email, setEmail] = useState<string>("almaz.bekele@gov.et");
   const [worksOn, setWorksOn] = useState<string>("CBE");
   const [role, setRole] = useState<string>("both");
@@ -98,6 +99,7 @@ export const CitizenRegisterPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState<string>("AlmazPass#2025");
   const [agreedProclamation, setAgreedProclamation] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string>("");
 
   // Completion State
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
@@ -214,23 +216,40 @@ export const CitizenRegisterPage: React.FC = () => {
   };
 
   // Handle Manual Full Registration Form Submission
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstName.trim() || !phone.trim()) return;
+    setSubmitError("");
+
+    if (!firstName.trim() || !phoneNumber.trim()) return;
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match. Please re-enter.");
+      setSubmitError("Passwords do not match. Please re-enter.");
       return;
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await registerCitizen({
+        firstName,
+        middleName,
+        lastName,
+        gender: gender.toUpperCase() as "MALE" | "FEMALE",
+        dateOfBirth: dob,
+        phoneNumber: phoneNumber.replace(/\s/g, ""),
+        email,
+        worksOn,
+        rolePreference: role.toUpperCase(),
+        password,
+      });
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/citizen/dashboard");
       }, 1200);
-    }, 1000);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -809,8 +828,8 @@ export const CitizenRegisterPage: React.FC = () => {
                           Phone Number <span className="text-red-500">*</span>
                         </label>
                         <Input
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
                           placeholder="+251 91 234 5678"
                           className="h-9.5 text-xs font-mono"
                           required
@@ -1040,6 +1059,12 @@ export const CitizenRegisterPage: React.FC = () => {
                   </div>
 
                   <div className="pt-1">
+                    {submitError && (
+                      <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{submitError}</span>
+                      </div>
+                    )}
                     <Button
                       type="submit"
                       disabled={isSubmitting}
