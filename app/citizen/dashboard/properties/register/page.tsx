@@ -12,7 +12,9 @@ import {
   Building,
   Home,
   Store,
-  MapPin,
+  RefreshCw,
+  FileUp,
+  ImagePlus,
   FileText,
   Upload,
   CheckCircle2,
@@ -70,6 +72,7 @@ export interface TitleDeedDoc {
   number?: string;
   uploadedAt?: string;
   file?: File;
+  url?: string;
 }
 
 export interface UploadedPropertyImage {
@@ -79,49 +82,6 @@ export interface UploadedPropertyImage {
   isCover?: boolean;
   file?: File;
 }
-
-const SAMPLE_PROPERTY_IMAGES = [
-  {
-    label: "Modern Bole Apartment",
-    url: "https://lh3.googleusercontent.com/aida-public/AB6AXuArZM8eccqrTxsJgQGwrJ9QdADLY41kgOvV3jzwXGn16dj5ogp9Z4MXSSZi-vq4D1_T1QkfKp9Ds7ueGwa3pSV7KomN4uiFrhUl2SHywD6J6oIvRLsmWNXwZngHiVFOTxbAAj31SuxMaN27rZD65OyNS5KSgJCXepQqV3TiMmcCwBODUSyNOIBG_DRAZDJDeOA9zSw0COPkh474PN-PSeniepcpIHYXDZUtnPrcDrBuSbOaztsZ3PQ-Ww",
-  },
-  {
-    label: "Luxury Villa Compound",
-    url: "https://lh3.googleusercontent.com/aida-public/AB6AXuA3TaI97tONXc4KYzx8tqT7YFB29kuW5ebmAc0n4GHLxjWTMahWsEcnd_YEYvg-glb6cPg0HqWqgwuRkdCidk9ZrQqiczihUwg7yuZVCs0XMq0civZUmHoDSTc-_pEQGb6aovXWcfYbxKRlE-xis_vjicGD8jg20O1yzO8GQGI8-uzuMAonwwBeevXlI3oADlVe58PPocmoWdb5IU2gxoBO81y1GBO3bHG-no4mb4YhbWmt-Sjq_v1R7w",
-  },
-  {
-    label: "Executive Condominium",
-    url: "https://lh3.googleusercontent.com/aida-public/AB6AXuD9e4qG_1h_3-Kx1Qz7s8n30_V18gP7xGzV7X3Qn9U1R6Q1y0e5gP7AB6AXuArZM8eccqrTxsJgQGwrJ9QdADLY41kgOvV3jzwXGn16dj5ogp9Z4MXSSZi-vq4D1_T1QkfKp9Ds7ueGwa3pSV7KomN4uiFrhUl2SHywD6J6oIvRLsmWNXwZngHiVFOTxbAAj31SuxMaN27rZD65OyNS5KSgJCXepQqV3TiMmcCwBODUSyNOIBG_DRAZDJDeOA9zSw0COPkh474PN-PSeniepcpIHYXDZUtnPrcDrBuSbOaztsZ3PQ-Ww",
-  },
-  {
-    label: "Commercial Shopping Center",
-    url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDYhYyC_2gZ_Rz5n7w30_4iMv6gU5vGvF2X9xK1w3-00YVz7H5wZp18R4xGzV7X3Qn9U1R6Q1y0e5gP7",
-  }
-];
-
-const DEFAULT_SAMPLE_IMAGES: UploadedPropertyImage[] = [
-  {
-    id: "sample-1",
-    label: "Modern Bole Apartment",
-    url: SAMPLE_PROPERTY_IMAGES[0].url,
-    isCover: true,
-  },
-  {
-    id: "sample-2",
-    label: "Luxury Villa Compound",
-    url: SAMPLE_PROPERTY_IMAGES[1].url,
-  },
-  {
-    id: "sample-3",
-    label: "Executive Condominium",
-    url: SAMPLE_PROPERTY_IMAGES[2].url,
-  },
-  {
-    id: "sample-4",
-    label: "Commercial Shopping Center",
-    url: SAMPLE_PROPERTY_IMAGES[3].url,
-  }
-];
 
 type MainPropertyType = "Villa" | "Apartment" | "Condominium" | "Shopping Mall";
 type CommercialSubType = "single-shop" | "shopping-mall" | "office-space";
@@ -230,19 +190,19 @@ export const RegisterPropertyPage: React.FC = () => {
   const [mallHasLoadingDock, setMallHasLoadingDock] = useState(true);
 
   // Title Deed Upload
-  const [titleDeedFile, setTitleDeedFile] = useState<TitleDeedDoc>({
-    name: "Official_Title_Deed_Certificate_Scan.pdf",
-    size: "2.4 MB",
-    number: "ETH-MUDC-2024-88412",
-    uploadedAt: "Today, 10:15 AM",
-  });
+  const [titleDeedFile, setTitleDeedFile] = useState<TitleDeedDoc | null>(null);
 
   // Multiple Property Images & Active Selected Image
-  const [propertyImages, setPropertyImages] = useState<UploadedPropertyImage[]>(DEFAULT_SAMPLE_IMAGES);
+  const [propertyImages, setPropertyImages] = useState<UploadedPropertyImage[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
+  
+  // Drag & drop hover states for styled upload boxes
+  const [isDeedDragging, setIsDeedDragging] = useState<boolean>(false);
+  const [isPhotosDragging, setIsPhotosDragging] = useState<boolean>(false);
+
   // Active Display Image (Featured Property Visual)
-  const activePropertyVisual = propertyImages[activeImageIndex]?.url || propertyImages[0]?.url || DEFAULT_SAMPLE_IMAGES[0].url;
+  const activePropertyVisual = propertyImages[activeImageIndex]?.url || propertyImages[0]?.url || "";
 
   const router = useRouter();
    const handleBack = () => {
@@ -253,6 +213,7 @@ export const RegisterPropertyPage: React.FC = () => {
   const [reviewActiveImageIdx, setReviewActiveImageIdx] = useState<number>(0);
   const [isImageLightboxOpen, setIsImageLightboxOpen] = useState<boolean>(false);
   const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState<boolean>(false);
+  const [previewDocTab, setPreviewDocTab] = useState<'scan' | 'details'>('scan');
   
   const validateStep1 = (): boolean => {
     const errs: Record<string, string> = {};
@@ -462,6 +423,49 @@ export const RegisterPropertyPage: React.FC = () => {
       uploadedAt: "Just now",
       file,
     });
+  };
+  
+  // Drag-and-drop file drop handlers
+  const handleDeedDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDeedDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + " MB";
+      const objectUrl = URL.createObjectURL(file);
+      setTitleDeedFile({
+        name: file.name,
+        size: sizeMb,
+        number: titleDeedNumber || "ETH-TD-" + Math.floor(100000 + Math.random() * 900000),
+        uploadedAt: "Just now",
+        file,
+        url: objectUrl,
+      });
+      setPreviewDocTab('scan');
+      clearError("titleDeedFile");
+    }
+  };
+  
+  const handlePhotosDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsPhotosDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const allFiles = Array.from(e.dataTransfer.files) as File[];
+      const newFiles = allFiles.filter((f) => f.type.startsWith("image/"));
+      if (newFiles.length === 0) return;
+      const newImgs: UploadedPropertyImage[] = newFiles.map((file: File, idx: number) => ({
+        id: `custom-img-${Date.now()}-${idx}`,
+        url: URL.createObjectURL(file),
+        label: file.name.replace(/\.[^/.]+$/, ""),
+        isCover: propertyImages.length === 0 && idx === 0,
+        file,
+      }));
+      setPropertyImages((prev) => [...prev, ...newImgs]);
+      clearError("propertyImages");
+      if (propertyImages.length === 0) {
+        setActiveImageIndex(0);
+      }
+    }
   };
 
   const handleSetCoverImage = (index: number) => {
@@ -2201,122 +2205,446 @@ export const RegisterPropertyPage: React.FC = () => {
             </div>
           )}
 
+          
           {/* STEP 3: TITLE DEED & PROPERTY IMAGES */}
           {currentStep === 3 && (
-            <div className="p-6 sm:p-8 space-y-5 text-xs">
+            <div className="p-6 sm:p-8 space-y-6 text-xs">
               <div className="border-b border-slate-100 pb-3">
                 <h2 className="text-base font-bold text-slate-900">3. Title Deed Certificate & Property Visuals</h2>
-                <p className="text-slate-500 text-xs">Upload your official title deed scan and multiple property photos.</p>
+                <p className="text-slate-500 text-xs">
+                  Enter official cadastral identifiers, upload your official title deed document scan, and attach authentic property photos.
+                </p>
               </div>
 
-              {/* Title Deed Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <div>
-                  <label className="font-semibold block mb-1">Title Deed Document Number</label>
-                  <Input value={titleDeedNumber} 
-                  onChange={(e) => {setTitleDeedNumber(e.target.value); clearError("titleDeedNumber");}} 
-                  className={`h-9 text-xs bg-white font-mono ${
-                      errors.titleDeedNumber ? "border-red-500 ring-1 ring-red-500 bg-red-50/20" : ""
-                    }`}
-                  />
-                  {errors.titleDeedNumber && (
-                    <p className="text-[11px] text-red-600 font-medium mt-1">
-                      {errors.titleDeedNumber}
-                    </p>
-                  )}
+              {/* 1. Cadastral & Deed Identifiers Inputs */}
+              <div className="bg-slate-50/80 p-4 sm:p-5 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+                  <ShieldCheck className="w-4 h-4 text-[#00450d]" />
+                  <h3 className="font-bold text-slate-900 text-xs sm:text-sm">Landholding & Cadastral Registration Identifiers</h3>
                 </div>
-                <div>
-                  <label className="font-semibold block mb-1 text-slate-700">
-                    Upload Title Deed Scan (PDF) <span className="text-red-500">*</span>
-                  </label>
-                  <label className={`flex items-center justify-between px-3 py-1.5 bg-white border rounded-lg cursor-pointer hover:bg-emerald-50/50 ${
-                    errors.titleDeedFile ? "border-red-500 ring-1 ring-red-500 bg-red-50/20" : "border-emerald-300"
-                  }`}>
-                    <span className="truncate text-slate-700">{titleDeedFile?.name || "Choose PDF or scan..."}</span>
-                    <Upload className="w-4 h-4 text-[#00450d] shrink-0 ml-2" />
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg"
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-semibold block mb-1 text-slate-700">
+                      Title Deed Document Number <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={titleDeedNumber}
                       onChange={(e) => {
-                        handleTitleDeedUpload(e);
-                        clearError("titleDeedFile");
+                        setTitleDeedNumber(e.target.value);
+                        clearError("titleDeedNumber");
                       }}
-                      className="hidden"
+                      placeholder="e.g. ETH-MUDC-2024-88412"
+                      className={`h-10 text-xs bg-white font-mono ${
+                        errors.titleDeedNumber ? "border-red-500 ring-1 ring-red-500 bg-red-50/20" : ""
+                      }`}
                     />
-                  </label>
+                    {errors.titleDeedNumber && (
+                      <p className="text-[11px] text-red-600 font-medium mt-1">
+                        {errors.titleDeedNumber}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="font-semibold block mb-1 text-slate-700">
+                      Cadastral Parcel UPI <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      value={cadastralParcelId}
+                      onChange={(e) => {
+                        setCadastralParcelId(e.target.value);
+                        clearError("cadastralParcelId");
+                      }}
+                      placeholder="e.g. AA-BOL-03-88219"
+                      className={`h-10 text-xs bg-white font-mono text-emerald-900 font-bold ${
+                        errors.cadastralParcelId ? "border-red-500 ring-1 ring-red-500 bg-red-50/20" : ""
+                      }`}
+                    />
+                    {errors.cadastralParcelId && (
+                      <p className="text-[11px] text-red-600 font-medium mt-1">
+                        {errors.cadastralParcelId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 2. Official Title Deed Document Upload Box */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-[#00450d]" />
+                      <span>Official Title Deed Certificate Scan</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    {titleDeedFile && (
+                      <Badge variant="verified" className="text-[10px]">
+                        Scan Attached & Ready
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-[11px]">
+                    Upload a scanned copy of your official title deed or municipal land certificate (PDF, JPG, or PNG up to 15MB).
+                  </p>
+
+                  {/* Document Box Area */}
+                  {!titleDeedFile ? (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDeedDragging(true);
+                      }}
+                      onDragLeave={() => setIsDeedDragging(false)}
+                      onDrop={handleDeedDrop}
+                      className={`relative rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all cursor-pointer ${
+                        isDeedDragging
+                          ? "border-[#00450d] bg-emerald-50/50 scale-[1.005]"
+                          : errors.titleDeedFile
+                          ? "border-red-500 bg-red-50/20"
+                          : "border-slate-300 bg-slate-50/50 hover:border-[#00450d] hover:bg-emerald-50/30"
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        id="title-deed-upload-input"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        onChange={handleTitleDeedUpload}
+                        className="hidden"
+                      />
+                      <label htmlFor="title-deed-upload-input" className="cursor-pointer block space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-emerald-100/80 text-[#00450d] flex items-center justify-center mx-auto shadow-2xs">
+                          <FileUp className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-800 text-xs sm:text-sm">
+                            Drag & drop your Title Deed scan here, or <span className="text-[#00450d] underline font-semibold">browse file</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Supports PDF documents, PNG, JPG, or JPEG images (Max 15MB)
+                          </p>
+                        </div>
+                        <div className="pt-1">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-slate-200 text-slate-700 font-medium text-xs shadow-2xs hover:bg-slate-50">
+                            <Upload className="w-3.5 h-3.5 text-[#00450d]" />
+                            <span>Select Title Deed File</span>
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="border border-emerald-300 bg-gradient-to-r from-emerald-50/70 via-emerald-50/30 to-white rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                          <FileCheck2 className="w-6 h-6 text-emerald-200" />
+                        </div>
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={titleDeedFile?.name}>
+                              {titleDeedFile?.name}
+                            </p>
+                            <Badge variant="verified" className="text-[9px] shrink-0">Verified</Badge>
+                          </div>
+                          <p className="text-[11px] text-slate-600">
+                            Size: <span className="font-semibold text-slate-800">{titleDeedFile?.size}</span> &bull; Uploaded: <span className="text-slate-800">{titleDeedFile?.uploadedAt}</span>
+                          </p>
+                          {titleDeedNumber && (
+                            <p className="text-[11px] font-mono text-emerald-900 font-bold">
+                              Deed #{titleDeedNumber}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsDocumentPreviewOpen(true)}
+                          className="text-xs h-8 px-3 gap-1.5 bg-white border-emerald-300 text-slate-800 hover:bg-emerald-50"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Preview</span>
+                        </Button>
+
+                        <label className="cursor-pointer">
+                          <span className="inline-flex items-center gap-1 text-xs h-8 px-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium">
+                            <RefreshCw className="w-3 h-3 text-slate-600" />
+                            <span>Replace</span>
+                          </span>
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg"
+                            onChange={handleTitleDeedUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTitleDeedFile(null)}
+                          className="text-xs h-8 px-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+                          title="Remove Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {errors.titleDeedFile && (
-                    <p className="text-[11px] text-red-600 font-medium mt-1">
+                    <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                       {errors.titleDeedFile}
                     </p>
                   )}
                 </div>
-              </div>
 
-              {/* Active Property Visual Display */}
-              <div className="space-y-2">
-                <label className="font-semibold block">Featured Property Visual (Active Preview)</label>
-                <div className="relative h-44 rounded-xl overflow-hidden border border-slate-300 bg-slate-950">
-                  <img src={activePropertyVisual} alt="Selected visual" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
-                    <div className="text-white">
-                      <p className="font-bold text-sm">{title}</p>
-                      <p className="text-xs text-emerald-300">{propertyImages.length} Photos Attached &bull; {subCity}, Addis Ababa</p>
+                {/* 3. Property Photos & Visuals Box */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-[#00450d]" />
+                        <span>Property Photos & Visual Evidence</span>
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <p className="text-slate-500 text-[11px] mt-0.5">
+                        Upload exterior facade, interior rooms, compound, and street entrance photos.
+                      </p>
                     </div>
+                    {propertyImages.length > 0 && (
+                      <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        {propertyImages.length} Photo{propertyImages.length > 1 ? "s" : ""} Attached
+                      </span>
+                    )}
                   </div>
-                </div>
 
-                {/* Multiple Images Upload & Gallery */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-semibold text-slate-700">Property Photos ({propertyImages.length})</span>
-                    <label className="cursor-pointer text-xs font-bold text-[#00450d] hover:underline inline-flex items-center gap-1">
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Upload Multiple Images</span>
-                      <input type="file" multiple accept="image/*" onChange={(e) => {
-                        handleImageFileUpload(e);
-                        clearError("propertyImages");
-                      }} className="hidden" />
-                    </label>
-                  </div>
+                  {/* Empty State Upload Dropzone Box */}
+                  {propertyImages.length === 0 ? (
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsPhotosDragging(true);
+                      }}
+                      onDragLeave={() => setIsPhotosDragging(false)}
+                      onDrop={handlePhotosDrop}
+                      className={`relative rounded-xl border-2 border-dashed p-8 text-center transition-all cursor-pointer ${
+                        isPhotosDragging
+                          ? "border-[#00450d] bg-emerald-50/50 scale-[1.005]"
+                          : errors.propertyImages
+                          ? "border-red-500 bg-red-50/20"
+                          : "border-slate-300 bg-slate-50/50 hover:border-[#00450d] hover:bg-emerald-50/30"
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        id="property-photos-upload-input"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageFileUpload}
+                        className="hidden"
+                      />
+                      <label htmlFor="property-photos-upload-input" className="cursor-pointer block space-y-3">
+                        <div className="w-14 h-14 rounded-full bg-emerald-100/80 text-[#00450d] flex items-center justify-center mx-auto shadow-2xs">
+                          <ImagePlus className="w-7 h-7" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">
+                            Drag & drop property photos here, or <span className="text-[#00450d] underline font-semibold">browse files</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                            Upload high-resolution exterior, compound, living room, and bedroom photos. Supports multiple JPEG, PNG, or WEBP images.
+                          </p>
+                        </div>
+                        <div className="pt-1">
+                          <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#00450d] text-white font-semibold text-xs shadow-xs hover:bg-[#1b5e20] transition-colors">
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Select Photos From Device</span>
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  ) : (
+                    /* Uploaded Photos Management Box */
+                    <div className="space-y-4 border border-slate-200 rounded-xl p-4 sm:p-5 bg-white shadow-2xs">
+                      {/* Active Featured Image Banner Preview */}
+                      <div className="relative rounded-xl overflow-hidden border border-slate-300 bg-slate-950 aspect-[16/9] sm:aspect-[21/9]">
+                        <img
+                          src={activePropertyVisual}
+                          alt="Active property visual"
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+
+                        {/* Top Badges & Actions */}
+                        <div className="absolute top-3 left-3 flex items-center gap-2">
+                          <span className="bg-black/70 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-full font-semibold border border-white/20">
+                            Photo {activeImageIndex + 1} of {propertyImages.length}
+                          </span>
+                          {propertyImages[activeImageIndex]?.isCover && (
+                            <span className="bg-[#00450d] text-white text-[11px] px-2.5 py-1 rounded-full font-bold border border-emerald-400/40 flex items-center gap-1 shadow-xs">
+                              <Sparkles className="w-3 h-3" />
+                              <span>Featured Cover Photo</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                          {!propertyImages[activeImageIndex]?.isCover && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleSetCoverImage(activeImageIndex)}
+                              className="bg-black/60 hover:bg-black/80 text-white text-[10px] h-7 px-2.5 backdrop-blur-xs border border-white/20"
+                            >
+                              Set as Cover
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setReviewActiveImageIdx(activeImageIndex);
+                              setIsImageLightboxOpen(true);
+                            }}
+                            className="bg-black/60 hover:bg-black/80 text-white text-[10px] h-7 px-2 backdrop-blur-xs border border-white/20"
+                          >
+                            <Maximize2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+
+                        {/* Bottom Caption */}
+                        <div className="absolute bottom-3 left-3 right-3 text-white flex items-end justify-between">
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-sm sm:text-base drop-shadow-xs truncate max-w-md">
+                              {title || "Property Registration"}
+                            </p>
+                            <p className="text-xs text-emerald-300 drop-shadow-xs">
+                              {propertyImages[activeImageIndex]?.label || `${propertyType} Visual`} &bull; {subCity ? `${subCity}, Addis Ababa` : "Addis Ababa"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gallery Thumbnails Strip & Add More Dropzone Tile */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-slate-700 text-xs">
+                            All Attached Photos ({propertyImages.length})
+                          </span>
+                          <span className="text-[11px] text-slate-500">
+                            Click thumbnail to select cover or preview
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
+                          {propertyImages.map((img, idx) => (
+                            <div
+                              key={img.id || idx}
+                              onClick={() => setActiveImageIndex(idx)}
+                              className={`group relative aspect-square rounded-lg overflow-hidden border cursor-pointer transition-all ${
+                                activeImageIndex === idx
+                                  ? "ring-2 ring-[#00450d] border-transparent scale-[1.02] shadow-xs"
+                                  : "border-slate-200 opacity-85 hover:opacity-100"
+                              }`}
+                            >
+                              <img
+                                src={img.url}
+                                alt={img.label || `Photo ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+
+                              {/* Cover Badge */}
+                              {img.isCover && (
+                                <span className="absolute top-1 left-1 bg-[#00450d] text-[8px] text-white px-1.5 py-0.5 rounded font-bold shadow-xs">
+                                  Cover
+                                </span>
+                              )}
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveImage(idx);
+                                }}
+                                className="absolute top-1 right-1 bg-black/70 hover:bg-red-600 text-white rounded p-1 transition-colors opacity-90 group-hover:opacity-100"
+                                title="Delete photo"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* Inline "+ Add More" Dropzone Tile */}
+                          <label className="aspect-square rounded-lg border-2 border-dashed border-slate-300 hover:border-[#00450d] hover:bg-emerald-50/50 flex flex-col items-center justify-center cursor-pointer transition-colors text-slate-500 hover:text-[#00450d] p-2 text-center group">
+                            <Plus className="w-5 h-5 mb-0.5 group-hover:scale-110 transition-transform" />
+                            <span className="text-[10px] font-semibold leading-tight">Add Photo</span>
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={handleImageFileUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Quick Action Toolbar */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                        <label className="cursor-pointer">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#00450d] hover:bg-emerald-50 px-3 py-1.5 rounded-md border border-emerald-300 bg-white transition-colors">
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Upload More Images</span>
+                          </span>
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={handleImageFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPropertyImages([])}
+                          className="text-xs text-red-600 hover:bg-red-50 hover:text-red-700 h-8"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          <span>Clear All Photos</span>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {errors.propertyImages && (
-                    <p className="text-[11px] text-red-600 font-medium mb-2 flex items-center gap-1">
+                    <p className="text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1">
                       <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                       {errors.propertyImages}
                     </p>
                   )}
-
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                    {propertyImages.map((img, idx) => (
-                      <div
-                        key={img.id || idx}
-                        onClick={() => setActiveImageIndex(idx)}
-                        className={`h-16 rounded-lg overflow-hidden border cursor-pointer relative ${
-                          activeImageIndex === idx ? "ring-2 ring-[#00450d] border-[#00450d]" : "border-slate-200 opacity-80"
-                        }`}
-                      >
-                        <img src={img.url} alt="prop" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveImage(idx);
-                          }}
-                          className="absolute top-1 right-1 bg-black/60 text-white rounded p-0.5"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
-
-              <div className="flex justify-between pt-2">
-                <Button variant="outline" onClick={() => setCurrentStep(2)} className="text-xs h-8.5">
+              {/* Navigation Footer */}
+              <div className="flex justify-between pt-4 border-t border-slate-100">
+                <Button variant="outline" onClick={() => setCurrentStep(2)} className="text-xs h-9 px-5">
                   Back to Property Details
                 </Button>
-                <Button onClick={() => handleStepNavigation(4)} className="bg-[#00450d] text-white text-xs h-8.5 px-4 gap-1.5">
+                <Button
+                  onClick={() => handleStepNavigation(4)}
+                  className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-9 px-5 gap-1.5 font-semibold"
+                >
                   <span>Continue to Final Review</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>

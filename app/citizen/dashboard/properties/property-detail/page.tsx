@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,17 @@ function StatusIcon({ status }: { status: PropertyResponse["status"] }) {
 }
 
 export const PropertyDetailPage: React.FC = () => {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-24 text-slate-500 gap-3">
+      <RefreshCw className="w-8 h-8 animate-spin text-[#00450d]" />
+      <p className="text-sm font-medium">Loading property details...</p>
+    </div>}>
+      <PropertyDetailContent />
+    </Suspense>
+  );
+};
+
+function PropertyDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const propertyId = searchParams.get("id");
@@ -765,6 +776,6 @@ export const PropertyDetailPage: React.FC = () => {
       )}
     </div>
   );
-};
+}
 
 export default PropertyDetailPage;
