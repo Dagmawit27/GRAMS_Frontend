@@ -1,10 +1,7 @@
 "use client";
 
-"use client";
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Property, RentalAgreement } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,441 +11,256 @@ import {
   TrendingUp,
   Plus,
   MapPin,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Store,
   Home,
+  Store,
   Bed,
   Bath,
   Maximize2,
+  Clock,
+  AlertCircle,
+  RefreshCw,
   CheckCircle2,
+  XCircle,
+  Hourglass,
 } from "lucide-react";
+import { getSession, getMyProperties, PropertyResponse } from "@/lib/api";
 
-import { useCitizenData } from "@/hooks/useCitizenData";
-
-interface PropertiesPageProps {
-  properties?: Property[];
-  agreements?: RentalAgreement[];
-  onOpenRegisterProperty?: () => void;
-  onSelectProperty?: (property: Property) => void;
-  onViewAgreementForProperty?: (propertyTitle: string) => void;
+// Derives a display label and badge variant from the backend status enum
+function statusMeta(status: PropertyResponse["status"]): { label: string; variant: "active" | "pending" | "rejected" | "default" } {
+  switch (status) {
+    case "LISTED":    return { label: "Listed",    variant: "active"   };
+    case "VERIFIED":  return { label: "Verified",  variant: "active"   };
+    case "RENTED":    return { label: "Rented",    variant: "active"   };
+    case "PENDING":   return { label: "Pending",   variant: "pending"  };
+    case "REJECTED":  return { label: "Rejected",  variant: "rejected" };
+    case "UNLISTED":  return { label: "Unlisted",  variant: "default"  };
+    default:          return { label: status,      variant: "default"  };
+  }
 }
 
-export const PropertiesPage: React.FC<PropertiesPageProps> = (props) => {
-  const context = useCitizenData();
-  const properties = props.properties || context.properties;
-  const agreements = props.agreements || context.agreements;
-  const onOpenRegisterProperty =
-    props.onOpenRegisterProperty ||
-    (() => context.setIsRegisterPropertyModalOpen(true));
-  const onSelectProperty =
-    props.onSelectProperty || context.handleSelectProperty;
-  const onViewAgreementForProperty =
-    props.onViewAgreementForProperty ||
-    context.handleViewAgreementForProperty;
+function StatusIcon({ status }: { status: PropertyResponse["status"] }) {
+  if (status === "LISTED" || status === "VERIFIED" || status === "RENTED")
+    return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />;
+  if (status === "PENDING")
+    return <Hourglass className="w-3.5 h-3.5 text-amber-500" />;
+  if (status === "REJECTED")
+    return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+  return <Clock className="w-3.5 h-3.5 text-slate-400" />;
+}
 
-  const [expandedMallUnits, setExpandedMallUnits] = useState(false);
+export const PropertiesPage: React.FC = () => {
   const router = useRouter();
+  const [properties, setProperties] = useState<PropertyResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
+  const [ownerName, setOwnerName] = useState("—");
+  const [ownerEmail, setOwnerEmail] = useState("—");
+  const [ownerPhone, setOwnerPhone] = useState("—");
 
-  // Compute dynamic stats
-  const totalPropertiesCount = properties.length > 0 ? properties.length : 12;
-  const totalUnitsCount = 48 + Math.max(0, properties.length - 5);
-  const occupancyRate = 85;
+  useEffect(() => {
+    const s = getSession();
+    if (!s) {
+      setError("Session expired. Please log in again.");
+      setLoading(false);
+      return;
+    }
+    
+    // Set owner info from session
+    setOwnerName([s.user.firstName, s.user.middleName, s.user.lastName].filter(Boolean).join(" ") || "—");
+    setOwnerEmail(s.user.email ?? "—");
+    setOwnerPhone(s.user.phoneNumber ?? "—");
+    
+    getMyProperties(s.token)
+      .then((data) => {
+        setProperties(data);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Failed to load properties.");
+        setLoading(false);
+      });
+  }, []);
 
-  // Custom / user registered properties that aren't the static bento properties
-  const additionalProperties = properties.filter(
-    (p) => p.title !== "Bole Atlas Villa" && p.title !== "Piassa Grand Mall"
-  );
-
-  const handleOpenRegisterProperty = () => {
-    router.push("/citizen/dashboard/properties/register");
-  };
+  const pendingCount   = properties.filter((p) => p.status === "PENDING").length;
+  const activeCount    = properties.filter((p) => ["LISTED","VERIFIED","RENTED"].includes(p.status)).length;
+  const rejectedCount  = properties.filter((p) => p.status === "REJECTED").length;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-150">
-      {/* Header Bar */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200/60">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-            My Properties
-          </h2>
-
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">My Properties</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage your registered municipal titles, units, and occupancy rates.
+            Registered under <span className="font-semibold text-slate-700">{ownerName}</span> · {ownerEmail}
           </p>
         </div>
-
         <Button
-          onClick={handleOpenRegisterProperty}
-          className="bg-[#00450d] hover:bg-[#1b5e20] text-white shadow-xs font-medium text-xs gap-1.5 self-start sm:self-auto h-8 px-3 rounded-md cursor-pointer transition-all"
+          onClick={() => router.push("/citizen/dashboard/properties/register")}
+          className="bg-[#00450d] hover:bg-[#1b5e20] text-white shadow-xs font-medium text-xs gap-1.5 self-start sm:self-auto h-8 px-3 rounded-md"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Register Property</span>
+          Register Property
         </Button>
       </div>
 
-      {/* Summary KPI Cards */}
+      {/* KPI strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Total Properties */}
         <Card className="bg-white border-slate-200 shadow-clean">
-          <CardContent className="p-2 flex items-center justify-between">
+          <CardContent className="p-3 flex items-center justify-between">
             <div>
-              <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                Total Properties
-              </span>
-
-              <div className="mt-0.5 text-xl font-bold text-slate-900">
-                {totalPropertiesCount}
-              </div>
-
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Registered in GRAMS
-              </p>
+              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Total</p>
+              <p className="text-xl font-bold text-slate-900">{loading ? "—" : properties.length}</p>
+              <p className="text-[10px] text-slate-400">Registered in GRAMS</p>
             </div>
-
-            <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center text-slate-700">
               <Building2 className="w-4 h-4" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Total Units */}
         <Card className="bg-white border-slate-200 shadow-clean">
-          <CardContent className="p-2 flex items-center justify-between">
+          <CardContent className="p-3 flex items-center justify-between">
             <div>
-              <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                Total Units
-              </span>
-
-              <div className="mt-0.5 text-xl font-bold text-slate-900">
-                {totalUnitsCount}
-              </div>
-
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Commercial & Residential
-              </p>
+              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Active</p>
+              <p className="text-xl font-bold text-emerald-700">{loading ? "—" : activeCount}</p>
+              <p className="text-[10px] text-slate-400">Listed / Rented</p>
             </div>
-
-            <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
-              <DoorOpen className="w-4 h-4" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Occupancy Rate */}
-        <Card className="bg-white border-slate-200 shadow-clean">
-          <CardContent className="p-2 flex items-center justify-between">
-            <div>
-              <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
-                Occupancy Rate
-              </span>
-
-              <div className="mt-0.5 text-xl font-bold text-slate-900 flex items-baseline gap-1.5">
-                <span>{occupancyRate}%</span>
-
-                <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-full">
-                  High Demand
-                </span>
-              </div>
-
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                41 of {totalUnitsCount} active leases
-              </p>
-            </div>
-
-            <div className="w-8 h-8 rounded-md bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-md bg-emerald-50 flex items-center justify-center text-emerald-700">
               <TrendingUp className="w-4 h-4" />
             </div>
           </CardContent>
         </Card>
+
+        <Card className="bg-white border-slate-200 shadow-clean">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Pending Review</p>
+              <p className="text-xl font-bold text-amber-600">{loading ? "—" : pendingCount}</p>
+              <p className="text-[10px] text-slate-400">Awaiting officer verification</p>
+            </div>
+            <div className="w-8 h-8 rounded-md bg-amber-50 flex items-center justify-center text-amber-600">
+              <Hourglass className="w-4 h-4" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Bento Grid: Single Unit Villa & Multi-Unit Commercial Complex */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Single Unit Property Card: Bole Atlas Villa */}
-        <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all flex flex-col justify-between">
-          <CardHeader className="p-3 pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <Badge variant="active" className="text-[9px] mb-1">
-                  Rented
-                </Badge>
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-16 text-slate-400 gap-2 text-sm">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          Loading your properties...
+        </div>
+      )}
 
-                <CardTitle className="text-sm font-semibold text-slate-900">
-                  Bole Atlas Villa
-                </CardTitle>
+      {/* Error */}
+      {!loading && error && (
+        <div className="flex items-center gap-2 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {error}
+        </div>
+      )}
 
-                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  Bole Sub-city, Woreda 03, H.No 442
-                </p>
-              </div>
+      {/* Empty state */}
+      {!loading && !error && properties.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+            <Building2 className="w-7 h-7" />
+          </div>
+          <p className="text-sm font-semibold text-slate-700">No properties registered yet</p>
+          <p className="text-xs text-slate-500 max-w-xs">
+            Register your first property to start managing it through the GRAMS municipal platform.
+          </p>
+          <Button
+            onClick={() => router.push("/citizen/dashboard/properties/register")}
+            className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-9 px-5 mt-1"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Register First Property
+          </Button>
+        </div>
+      )}
 
-              <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
-                <Home className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </CardHeader>
+      {/* Property cards */}
+      {!loading && !error && properties.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {properties.map((p) => {
+            const { label, variant } = statusMeta(p.status);
+            const coverImage = p.images.find((i) => i.isCover)?.imageUrl ?? p.images[0]?.imageUrl;
+            const isCommercial = p.propertyType.toLowerCase().includes("mall") || p.propertyType.toLowerCase().includes("commercial");
 
-          <CardContent className="p-3 pt-0 space-y-2.5">
-            {/* Property Image & Status */}
-            <div className="relative h-32 rounded-md overflow-hidden bg-slate-100">
-              <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3TaI97tONXc4KYzx8tqT7YFB29kuW5ebmAc0n4GHLxjWTMahWsEcnd_YEYvg-glb6cPg0HqWqgwuRkdCidk9ZrQqiczihUwg7yuZVCs0XMq0civZUmHoDSTc-_pEQGb6aovXWcfYbxKRlE-xis_vjicGD8jg20O1yzO8GQGI8-uzuMAonwwBeevXlI3oADlVe58PPocmoWdb5IU2gxoBO81y1GBO3bHG-no4mb4YhbWmt-Sjq_v1R7w"
-                alt="Bole Atlas Villa"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            {/* Tenant details */}
-            <div className="p-2.5 bg-slate-50/80 rounded-md border border-slate-200/80 flex items-center justify-between text-[10px]">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-medium text-[9px]">
-                  AK
-                </div>
-
-                <div>
-                  <span className="text-[9px] uppercase font-semibold text-slate-400 block">
-                    Current Tenant
-                  </span>
-
-                  <span className="font-semibold text-[10px] text-slate-900">
-                    Abebe Kebede
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[9px] uppercase font-semibold text-slate-400 block">
-                  Monthly Rent
-                </span>
-
-                <span className="font-semibold text-[10px] text-slate-900">
-                  ETB 45,000
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-0.5 flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() =>
-                  onViewAgreementForProperty("Bole Atlas Villa")
-                }
-                className="w-full text-[10px] font-medium gap-1 h-7 cursor-pointer"
+            return (
+              <Card
+                key={p.id}
+                onClick={() => router.push(`/citizen/dashboard/properties/property-detail?id=${p.id}`)}
+                className="bg-white border-slate-200 shadow-clean hover:border-[#00450d]/30 hover:shadow-md transition-all flex flex-col"
               >
-                <ExternalLink className="w-3 h-3" />
-                View Agreement
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Multi-Unit Commercial Property Card: Piassa Grand Mall */}
-        <Card className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all flex flex-col justify-between">
-          <CardHeader className="p-3 pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Badge variant="default" className="text-[9px]">
-                    Commercial Complex
-                  </Badge>
-
-                  <span className="text-[9px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-full">
-                    24 Units (20 Rented, 4 Available)
-                  </span>
-                </div>
-
-                <CardTitle className="text-sm font-semibold text-slate-900">
-                  Piassa Grand Mall
-                </CardTitle>
-
-                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  Arada Sub-city, Woreda 01, Piassa Commercial Core
-                </p>
-              </div>
-
-              <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center">
-                <Store className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-3 pt-0 space-y-2">
-            {/* Units Sub-list */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 px-1">
-                <span>Unit Code & Type</span>
-                <span>Status & Rent</span>
-              </div>
-
-              {/* Unit Rows */}
-              <div className="space-y-1">
-                {/* G-01 */}
-                <div className="p-2 bg-slate-50/80 rounded-md border border-slate-200/80 flex items-center justify-between text-[10px]">
-                  <div>
-                    <span className="font-semibold text-slate-900 mr-1.5">
-                      G-01
-                    </span>
-
-                    <span className="font-medium text-slate-700">
-                      Ground Floor Retail
-                    </span>
-
-                    <span className="text-[9px] text-slate-400 ml-1">
-                      (45 sqm)
-                    </span>
-                  </div>
-
-                  <Badge variant="active" className="text-[8px]">
-                    Rented (ETB 22K)
-                  </Badge>
-                </div>
-
-                {/* G-02 */}
-                <div className="p-2 bg-slate-50/80 rounded-md border border-slate-200/80 flex items-center justify-between text-[10px]">
-                  <div>
-                    <span className="font-semibold text-slate-900 mr-1.5">
-                      G-02
-                    </span>
-
-                    <span className="font-medium text-slate-700">
-                      Ground Floor Kiosk
-                    </span>
-
-                    <span className="text-[9px] text-slate-400 ml-1">
-                      (15 sqm)
-                    </span>
-                  </div>
-
-                  <Badge variant="active" className="text-[8px]">
-                    Rented (ETB 9.5K)
-                  </Badge>
-                </div>
-
-                {/* F1-05 */}
-                <div className="p-2 bg-amber-50/70 rounded-md border border-amber-200/80 flex items-center justify-between text-[10px]">
-                  <div>
-                    <span className="font-semibold text-amber-900 mr-1.5">
-                      F1-05
-                    </span>
-
-                    <span className="font-medium text-slate-800">
-                      First Floor Office
-                    </span>
-
-                    <span className="text-[9px] text-slate-400 ml-1">
-                      (60 sqm)
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[8px] font-semibold text-amber-800 bg-amber-100/70 px-1.5 py-0.5 rounded-full">
-                      Available
-                    </span>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-5 text-[8px] px-1.5 cursor-pointer"
-                      onClick={onOpenRegisterProperty}
-                    >
-                      List Unit
-                    </Button>
-                  </div>
-                </div>
-
-                {/* F2-12 */}
-                <div className="p-2 bg-slate-50/80 rounded-md border border-slate-200/80 flex items-center justify-between text-[10px]">
-                  <div>
-                    <span className="font-semibold text-slate-900 mr-1.5">
-                      F2-12
-                    </span>
-
-                    <span className="font-medium text-slate-700">
-                      Second Floor Store
-                    </span>
-
-                    <span className="text-[9px] text-slate-400 ml-1">
-                      (30 sqm)
-                    </span>
-                  </div>
-
-                  <Badge variant="active" className="text-[8px]">
-                    Rented (ETB 11K)
-                  </Badge>
-                </div>
-
-                {/* Expanded Units */}
-                {expandedMallUnits && (
-                  <>
-                    {/* F3-01 */}
-                    <div className="p-2 bg-amber-50/70 rounded-md border border-amber-200/80 flex items-center justify-between text-[10px] animate-in fade-in">
-                      <div>
-                        <span className="font-semibold text-amber-900 mr-1.5">
-                          F3-01
-                        </span>
-
-                        <span className="font-medium text-slate-800">
-                          Third Floor Tech Hub
-                        </span>
-
-                        <span className="text-[9px] text-slate-400 ml-1">
-                          (90 sqm)
-                        </span>
-                      </div>
-
-                      <Badge variant="pending" className="text-[8px]">
-                        Available (ETB 28K)
-                      </Badge>
+                {/* Cover image */}
+                <div className="relative h-36 rounded-t-xl overflow-hidden bg-slate-100 shrink-0">
+                  {coverImage ? (
+                    <img
+                      src={coverImage}
+                      alt={p.title ?? p.propertyType}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      {isCommercial ? <Store className="w-10 h-10" /> : <Home className="w-10 h-10" />}
                     </div>
+                  )}
+                  <div className="absolute top-2 left-2">
+                    <Badge variant={variant} className="text-[9px] flex items-center gap-1">
+                      <StatusIcon status={p.status} />
+                      {label}
+                    </Badge>
+                  </div>
+                </div>
 
-                    {/* G-04 */}
-                    <div className="p-2 bg-amber-50/70 rounded-md border border-amber-200/80 flex items-center justify-between text-[10px] animate-in fade-in">
-                      <div>
-                        <span className="font-semibold text-amber-900 mr-1.5">
-                          G-04
-                        </span>
+                <CardContent className="p-3 flex flex-col gap-2 flex-1">
+                  {/* Title & code */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {p.title ?? `${p.propertyType} — ${p.address.subCity}`}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-mono">{p.propertyCode}</p>
+                  </div>
 
-                        <span className="font-medium text-slate-800">
-                          Ground Pharmacy Space
-                        </span>
+                  {/* Address */}
+                  <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                    {[p.address.subCity, p.address.woreda && `Woreda ${p.address.woreda}`, p.address.houseNumber]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
 
-                        <span className="text-[9px] text-slate-400 ml-1">
-                          (50 sqm)
-                        </span>
-                      </div>
-
-                      <Badge variant="pending" className="text-[8px]">
-                        Available (ETB 24K)
-                      </Badge>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setExpandedMallUnits(!expandedMallUnits)}
-              className="w-full py-1.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 rounded-md transition-colors flex items-center justify-center gap-1 mt-1 cursor-pointer"
-            >
-              <span>
-                {expandedMallUnits
-                  ? "Hide Extra Units"
-                  : "View All 24 Units Directory"}
-              </span>
-
-              {expandedMallUnits ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </CardContent>
-        </Card>
-      </div>
+                  {/* Stats row */}
+                  <div className="flex items-center gap-3 text-[10px] text-slate-600 border-t border-slate-100 pt-2 mt-auto">
+                    {p.bedroomCount != null && (
+                      <span className="flex items-center gap-1">
+                        <Bed className="w-3 h-3 text-slate-400" /> {p.bedroomCount} bed
+                      </span>
+                    )}
+                    {p.bathroomCount != null && (
+                      <span className="flex items-center gap-1">
+                        <Bath className="w-3 h-3 text-slate-400" /> {p.bathroomCount} bath
+                      </span>
+                    )}
+                    {p.areaSqMeter != null && (
+                      <span className="flex items-center gap-1">
+                        <Maximize2 className="w-3 h-3 text-slate-400" /> {Number(p.areaSqMeter).toLocaleString()} m²
+                      </span>
+                    )}
+                    <span className="ml-auto font-bold text-slate-900">
+                      ETB {Number(p.monthlyRent).toLocaleString()}/mo
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

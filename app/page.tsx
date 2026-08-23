@@ -8,7 +8,7 @@ export default function Home() {
           <Link href={"/citizen/"}>
             <button>GO TO WEBSITE</button>
           </Link>
-          <Link href={"/officer/login"}>
+          <Link href={"/officer"}>
             <button>GO TO GOVERNMENT LOGIN</button>
           </Link>
         </div>

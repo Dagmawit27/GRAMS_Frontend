@@ -1,11 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCitizenData } from "@/hooks/useCitizenData";
 import { Property, PropertyUnit } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Building,
@@ -37,9 +38,19 @@ import {
   CheckSquare,
   Square,
   Copy,
-  X
+  X,
+  User,
+  Mail,
+  Phone,
+  Shield,
+  FileCheck2, 
+  ChevronLeft, 
+  ChevronRight,
+  Download,
+  Maximize2, 
+  QrCode,
 } from "lucide-react";
-
+import { getSession, registerProperty } from "@/lib/api";
 export interface MallShopUnit {
   id: string;
   shopNumber: string;
@@ -118,21 +129,41 @@ type CondominiumTypology = "studio" | "1-bed" | "2-bed" | "3-bed";
 type ApartmentTypology = "studio" | "1-bed" | "2-bed" | "3-bed";
 
 export const RegisterPropertyPage: React.FC = () => {
-  const { handleNavigate, handleRegisterProperty } = useCitizenData();
+  const { handleNavigate, setProperties, setNotifications } = useCitizenData();
 
   // 4-Step Registration Process as shown in the design:
-  // 1: Basic Info, 2: Property Details, 3: Documents, 4: Review
+  // 1: Owner Info (read-only from session), 2: Property Details, 3: Documents, 4: Review
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>("");
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
+  const [registeredPropertyCode, setRegisteredPropertyCode] = useState<string>("");
+  const [stepErrorBanner, setStepErrorBanner] = useState<string>("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Step 1: Basic Info
-  const [registrationRole, setRegistrationRole] = useState<"individual" | "developer" | "representative">("individual");
-  const [title, setTitle] = useState("Bole Atlas Luxury Villa Residence");
-  const [landlordName, setLandlordName] = useState("Dagmawit Mesfin");
-  const [faydaId, setFaydaId] = useState("ET-NID-00892418");
-  const [phone, setPhone] = useState("+251 91 144 8920");
-  const [email, setEmail] = useState("dagmawit.mesfin@gmail.com");
+    const clearError = (field: string) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const copy = { ...prev };
+      delete copy[field];
+      return copy;
+    });
+    if (stepErrorBanner) setStepErrorBanner("");
+  };
+  // Step 1: Owner info — populated from localStorage, not editable
+  const [landlordName, setLandlordName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const session = getSession();
+    if (session?.user) {
+      const { firstName, middleName, lastName, phoneNumber, email: userEmail } = session.user;
+      setLandlordName([firstName, middleName, lastName].filter(Boolean).join(" "));
+      setPhone(phoneNumber || "");
+      setEmail(userEmail || "");
+    }
+  }, []);
   const [monthlyRent, setMonthlyRent] = useState("45000");
   const [securityDepositMonths, setSecurityDepositMonths] = useState("2");
   const [minLeasePeriod, setMinLeasePeriod] = useState("1 Year");
@@ -140,6 +171,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
   // Step 2: Property Details
   const [propertyType, setPropertyType] = useState<MainPropertyType>("Villa");
+  const [title, setTitle] = useState("Luxury Villa in Bole");
 
   // Address & Ownership
   const [subCity, setSubCity] = useState("Bole");
@@ -211,6 +243,195 @@ export const RegisterPropertyPage: React.FC = () => {
 
   // Active Display Image (Featured Property Visual)
   const activePropertyVisual = propertyImages[activeImageIndex]?.url || propertyImages[0]?.url || DEFAULT_SAMPLE_IMAGES[0].url;
+
+  const router = useRouter();
+   const handleBack = () => {
+    router.push("/citizen/dashboard/properties");
+  };
+
+  // Step 4 Review Previews (Lightbox & Document Modal)
+  const [reviewActiveImageIdx, setReviewActiveImageIdx] = useState<number>(0);
+  const [isImageLightboxOpen, setIsImageLightboxOpen] = useState<boolean>(false);
+  const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState<boolean>(false);
+  
+  const validateStep1 = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!landlordName.trim()) {
+      errs.landlordName = "Please enter the legal landlord full name.";
+    }
+    // if (!faydaId.trim()) {
+    //   errs.faydaId = "Please enter a valid Fayda National Digital ID (FIN).";
+    // } else if (faydaId.trim().length < 6) {
+    //   errs.faydaId = "Please enter a valid Fayda FIN format (e.g. ET-NID-XXXXXXXX).";
+    // }
+    if (!phone.trim()) {
+      errs.phone = "Please enter a valid contact phone number (e.g. +251 9X XXX XXXX).";
+    } else if (!/^\+?[0-9\s\-()]{8,18}$/.test(phone.trim())) {
+      errs.phone = "Please enter a valid telephone format.";
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = "Please enter a valid email address (e.g. name@example.com).";
+    }
+    if (!title.trim()) {
+      errs.title = "Please enter a descriptive property display title / name.";
+    }
+    if (!monthlyRent.trim() || isNaN(Number(monthlyRent)) || Number(monthlyRent) <= 0) {
+      errs.monthlyRent = "Please enter a valid monthly asking rent greater than 0 ETB.";
+    }
+
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setStepErrorBanner("Please complete all required fields highlighted in red before continuing to Step 2.");
+      return false;
+    }
+    setStepErrorBanner("");
+    return true;
+  };
+
+  const validateStep2 = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!subCity.trim()) {
+      errs.subCity = "Please select a municipal Sub-city in Addis Ababa.";
+    }
+    if (!woreda.trim()) {
+      errs.woreda = "Please enter the woreda number (e.g. 03).";
+    }
+    if (!houseNo.trim()) {
+      errs.houseNo = "Please enter the house number (e.g. 456/A or N/A).";
+    }
+
+    if (propertyType === "Villa") {
+      if (!isServiceQuarter && (!villaBedrooms.trim() || isNaN(Number(villaBedrooms)) || Number(villaBedrooms) < 0)) {
+        errs.villaBedrooms = "Please enter the number of bedrooms (>= 0).";
+      }
+      if (!villaBathrooms.trim() || isNaN(Number(villaBathrooms)) || Number(villaBathrooms) < 1) {
+        errs.villaBathrooms = "Please enter at least 1 bathroom.";
+      }
+      if (!villaLivingRooms.trim() || isNaN(Number(villaLivingRooms)) || Number(villaLivingRooms) < 0) {
+        errs.villaLivingRooms = "Please enter the number of living rooms (>= 0).";
+      }
+      if (!villaFloorNumber.trim()) {
+        errs.villaFloorNumber = "Please enter the floor level (e.g. Ground or G+1).";
+      }
+      if (!villaCompoundArea.trim() || isNaN(Number(villaCompoundArea)) || Number(villaCompoundArea) <= 0) {
+        errs.villaCompoundArea = "Compound / plot area must be greater than 0 m².";
+      }
+    } else if (propertyType === "Apartment") {
+      if (!aptFloorNumber.trim()) {
+        errs.aptFloorNumber = "Please enter the apartment floor level (e.g. 4th Floor).";
+      }
+      if (!aptBlockNumber.trim()) {
+        errs.aptBlockNumber = "Please enter the block/wing number (e.g. Block B).";
+      }
+      if (!aptArea.trim() || isNaN(Number(aptArea)) || Number(aptArea) <= 0) {
+        errs.aptArea = "Apartment floor area must be greater than 0 m².";
+      }
+    } else if (propertyType === "Condominium") {
+      if (!condoSiteName.trim()) {
+        errs.condoSiteName = "Please enter the condominium site name (e.g. Bole Arabsa).";
+      }
+      if (!condoBlockNumber.trim()) {
+        errs.condoBlockNumber = "Please enter the block number (e.g. Block 24).";
+      }
+      if (!condoFloorNumber.trim()) {
+        errs.condoFloorNumber = "Please enter the floor level (e.g. 3rd Floor).";
+      }
+      if (!condoUnitNumber.trim()) {
+        errs.condoUnitNumber = "Please enter the door/unit number (e.g. Door 12).";
+      }
+      if (!condoArea.trim() || isNaN(Number(condoArea)) || Number(condoArea) <= 0) {
+        errs.condoArea = "Condominium floor area must be greater than 0 m².";
+      }
+    } else if (propertyType === "Shopping Mall") {
+      if (commercialSubType === "single-shop") {
+        if (!shopNumber.trim()) {
+          errs.shopNumber = "Please enter the shop unit number (e.g. Shop G-14).";
+        }
+        if (!shopArea.trim() || isNaN(Number(shopArea)) || Number(shopArea) <= 0) {
+          errs.shopArea = "Shop net area must be greater than 0 m².";
+        }
+        if (!shopFrontage.trim()) {
+          errs.shopFrontage = "Please enter the frontage description.";
+        }
+      } else {
+        if (!mallTotalFloors.trim()) {
+          errs.mallTotalFloors = "Please enter the number of commercial floors (e.g. 4 Floors).";
+        }
+        if (!mallParkingCapacity.trim()) {
+          errs.mallParkingCapacity = "Please enter the customer parking capacity.";
+        }
+        if (mallUnits.length === 0) {
+          errs.mallUnits = "Please add at least one shopping unit.";
+        } else {
+          const hasInvalidUnit = mallUnits.some((u) => !u.shopNumber.trim() || !u.area || u.area <= 0 || !u.rentAmount || u.rentAmount <= 0);
+          if (hasInvalidUnit) {
+            errs.mallUnits = "All shopping house units must have a valid Shop Number, area (> 0 m²), and rent (> 0 ETB).";
+          }
+        }
+      }
+    }
+
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setStepErrorBanner("Please complete all required property detail inputs highlighted in red before continuing to Step 3.");
+      return false;
+    }
+    setStepErrorBanner("");
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!titleDeedNumber.trim()) {
+      errs.titleDeedNumber = "Please enter the official Title Deed Certificate document number.";
+    }
+    if (!titleDeedFile || !titleDeedFile.name) {
+      errs.titleDeedFile = "Please upload an official Title Deed PDF or image scan.";
+    }
+    if (!cadastralParcelId.trim()) {
+      errs.cadastralParcelId = "Please enter the Cadastral UPI parcel identifier.";
+    }
+    if (propertyImages.length === 0) {
+      errs.propertyImages = "Please upload or attach at least one property photo.";
+    }
+
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setStepErrorBanner("Please complete all required document and photo fields before proceeding to Final Review.");
+      return false;
+    }
+    setStepErrorBanner("");
+    return true;
+  };
+
+  const handleStepNavigation = (targetStep: number) => {
+    if (targetStep === currentStep) return;
+
+    if (targetStep > currentStep) {
+      if (currentStep === 1 || targetStep > 1) {
+        if (!validateStep1()) {
+          setCurrentStep(1);
+          return;
+        }
+      }
+      if (currentStep === 2 || targetStep > 2) {
+        if (!validateStep2()) {
+          setCurrentStep(2);
+          return;
+        }
+      }
+      if (currentStep === 3 || targetStep > 3) {
+        if (!validateStep3()) {
+          setCurrentStep(3);
+          return;
+        }
+      }
+    }
+
+    setStepErrorBanner("");
+    setErrors({});
+    setCurrentStep(targetStep);
+  };
 
   // Handle Multi-Image Upload
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -390,7 +611,6 @@ export const RegisterPropertyPage: React.FC = () => {
   // Step 3: Documents & Cadastre
   const [cadastralParcelId, setCadastralParcelId] = useState("AA-BOL-03-P99120");
   const [titleDeedNumber, setTitleDeedNumber] = useState("ETH-MUDC-2024-88412");
-  const [featuredImage, setFeaturedImage] = useState(SAMPLE_PROPERTY_IMAGES[1].url);
   const [description, setDescription] = useState(
     "High-standard registered property located in Addis Ababa, fully compliant with national housing registry and cadastral standards."
   );
@@ -436,95 +656,153 @@ export const RegisterPropertyPage: React.FC = () => {
     return 100;
   };
 
-  const handleFinalSubmit = (e: React.FormEvent) => {
+  const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError("");
 
-    setTimeout(() => {
+    const session = getSession();
+    if (!session || !session.token) {
+      setSubmitError("Session expired or you are not signed in. Please sign in to your citizen account.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!subCity || !subCity.trim()) {
+      setSubmitError("Please select a valid Sub-city in Step 2.");
+      setCurrentStep(2);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!woreda || !woreda.trim()) {
+      setSubmitError("Please specify a valid Woreda number (e.g. 03) in Step 2.");
+      setCurrentStep(2);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const rentAmount =
+      propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
+        ? mallTotalMonthlyGrossRent
+        : parseFloat(monthlyRent) || 0;
+
+    if (rentAmount <= 0) {
+      setSubmitError("Monthly asking rent must be greater than 0 ETB.");
+      setCurrentStep(1);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const bedroomCount = getDerivedBedroomsCount();
+    const bathroomCount = getDerivedBathroomsCount();
+    const areaSqMeter = getDerivedArea();
+
+    const floorNumber =
+      propertyType === "Villa" ? villaFloorNumber
+      : propertyType === "Apartment" ? aptFloorNumber
+      : propertyType === "Condominium" ? condoFloorNumber
+      : commercialSubType === "single-shop" ? shopFloorLevel
+      : mallTotalFloors;
+
+    const imageFiles = propertyImages
+      .filter((img) => img.file)
+      .map((img) => img.file as File);
+
+    const docFiles = titleDeedFile?.file ? [titleDeedFile.file] : [];
+
+    const requestPayload = {
+      propertyType,
+      title: title?.trim() || `${subCity} ${propertyType} Property`,
+      address: {
+        city: "Addis Ababa",
+        subCity: subCity.trim(),
+        woreda: woreda.trim(),
+        houseNumber: houseNo?.trim() || undefined,
+      },
+      houseNumber: houseNo?.trim() || undefined,
+      floorNumber: floorNumber?.trim() || undefined,
+      bedroomCount: bedroomCount !== undefined ? bedroomCount : undefined,
+      bathroomCount: bathroomCount !== undefined ? bathroomCount : undefined,
+      areaSqMeter: areaSqMeter,
+      monthlyRent: rentAmount,
+      furnishingStatus: undefined,
+      description: description?.trim() || undefined,
+      ownershipType: ownershipType?.trim() || "Private",
+      specificLandmark: specificLandmark?.trim() || undefined,
+      cadastralParcelId: cadastralParcelId?.trim() || undefined,
+      titleDeedNumber: titleDeedNumber?.trim() || undefined,
+      securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
+      minLeasePeriod: minLeasePeriod || "1 Year",
+      availableFrom: availableFrom || "Immediate",
+    };
+
+    try {
+      const response = await registerProperty(
+        session.token,
+        requestPayload,
+        imageFiles.length > 0 ? imageFiles : undefined,
+        docFiles.length > 0 ? docFiles : undefined
+      );
+
+      setRegisteredPropertyCode(response.propertyCode);
+      setIsSubmittedSuccess(true);
+
       const typeMapping: Property["type"] =
-        propertyType === "Shopping Mall"
-          ? "Commercial"
-          : (propertyType as Property["type"]);
+        propertyType === "Shopping Mall" ? "Commercial" : (propertyType as Property["type"]);
 
-      const newProperty: Property = {
-        id: `prop-${Date.now()}`,
-        title: title || `${subCity} ${propertyType} Property`,
+      const newPropertyItem: Property = {
+        id: response.id,
+        title: response.title || requestPayload.title,
         type: typeMapping,
-        price:
-          propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
-            ? mallTotalMonthlyGrossRent
-            : parseFloat(monthlyRent) || 35000,
+        price: rentAmount,
         location: `${woreda ? `Woreda ${woreda}, ` : ""}${subCity} Sub-city, Addis Ababa`,
         subCity: `${subCity} Sub City`,
         woreda: `Woreda ${woreda}`,
         houseNo: houseNo || "N/A",
-        bedrooms: getDerivedBedroomsCount(),
-        bathrooms: getDerivedBathroomsCount(),
-        area: getDerivedArea(),
-        floor:
-          propertyType === "Villa"
-            ? villaFloorNumber
-            : propertyType === "Apartment"
-            ? aptFloorNumber
-            : propertyType === "Condominium"
-            ? condoFloorNumber
-            : commercialSubType === "single-shop"
-            ? shopFloorLevel
-            : mallTotalFloors,
+        bedrooms: bedroomCount,
+        bathrooms: bathroomCount,
+        area: areaSqMeter,
+        floor: floorNumber,
         status: "Available",
-        verified: true,
-        featuredImage: activePropertyVisual,
-        galleryImages: propertyImages.map((img) => img.url),
-        description:
-          description ||
-          `Government registered ${propertyType} property under GRAMS municipal title verification.`,
-        amenities:
-          propertyType === "Shopping Mall"
-            ? [
-                "3-Phase Industrial Generator",
-                "Customer Parking Facility",
-                "24/7 Security CCTV",
-                "Dedicated Electric Sub-Meters",
-              ]
-            : [
-                "Dedicated Water Reservoir",
-                "24/7 Security Guard",
-                "Compound Parking",
-                "Backup Power Support",
-              ],
+        verified: false,
+        featuredImage: response.images?.[0]?.imageUrl || propertyImages[0]?.url || "",
+        galleryImages: response.images?.length
+          ? response.images.map((i) => i.imageUrl)
+          : propertyImages.map((i) => i.url),
+        description,
+        amenities: [],
         securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
         minLeasePeriod,
         utilitiesIncluded: false,
         availableFrom,
-        landlordName,
-        unitsCount:
-          propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
-            ? mallUnits.length
-            : 1,
-        units:
-          propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
-            ? mallUnits.map((u) => ({
-                id: u.id,
-                unitCode: u.shopNumber,
-                name: `${u.floorLevel} - ${u.category}`,
-                type: u.category,
-                area: u.area,
-                status: u.status,
-                rentAmount: u.rentAmount,
-                floorLevel: u.floorLevel,
-                category: u.category,
-                shopNumber: u.shopNumber,
-                submeter: u.submeter,
-                waterSupply: u.waterSupply,
-                frontage: u.frontage,
-              }))
-            : undefined,
+        landlordName: landlordName || "Landlord",
       };
 
-      handleRegisterProperty(newProperty);
+      setProperties((prev) => [newPropertyItem, ...prev]);
+
+      setNotifications((prev) => [
+        {
+          id: `notif-${Date.now()}`,
+          type: "system",
+          title: "Property Registered",
+          description: `${newPropertyItem.title} (${response.propertyCode}) registered in municipal title database.`,
+          timestamp: "Just now",
+          read: false,
+          linkPage: "properties",
+        },
+        ...prev,
+      ]);
+    } catch (err: unknown) {
+      console.error("Property registration error:", err);
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please verify MinIO storage and backend database connection."
+      );
+    } finally {
       setIsSubmitting(false);
-      setIsSubmittedSuccess(true);
-    }, 800);
+    }
   };
 
   const steps = [
@@ -536,6 +814,26 @@ export const RegisterPropertyPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-in fade-in duration-150">
+      {/* Top Error Notification Banner */}
+      {submitError && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-red-900 mb-0.5">Registration Failed</p>
+              <p className="leading-relaxed">{submitError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSubmitError("")}
+            className="text-red-400 hover:text-red-700 p-1 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -549,12 +847,13 @@ export const RegisterPropertyPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <Button
+            onClick={handleBack}
             variant="outline"
             size="sm"
-            onClick={() => handleNavigate("properties")}
-            className="text-xs h-9"
+            className="h-8.5 px-3 text-xs gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs"
           >
-            Cancel
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Properties
           </Button>
         </div>
       </div>
@@ -570,7 +869,7 @@ export const RegisterPropertyPage: React.FC = () => {
               <React.Fragment key={step.num}>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(step.num)}
+                  onClick={() => handleStepNavigation(step.num)}
                   className="flex flex-col items-center group focus:outline-none"
                 >
                   <div
@@ -633,10 +932,7 @@ export const RegisterPropertyPage: React.FC = () => {
           <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-left max-w-md mx-auto space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-200/60">
               <span className="text-slate-500">Registry Reference:</span>
-              <span className="font-mono font-bold text-slate-900">
-                {/* eslint-disable-next-line react-hooks/purity */}
-                ETH-GRAMS-{Date.now().toString().slice(-6)}
-              </span>
+              <span className="font-mono font-bold text-slate-900">{registeredPropertyCode}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200/60">
               <span className="text-slate-500">Property Type:</span>
@@ -658,7 +954,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
-              onClick={() => handleNavigate("properties")}
+              onClick={() => router.push("/citizen/dashboard/properties")}
               className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold w-full sm:w-auto"
             >
               View My Properties Portfolio
@@ -678,6 +974,26 @@ export const RegisterPropertyPage: React.FC = () => {
       ) : (
         /* STEP WIZARD FORM */
         <Card className="border border-slate-200/90 rounded-2xl bg-white shadow-clean overflow-hidden">
+          {/* Step Error Banner */}
+          {stepErrorBanner && (
+            <div className="bg-red-50 border-b border-red-200 p-4 flex items-start justify-between gap-3 text-xs text-red-800 animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block text-red-900">Validation Notice:</span>
+                  <span>{stepErrorBanner}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStepErrorBanner("")}
+                className="text-red-400 hover:text-red-700 p-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          
           {/* STEP 1: Basic Info */}
           {currentStep === 1 && (
             <div className="p-6 sm:p-8 space-y-6">
@@ -687,65 +1003,59 @@ export const RegisterPropertyPage: React.FC = () => {
                 </h2>
               </div>
 
-              {/* Landlord Identification */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Full Legal Landlord Name <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={landlordName}
-                    onChange={(e) => setLandlordName(e.target.value)}
-                    placeholder="e.g. Dagmawit Mesfin"
-                    className="h-10 text-xs bg-white"
-                    required
-                  />
+              {/* Owner Info — read-only from session */}
+              <div className="space-y-3 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-500">Owner details from your account (read-only)</span>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Fayda National Digital ID (FIN) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Input
-                      value={faydaId}
-                      onChange={(e) => setFaydaId(e.target.value)}
-                      placeholder="ET-NID-XXXXXXXX"
-                      className="h-10 text-xs font-mono bg-white pl-8"
-                      required
-                    />
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 absolute left-2.5 top-3" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                      <User className="w-3 h-3" /> Full Name
+                    </label>
+                    <div className="h-10 px-3 flex items-center text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md cursor-not-allowed select-none">
+                      {landlordName || "—"}
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contact Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+251 9X XXX XXXX"
-                    className="h-10 text-xs bg-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contact Email Address
-                  </label>
-                  <Input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    className="h-10 text-xs bg-white"
-                  />
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                      <Phone className="w-3 h-3" /> Phone Number
+                    </label>
+                    <div className="h-10 px-3 flex items-center text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md cursor-not-allowed select-none">
+                      {phone || "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                      <Mail className="w-3 h-3" /> Email Address
+                    </label>
+                    <div className="h-10 px-3 flex items-center text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md cursor-not-allowed select-none truncate">
+                      {email || "—"}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Property Title & Financials */}
               <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Property Listing Title <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    value={title}
+                    onChange={(e) => {setTitle(e.target.value); clearError("title");}}
+                    placeholder="e.g. Modern Luxury Villa in Bole Atlas"
+                    className="h-10 text-xs font-medium"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Give your listing a descriptive title for municipal cataloging and tenant discovery.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -754,7 +1064,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     <Input
                       type="number"
                       value={monthlyRent}
-                      onChange={(e) => setMonthlyRent(e.target.value)}
+                      onChange={(e) => {setMonthlyRent(e.target.value); clearError("monthlyRent");}}
                       placeholder="45000"
                       className="h-10 text-xs font-bold"
                       required
@@ -805,7 +1115,20 @@ export const RegisterPropertyPage: React.FC = () => {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
+                  // onClick={() => {
+                  //   setSubmitError("");
+                  //   const rent = parseFloat(monthlyRent);
+                  //   if (isNaN(rent) || rent <= 0) {
+                  //     setSubmitError("Please enter a valid monthly asking rent greater than 0 ETB.");
+                  //     return;
+                  //   }
+                  //   if (!title.trim()) {
+                  //     setSubmitError("Please provide a property listing title.");
+                  //     return;
+                  //   }
+                  //   setCurrentStep(2);
+                  // }}
+                  onClick={() => handleStepNavigation(2)}
                   className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold gap-1.5"
                 >
                   <span>Save & Continue</span>
@@ -930,7 +1253,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </label>
                     <select
                       value={subCity}
-                      onChange={(e) => setSubCity(e.target.value)}
+                      onChange={(e) => {setSubCity(e.target.value); clearError("subCity");}}
                       className="w-full h-11 px-3.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d]"
                     >
                       <option value="">Select Sub-city</option>
@@ -954,7 +1277,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </label>
                     <Input
                       value={woreda}
-                      onChange={(e) => setWoreda(e.target.value)}
+                      onChange={(e) => {setWoreda(e.target.value); clearError("woreda");}}
                       placeholder="e.g. 03"
                       className="h-11 text-xs"
                     />
@@ -966,7 +1289,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </label>
                     <Input
                       value={houseNo}
-                      onChange={(e) => setHouseNo(e.target.value)}
+                      onChange={(e) => {setHouseNo(e.target.value); clearError("houseNo");}}
                       placeholder="e.g. 456/A"
                       className="h-11 text-xs"
                     />
@@ -997,7 +1320,7 @@ export const RegisterPropertyPage: React.FC = () => {
                         type="number"
                         min="0"
                         value={villaBedrooms}
-                        onChange={(e) => setVillaBedrooms(e.target.value)}
+                        onChange={(e) => {setVillaBedrooms(e.target.value); clearError("villaBedrooms");}}
                         placeholder="0"
                         disabled={isServiceQuarter}
                         className="h-11 text-xs bg-white"
@@ -1012,7 +1335,7 @@ export const RegisterPropertyPage: React.FC = () => {
                         type="number"
                         min="1"
                         value={villaBathrooms}
-                        onChange={(e) => setVillaBathrooms(e.target.value)}
+                        onChange={(e) => {setVillaBathrooms(e.target.value); clearError("villaBathrooms");}}
                         placeholder="0"
                         className="h-11 text-xs bg-white"
                       />
@@ -1026,7 +1349,7 @@ export const RegisterPropertyPage: React.FC = () => {
                         type="number"
                         min="0"
                         value={villaLivingRooms}
-                        onChange={(e) => setVillaLivingRooms(e.target.value)}
+                        onChange={(e) => {setVillaLivingRooms(e.target.value); clearError("villaLivingRooms");}}
                         placeholder="0"
                         className="h-11 text-xs bg-white"
                       />
@@ -1038,7 +1361,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={villaFloorNumber}
-                        onChange={(e) => setVillaFloorNumber(e.target.value)}
+                        onChange={(e) => {setVillaFloorNumber(e.target.value); clearError("villaFloorNumber");}}
                         placeholder="Ground"
                         className="h-11 text-xs bg-white"
                       />
@@ -1054,6 +1377,7 @@ export const RegisterPropertyPage: React.FC = () => {
                         onChange={(e) => {
                           setIsServiceQuarter(e.target.checked);
                           if (e.target.checked) setVillaBedrooms("1");
+                          clearError("villaBedrooms");
                         }}
                         className="w-4 h-4 text-[#00450d] rounded border-slate-300 focus:ring-[#00450d]"
                       />
@@ -1070,7 +1394,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       <Input
                         type="number"
                         value={villaCompoundArea}
-                        onChange={(e) => setVillaCompoundArea(e.target.value)}
+                        onChange={(e) => {setVillaCompoundArea(e.target.value); clearError("villaCompoundArea");}}
                         placeholder="e.g. 350"
                         className="h-9 text-xs bg-white"
                       />
@@ -1152,7 +1476,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={aptFloorNumber}
-                        onChange={(e) => setAptFloorNumber(e.target.value)}
+                        onChange={(e) => {setAptFloorNumber(e.target.value); clearError("aptFloorNumber");}}
                         placeholder="e.g. 4th Floor"
                         className="h-10 text-xs bg-white"
                       />
@@ -1164,7 +1488,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={aptBlockNumber}
-                        onChange={(e) => setAptBlockNumber(e.target.value)}
+                        onChange={(e) => {setAptBlockNumber(e.target.value); clearError("aptBlockNumber");}}
                         placeholder="Block B"
                         className="h-10 text-xs bg-white"
                       />
@@ -1177,7 +1501,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       <Input
                         type="number"
                         value={aptArea}
-                        onChange={(e) => setAptArea(e.target.value)}
+                        onChange={(e) => {setAptArea(e.target.value); clearError("aptArea");}}
                         placeholder="110"
                         className="h-10 text-xs bg-white"
                       />
@@ -1243,7 +1567,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={condoSiteName}
-                        onChange={(e) => setCondoSiteName(e.target.value)}
+                        onChange={(e) => {setCondoSiteName(e.target.value); clearError("condoSiteName");}}
                         placeholder="e.g. Bole Arabsa / Jemo 1 / Gotera"
                         className="h-10 text-xs bg-white"
                       />
@@ -1285,7 +1609,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={condoBlockNumber}
-                        onChange={(e) => setCondoBlockNumber(e.target.value)}
+                        onChange={(e) => {setCondoBlockNumber(e.target.value); clearError("condoBlockNumber");}}
                         placeholder="Block 24"
                         className="h-10 text-xs bg-white"
                       />
@@ -1297,7 +1621,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={condoFloorNumber}
-                        onChange={(e) => setCondoFloorNumber(e.target.value)}
+                        onChange={(e) => {setCondoFloorNumber(e.target.value); clearError("condoFloorNumber");}}
                         placeholder="3rd Floor"
                         className="h-10 text-xs bg-white"
                       />
@@ -1309,7 +1633,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </label>
                       <Input
                         value={condoUnitNumber}
-                        onChange={(e) => setCondoUnitNumber(e.target.value)}
+                        onChange={(e) => {setCondoUnitNumber(e.target.value); clearError("condoUnitNumber");}}
                         placeholder="Door 12"
                         className="h-10 text-xs bg-white"
                       />
@@ -1322,7 +1646,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       <Input
                         type="number"
                         value={condoArea}
-                        onChange={(e) => setCondoArea(e.target.value)}
+                        onChange={(e) => {setCondoArea(e.target.value); clearError("condoArea");}}
                         placeholder="85"
                         className="h-10 text-xs bg-white"
                       />
@@ -1402,7 +1726,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           </label>
                           <Input
                             value={shopNumber}
-                            onChange={(e) => setShopNumber(e.target.value)}
+                            onChange={(e) => {setShopNumber(e.target.value); clearError("shopNumber");}}
                             placeholder="e.g. Shop G-14"
                             className="h-10 text-xs bg-white"
                           />
@@ -1432,7 +1756,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           <Input
                             type="number"
                             value={shopArea}
-                            onChange={(e) => setShopArea(e.target.value)}
+                            onChange={(e) => {setShopArea(e.target.value); clearError("shopArea");}}
                             placeholder="38"
                             className="h-10 text-xs bg-white"
                           />
@@ -1464,7 +1788,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           </label>
                           <Input
                             value={shopFrontage}
-                            onChange={(e) => setShopFrontage(e.target.value)}
+                            onChange={(e) => {setShopFrontage(e.target.value); clearError("shopFrontage");}}
                             placeholder="Glass Display Window Frontage"
                             className="h-10 text-xs bg-white"
                           />
@@ -1506,7 +1830,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           </label>
                           <Input
                             value={mallTotalFloors}
-                            onChange={(e) => setMallTotalFloors(e.target.value)}
+                            onChange={(e) => {setMallTotalFloors(e.target.value); clearError("mallTotalFloors");}}
                             placeholder="e.g. 4 Floors (B+G+2)"
                             className="h-10 text-xs bg-white"
                           />
@@ -1518,7 +1842,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           </label>
                           <Input
                             value={mallParkingCapacity}
-                            onChange={(e) => setMallParkingCapacity(e.target.value)}
+                            onChange={(e) => {setMallParkingCapacity(e.target.value); clearError("mallParkingCapacity");}}
                             placeholder="e.g. 30 Vehicles"
                             className="h-10 text-xs bg-white"
                           />
@@ -1722,7 +2046,9 @@ export const RegisterPropertyPage: React.FC = () => {
                                     type="number"
                                     min="5"
                                     value={unit.area}
-                                    onChange={(e) => handleUpdateUnit(idx, "area", parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => {handleUpdateUnit(idx, "area", parseFloat(e.target.value) || 0);
+                                      clearError(`mallUnits.${idx}.area`);
+                                    }}
                                     className="h-8 text-xs bg-white"
                                   />
                                 </div>
@@ -1735,7 +2061,9 @@ export const RegisterPropertyPage: React.FC = () => {
                                     type="number"
                                     min="1000"
                                     value={unit.rentAmount}
-                                    onChange={(e) => handleUpdateUnit(idx, "rentAmount", parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => {handleUpdateUnit(idx, "rentAmount", parseFloat(e.target.value) || 0);
+                                      clearError(`mallUnits.${idx}.rentAmount`);
+                                    }}
                                     className="h-8 text-xs font-bold text-emerald-900 bg-white"
                                   />
                                 </div>
@@ -1849,6 +2177,14 @@ export const RegisterPropertyPage: React.FC = () => {
                 <Button
                   type="button"
                   variant="outline"
+                  onClick={() => setCurrentStep(1)}
+                  className="px-6 text-xs h-10 text-slate-700"
+                >
+                  Back to Basic Info
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => handleNavigate("properties")}
                   className="px-6 text-xs h-10 text-slate-700"
                 >
@@ -1856,7 +2192,7 @@ export const RegisterPropertyPage: React.FC = () => {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => handleStepNavigation(3)}
                   className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-10 px-6 font-semibold shadow-xs"
                 >
                   Save & Continue
@@ -1877,15 +2213,42 @@ export const RegisterPropertyPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <div>
                   <label className="font-semibold block mb-1">Title Deed Document Number</label>
-                  <Input value={titleDeedNumber} onChange={(e) => setTitleDeedNumber(e.target.value)} className="h-8.5 text-xs bg-white font-mono" />
+                  <Input value={titleDeedNumber} 
+                  onChange={(e) => {setTitleDeedNumber(e.target.value); clearError("titleDeedNumber");}} 
+                  className={`h-9 text-xs bg-white font-mono ${
+                      errors.titleDeedNumber ? "border-red-500 ring-1 ring-red-500 bg-red-50/20" : ""
+                    }`}
+                  />
+                  {errors.titleDeedNumber && (
+                    <p className="text-[11px] text-red-600 font-medium mt-1">
+                      {errors.titleDeedNumber}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="font-semibold block mb-1">Upload Title Deed Scan (PDF)</label>
-                  <label className="flex items-center justify-between px-3 py-1.5 bg-white border border-emerald-300 rounded-lg cursor-pointer hover:bg-emerald-50/50">
-                    <span className="truncate text-slate-700">{titleDeedFile?.name || "Choose file..."}</span>
-                    <Upload className="w-4 h-4 text-[#00450d] shrink-0 ml-2" />
-                    <input type="file" accept=".pdf,.png,.jpg" onChange={handleTitleDeedUpload} className="hidden" />
+                  <label className="font-semibold block mb-1 text-slate-700">
+                    Upload Title Deed Scan (PDF) <span className="text-red-500">*</span>
                   </label>
+                  <label className={`flex items-center justify-between px-3 py-1.5 bg-white border rounded-lg cursor-pointer hover:bg-emerald-50/50 ${
+                    errors.titleDeedFile ? "border-red-500 ring-1 ring-red-500 bg-red-50/20" : "border-emerald-300"
+                  }`}>
+                    <span className="truncate text-slate-700">{titleDeedFile?.name || "Choose PDF or scan..."}</span>
+                    <Upload className="w-4 h-4 text-[#00450d] shrink-0 ml-2" />
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg"
+                      onChange={(e) => {
+                        handleTitleDeedUpload(e);
+                        clearError("titleDeedFile");
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {errors.titleDeedFile && (
+                    <p className="text-[11px] text-red-600 font-medium mt-1">
+                      {errors.titleDeedFile}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1909,9 +2272,19 @@ export const RegisterPropertyPage: React.FC = () => {
                     <label className="cursor-pointer text-xs font-bold text-[#00450d] hover:underline inline-flex items-center gap-1">
                       <Plus className="w-3.5 h-3.5" />
                       <span>Upload Multiple Images</span>
-                      <input type="file" multiple accept="image/*" onChange={handleImageFileUpload} className="hidden" />
+                      <input type="file" multiple accept="image/*" onChange={(e) => {
+                        handleImageFileUpload(e);
+                        clearError("propertyImages");
+                      }} className="hidden" />
                     </label>
                   </div>
+
+                  {errors.propertyImages && (
+                    <p className="text-[11px] text-red-600 font-medium mb-2 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      {errors.propertyImages}
+                    </p>
+                  )}
 
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                     {propertyImages.map((img, idx) => (
@@ -1941,9 +2314,9 @@ export const RegisterPropertyPage: React.FC = () => {
 
               <div className="flex justify-between pt-2">
                 <Button variant="outline" onClick={() => setCurrentStep(2)} className="text-xs h-8.5">
-                  Back
+                  Back to Property Details
                 </Button>
-                <Button onClick={() => setCurrentStep(4)} className="bg-[#00450d] text-white text-xs h-8.5 px-4 gap-1.5">
+                <Button onClick={() => handleStepNavigation(4)} className="bg-[#00450d] text-white text-xs h-8.5 px-4 gap-1.5">
                   <span>Continue to Final Review</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -1952,6 +2325,7 @@ export const RegisterPropertyPage: React.FC = () => {
           )}
 
           {/* STEP 4: Review & Certification Submission */}
+         {/* STEP 4: Review & Certification Submission */}
           {currentStep === 4 && (
             <div className="p-6 sm:p-8 space-y-6">
               <div>
@@ -2098,6 +2472,185 @@ export const RegisterPropertyPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Documents & Image Visuals Preview */}
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#00450d]" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Uploaded Documents & Visual Evidence Preview
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Municipal Title & Photo Verification
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                  {/* Left Column: Official Title Deed Certificate Document Card */}
+                  <div className="lg:col-span-5 flex flex-col justify-between border border-emerald-200/90 rounded-xl p-4 bg-gradient-to-b from-emerald-50/60 to-white space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between pb-2 border-b border-emerald-200/60">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-bold shadow-xs">
+                            <FileCheck2 className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block leading-tight">
+                              Official Title Deed Certificate
+                            </span>
+                            <span className="text-[10px] text-emerald-800 font-semibold">
+                              Verified Digital Land Registry
+                            </span>
+                          </div>
+                        </div>
+                        <Badge variant="verified" className="text-[10px]">
+                          Authenticated
+                        </Badge>
+                      </div>
+
+                      {/* Document Details */}
+                      <div className="mt-3 space-y-2 text-xs">
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200/80 space-y-1.5 shadow-2xs">
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span>Document Name:</span>
+                            <span className="font-medium text-slate-900 truncate max-w-[170px]" title={titleDeedFile?.name || "Official_Title_Deed_Certificate_Scan.pdf"}>
+                              {titleDeedFile?.name || "Official_Title_Deed_Certificate_Scan.pdf"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span>File Size & Type:</span>
+                            <span className="font-semibold text-slate-800">
+                              {titleDeedFile?.size || "2.4 MB"} • PDF Scan
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span>Deed Registry #:</span>
+                            <span className="font-mono text-slate-900 font-bold">
+                              {titleDeedNumber}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span>Cadastral Parcel UPI:</span>
+                            <span className="font-mono text-emerald-800 font-bold">
+                              {cadastralParcelId}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-2 bg-emerald-50/70 rounded-md border border-emerald-100 flex items-center gap-2 text-[11px] text-emerald-900">
+                          <Shield className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span>Fayda ID validated for Landlord: <strong>{landlordName}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview Document Trigger */}
+                    <div className="pt-2">
+                      <Button
+                        type="button"
+                        onClick={() => setIsDocumentPreviewOpen(true)}
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs h-9 gap-1.5 font-medium shadow-xs"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Inspect Digital Deed Certificate (PDF)</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Property Visuals & Photo Gallery Preview */}
+                  <div className="lg:col-span-7 border border-slate-200 rounded-xl p-4 bg-white space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-[#00450d]" />
+                        <span className="text-xs font-bold text-slate-900">
+                          Property Photos Preview ({propertyImages.length} Attached)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsImageLightboxOpen(true)}
+                        className="text-[11px] h-7 px-2 text-[#00450d] hover:bg-emerald-50 gap-1"
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                        <span>Open Fullscreen Gallery</span>
+                      </Button>
+                    </div>
+
+                    {/* Featured Active Image */}
+                    <div
+                      className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-950 aspect-video group cursor-pointer"
+                      onClick={() => setIsImageLightboxOpen(true)}
+                    >
+                      <img
+                        src={propertyImages[reviewActiveImageIdx]?.url || activePropertyVisual}
+                        alt={propertyImages[reviewActiveImageIdx]?.label || "Property Review Visual"}
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                        referrerPolicy="no-referrer"
+                      />
+                      
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
+
+                      {/* Image Details Overlay */}
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                        <span className="bg-black/60 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded-full font-medium border border-white/20">
+                          Photo {reviewActiveImageIdx + 1} of {propertyImages.length}
+                        </span>
+                        {(propertyImages[reviewActiveImageIdx]?.isCover || reviewActiveImageIdx === activeImageIndex) && (
+                          <span className="bg-[#00450d] text-white text-[10px] px-2 py-0.5 rounded-full font-semibold border border-emerald-400/30 flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>Featured Cover</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="absolute top-2.5 right-2.5">
+                        <div className="bg-black/60 backdrop-blur-xs text-white p-1.5 rounded-md hover:bg-black/80 transition-colors">
+                          <Eye className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+
+                      <div className="absolute bottom-2.5 left-2.5 right-2.5 text-white flex items-center justify-between">
+                        <span className="text-xs font-semibold truncate drop-shadow-xs">
+                          {propertyImages[reviewActiveImageIdx]?.label || `${propertyType} Exterior & Interior`}
+                        </span>
+                        <span className="text-[10px] text-slate-300 shrink-0">Click to enlarge</span>
+                      </div>
+                    </div>
+
+                    {/* Thumbnail Strip */}
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
+                      {propertyImages.map((img, idx) => (
+                        <button
+                          key={img.id || idx}
+                          type="button"
+                          onClick={() => setReviewActiveImageIdx(idx)}
+                          className={`relative aspect-video rounded-md overflow-hidden border transition-all ${
+                            reviewActiveImageIdx === idx
+                              ? "ring-2 ring-[#00450d] border-transparent scale-102 shadow-xs"
+                              : "border-slate-200 opacity-70 hover:opacity-100"
+                          }`}
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.label || `Photo ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          {img.isCover && (
+                            <span className="absolute bottom-0 inset-x-0 bg-[#00450d]/90 text-[8px] text-white text-center font-bold py-0.5">
+                              Cover
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Compliance Consent */}
               <div className="p-4 bg-emerald-50/50 border border-emerald-200/70 rounded-xl">
                 <label className="flex items-start gap-2.5 cursor-pointer">
@@ -2142,6 +2695,267 @@ export const RegisterPropertyPage: React.FC = () => {
             </div>
           )}
         </Card>
+      )}
+
+      {/* 1. Fullscreen Image Lightbox Modal */}
+      {isImageLightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsImageLightboxOpen(false)}
+        >
+          {/* Top Bar */}
+          <div
+            className="w-full max-w-5xl flex items-center justify-between text-white pb-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">
+                {propertyImages[reviewActiveImageIdx]?.label || `Property Visual ${reviewActiveImageIdx + 1}`}
+              </span>
+              <span className="text-xs text-slate-400">
+                ({reviewActiveImageIdx + 1} / {propertyImages.length})
+              </span>
+            </div>
+            <button
+              onClick={() => setIsImageLightboxOpen(false)}
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Main Stage */}
+          <div
+            className="relative w-full max-w-5xl flex-1 flex items-center justify-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Previous Button */}
+            {propertyImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setReviewActiveImageIdx((prev) =>
+                    prev === 0 ? propertyImages.length - 1 : prev - 1
+                  )
+                }
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white transition-colors border border-white/20 cursor-pointer"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+
+            <img
+              src={propertyImages[reviewActiveImageIdx]?.url || activePropertyVisual}
+              alt={propertyImages[reviewActiveImageIdx]?.label || "Property Visual"}
+              className="max-h-[72vh] max-w-full rounded-lg object-contain shadow-2xl"
+              referrerPolicy="no-referrer"
+            />
+
+            {/* Next Button */}
+            {propertyImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setReviewActiveImageIdx((prev) =>
+                    prev === propertyImages.length - 1 ? 0 : prev + 1
+                  )
+                }
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white transition-colors border border-white/20 cursor-pointer"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnails */}
+          <div
+            className="w-full max-w-3xl flex items-center justify-center gap-2 pt-3 overflow-x-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {propertyImages.map((img, idx) => (
+              <button
+                key={img.id || idx}
+                onClick={() => setReviewActiveImageIdx(idx)}
+                className={`w-14 h-10 rounded overflow-hidden border transition-all shrink-0 cursor-pointer ${
+                  reviewActiveImageIdx === idx
+                    ? "ring-2 ring-emerald-400 border-white scale-105"
+                    : "border-white/30 opacity-60 hover:opacity-100"
+                }`}
+              >
+                <img
+                  src={img.url}
+                  alt={img.label || `Photo ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Official Government Title Deed Digital Inspection Modal */}
+      {isDocumentPreviewOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200 overflow-y-auto"
+          onClick={() => setIsDocumentPreviewOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-emerald-900 via-[#00450d] to-emerald-950 text-white p-4 sm:p-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-bold">
+                  <FileCheck2 className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold tracking-tight">
+                    Ethiopian National Cadastral Title Deed Certificate
+                  </h3>
+                  <p className="text-[11px] text-emerald-200">
+                    FDRE Ministry of Urban Development & Construction Land Bureau
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsDocumentPreviewOpen(false)}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Simulated Digital Certificate Document Body */}
+            <div className="p-6 overflow-y-auto space-y-5 bg-stone-50/60 font-sans">
+              {/* Official Certificate Card Container */}
+              <div className="border-4 border-double border-emerald-900/40 rounded-xl p-6 bg-white shadow-xs relative">
+                {/* Watermark */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
+                  <span className="text-5xl font-black text-emerald-950 uppercase tracking-widest rotate-[-25deg] text-center">
+                    ETHIOPIA CADASTRAL TITLE
+                  </span>
+                </div>
+
+                {/* Header Emblem */}
+                <div className="text-center pb-4 border-b border-emerald-900/20 space-y-1">
+                  <div className="text-[11px] font-bold tracking-wider text-slate-800 uppercase">
+                    የኢትዮጵያ ፌዴራላዊ ዴሞክራሲያዊ ሪፐብሊክ
+                  </div>
+                  <div className="text-xs font-black tracking-widest text-[#00450d] uppercase">
+                    Federal Democratic Republic of Ethiopia
+                  </div>
+                  <div className="text-[10px] text-slate-600 font-semibold uppercase">
+                    City Government of Addis Ababa • Land Holding & Cadastral Bureau
+                  </div>
+                  <div className="pt-1">
+                    <Badge variant="verified" className="text-[10px]">
+                      OFFICIAL DIGITAL PROPERTY TITLE CERTIFICATE
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Registry Data Grid */}
+                <div className="grid grid-cols-2 gap-3.5 my-5 text-xs">
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Cadastral UPI</span>
+                    <p className="font-mono font-bold text-emerald-900 text-sm">{cadastralParcelId}</p>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Title Deed Number</span>
+                    <p className="font-mono font-bold text-slate-900 text-sm">{titleDeedNumber}</p>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Registered Owner</span>
+                    <p className="font-bold text-slate-900">{landlordName}</p>
+                  </div>
+                  {/* <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Fayda FIN Digital ID</span>
+                    <p className="font-mono font-bold text-slate-800">{faydaId}</p>
+                  </div> */}
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Location / Address</span>
+                    <p className="font-medium text-slate-900">{subCity} Sub-city, Woreda {woreda}, H.No {houseNo}</p>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Property Type & Area</span>
+                    <p className="font-medium text-slate-900">{propertyType} ({getDerivedArea()} m²)</p>
+                  </div>
+                </div>
+
+                {/* Security Verification Footer */}
+                <div className="pt-4 border-t border-emerald-900/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-12 h-12 bg-slate-100 rounded-md border border-slate-300 flex items-center justify-center">
+                      <QrCode className="w-9 h-9 text-slate-800" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-500 block">GRAMS Digital Hash</span>
+                      <span className="text-[9px] font-mono text-slate-700 block max-w-[200px] truncate">
+                        SHA256: 8f4a2b91c0e357d6e4b9...a812
+                      </span>
+                      <span className="text-[10px] text-emerald-800 font-bold block">
+                        ✓ Authenticated by Municipal Land Registry
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right space-y-1">
+                    <div className="w-20 h-10 border-b-2 border-slate-400 mx-auto flex items-end justify-center pb-0.5">
+                      <span className="text-[10px] italic font-serif text-slate-600">M. Kebede</span>
+                    </div>
+                    <span className="text-[9px] text-slate-500 block uppercase font-medium">
+                      Chief Land Registrar
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Source Document File Information */}
+              <div className="flex items-center justify-between text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-800" />
+                  <span>Source File: <strong>{titleDeedFile?.name || "Title_Deed_Certificate_Scan.pdf"}</strong> ({titleDeedFile?.size || "2.4 MB"})</span>
+                </div>
+                <Badge variant="default" className="text-[10px]">PDF Document</Badge>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDocumentPreviewOpen(false)}
+                className="text-xs h-9"
+              >
+                Close Preview
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const blob = new Blob(
+                    [`FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA\nCADASTRAL TITLE DEED CERTIFICATE\n\nCadastral UPI: ${cadastralParcelId}\nTitle Deed Number: ${titleDeedNumber}\nOwner: ${landlordName}\nLocation: ${subCity} Sub-city, Woreda ${woreda}, H.No ${houseNo}\nArea: ${getDerivedArea()} sq.m\nCategory: ${propertyType}`],
+                    { type: "text/plain" }
+                  );
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${cadastralParcelId}_Title_Deed_Certificate.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-9 gap-1.5 font-medium cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Verified Copy</span>
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

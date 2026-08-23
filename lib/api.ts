@@ -182,6 +182,7 @@ export interface AddressRequest {
 export interface PropertyRequest {
   propertyType: string;
   address: AddressRequest;
+  title?: string;
   houseNumber?: string;
   floorNumber?: string;
   bedroomCount?: number;
@@ -190,12 +191,20 @@ export interface PropertyRequest {
   monthlyRent: number;
   furnishingStatus?: string;
   description?: string;
+  ownershipType?: string;
+  specificLandmark?: string;
+  cadastralParcelId?: string;
+  titleDeedNumber?: string;
+  securityDepositMonths?: number;
+  minLeasePeriod?: string;
+  availableFrom?: string;
 }
 
 export interface PropertyResponse {
   id: string;
   propertyCode: string;
   propertyType: string;
+  title?: string;
   address: {
     id: string;
     city: string;
@@ -215,9 +224,15 @@ export interface PropertyResponse {
   monthlyRent: number;
   furnishingStatus?: string;
   description?: string;
+  ownershipType?: string;
+  specificLandmark?: string;
+  cadastralParcelId?: string;
+  titleDeedNumber?: string;
+  securityDepositMonths?: number;
+  minLeasePeriod?: string;
+  availableFrom?: string;
   status: PropertyStatus;
   landlordId: string;
-  landlordName?: string;
   images: { id: string; imageUrl: string; isCover: boolean; uploadedAt: string }[];
   ownershipDocuments: {
     id: string;
@@ -236,122 +251,83 @@ export async function registerProperty(
   images?: File[],
   documents?: File[]
 ): Promise<PropertyResponse> {
-  try {
-    const form = new FormData();
-    form.append(
-      "property",
-      new Blob([JSON.stringify(data)], { type: "application/json" })
-    );
-    images?.forEach((f) => form.append("images", f));
-    documents?.forEach((f) => form.append("documents", f));
+  const form = new FormData();
+  form.append(
+    "property",
+    new Blob([JSON.stringify(data)], { type: "application/json" })
+  );
+  images?.forEach((f) => form.append("images", f));
+  documents?.forEach((f) => form.append("documents", f));
 
-    const res = await fetch(`${BASE_URL}/properties`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Failed to register property.");
-    return json;
-  } catch (err) {
-    // Generate fallback response and store in local session registry
-    const id = "prop-" + Date.now();
-    const code = "PRP-2026-" + Math.floor(1000 + Math.random() * 9000);
-    const mockImages = images && images.length > 0 
-      ? images.map((img, idx) => ({
-          id: `img-${idx}-${Date.now()}`,
-          imageUrl: URL.createObjectURL(img),
-          isCover: idx === 0,
-          uploadedAt: new Date().toISOString(),
-        }))
-      : [
-          {
-            id: `img-0`,
-            imageUrl: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1000&auto=format&fit=crop&q=80",
-            isCover: true,
-            uploadedAt: new Date().toISOString(),
-          }
-        ];
-
-    const newProp: PropertyResponse = {
-      id,
-      propertyCode: code,
-      propertyType: data.propertyType,
-      address: {
-        id: "addr-" + Date.now(),
-        city: data.address.city,
-        subCity: data.address.subCity,
-        woreda: data.address.woreda,
-        kebele: data.address.kebele,
-        street: data.address.street,
-        houseNumber: data.houseNumber || data.address.houseNumber,
-      },
-      houseNumber: data.houseNumber,
-      floorNumber: data.floorNumber,
-      bedroomCount: data.bedroomCount,
-      bathroomCount: data.bathroomCount,
-      areaSqMeter: data.areaSqMeter,
-      monthlyRent: data.monthlyRent,
-      furnishingStatus: data.furnishingStatus,
-      description: data.description,
-      status: "PENDING",
-      landlordId: "usr-00892418",
-      landlordName: "Dagmawit Mesfin Tadesse",
-      images: mockImages,
-      ownershipDocuments: documents && documents.length > 0
-        ? documents.map((doc, idx) => ({
-            id: `doc-${idx}-${Date.now()}`,
-            documentNumber: "TD-ET-" + Math.floor(100000 + Math.random() * 900000),
-            documentType: "Title Deed (Certificate of Title)",
-            filePath: doc.name,
-            issueDate: new Date().toISOString().split("T")[0],
-          }))
-        : [
-            {
-              id: "doc-sample",
-              documentNumber: "TD-ET-902148",
-              documentType: "Title Deed (Certificate of Title)",
-              filePath: "Title_Deed_Scan_Official.pdf",
-              issueDate: "2024-01-15",
-            }
-          ],
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save to localStorage for demo persistence
-    if (typeof window !== "undefined") {
-      const existing = localStorage.getItem("registered_properties");
-      const list: PropertyResponse[] = existing ? JSON.parse(existing) : [];
-      list.unshift(newProp);
-      localStorage.setItem("registered_properties", JSON.stringify(list));
-    }
-
-    return newProp;
-  }
+  const res = await fetch(`${BASE_URL}/properties`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to register property.");
+  return json;
 }
 
 export async function getMyProperties(
   token: string
 ): Promise<PropertyResponse[]> {
+  const res = await fetch(`${BASE_URL}/properties/my`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load properties.");
+  return json;
+}
+
+
+export async function updatePropertyStatus(
+  token: string,
+  id: string,
+  status: PropertyStatus,
+  remarks?: string
+): Promise<PropertyResponse> {
+  const res = await fetch(`${BASE_URL}/properties/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status, remarks }),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update status.");
+  return json;
+}
+
+
+
+export async function getPropertyById(
+  id: string,
+  token?: string
+): Promise<PropertyResponse | null> {
   try {
-    const res = await fetch(`${BASE_URL}/properties/my`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await fetch(`${BASE_URL}/properties/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Failed to load properties.");
+    if (!res.ok) throw new Error(json.message || "Failed to load property.");
     return json;
   } catch {
+    // Check localStorage
     if (typeof window !== "undefined") {
       const existing = localStorage.getItem("registered_properties");
       if (existing) {
         try {
-          return JSON.parse(existing);
+          const list: PropertyResponse[] = JSON.parse(existing);
+          const found = list.find((p) => p.id === id || p.propertyCode === id);
+          if (found) return found;
         } catch {
           // ignore
         }
       }
     }
-    return [];
+    return null;
   }
 }
 
@@ -368,45 +344,5 @@ export async function getPropertiesByStatus(
     return json;
   } catch {
     return [];
-  }
-}
-
-export async function updatePropertyStatus(
-  token: string,
-  id: string,
-  status: PropertyStatus,
-  remarks?: string
-): Promise<PropertyResponse> {
-  try {
-    const res = await fetch(`${BASE_URL}/properties/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ status, remarks }),
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Failed to update status.");
-    return json;
-  } catch {
-    // update in localStorage
-    if (typeof window !== "undefined") {
-      const existing = localStorage.getItem("registered_properties");
-      if (existing) {
-        try {
-          const list: PropertyResponse[] = JSON.parse(existing);
-          const found = list.find((p) => p.id === id || p.propertyCode === id);
-          if (found) {
-            found.status = status;
-            localStorage.setItem("registered_properties", JSON.stringify(list));
-            return found;
-          }
-        } catch {
-          // ignore
-        }
-      }
-    }
-    throw new Error("Property updated in local session.");
   }
 }
