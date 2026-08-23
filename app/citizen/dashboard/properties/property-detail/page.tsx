@@ -245,19 +245,21 @@ function PropertyDetailContent() {
             <Download className="w-3.5 h-3.5" />
             <span>Official Title PDF</span>
           </Button>
-          <Button
-            onClick={() => {
-              if (citizenContext?.handleNavigate) {
-                citizenContext.handleNavigate("agreements");
-              } else {
-                router.push("/citizen/dashboard/agreements");
-              }
-            }}
-            className="bg-[#00450d] hover:bg-[#1b5e20] text-white h-8.5 px-3.5 text-xs gap-1.5 font-medium rounded-lg shadow-xs"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Create Lease Agreement</span>
-          </Button>
+          {property?.status !== "PENDING" && (
+            <Button
+              onClick={() => {
+                if (citizenContext?.handleNavigate) {
+                  citizenContext.handleNavigate("agreements");
+                } else {
+                  router.push("/citizen/dashboard/agreements");
+                }
+              }}
+              className="bg-[#00450d] hover:bg-[#1b5e20] text-white h-8.5 px-3.5 text-xs gap-1.5 font-medium rounded-lg shadow-xs"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Create Lease Agreement</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -411,19 +413,21 @@ function PropertyDetailContent() {
 
               {/* Primary Actions */}
               <div className="space-y-2 pt-1">
-                <Button
-                  onClick={() => {
-                    if (citizenContext?.handleNavigate) {
-                      citizenContext.handleNavigate("agreements");
-                    } else {
-                      router.push("/citizen/dashboard/agreements");
-                    }
-                  }}
-                  className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-9 text-xs font-semibold rounded-xl"
-                >
-                  <FileText className="w-3.5 h-3.5 mr-1.5" />
-                  Manage Rental Contracts
-                </Button>
+                {property?.status !== "PENDING" && (
+                  <Button
+                    onClick={() => {
+                      if (citizenContext?.handleNavigate) {
+                        citizenContext.handleNavigate("agreements");
+                      } else {
+                        router.push("/citizen/dashboard/agreements");
+                      }
+                    }}
+                    className="w-full bg-[#00450d] hover:bg-[#1b5e20] text-white h-9 text-xs font-semibold rounded-xl"
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1.5" />
+                    Manage Rental Contracts
+                  </Button>
+                )}
                 <Button
                   onClick={() => showToast("Property QR Pass generated for municipal inspection")}
                   variant="outline"
@@ -472,15 +476,17 @@ function PropertyDetailContent() {
           </button>
         )}
 
-        <button
-          onClick={() => setActiveTab("agreements")}
-          className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
-            activeTab === "agreements" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Registered Lease Contracts</span>
-        </button>
+        {property?.status !== "PENDING" && (
+          <button
+            onClick={() => setActiveTab("agreements")}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
+              activeTab === "agreements" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Registered Lease Contracts</span>
+          </button>
+        )}
       </div>
 
       {/* Tab 1: Details & Amenities */}

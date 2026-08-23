@@ -134,11 +134,39 @@ export const RegisterPropertyPage: React.FC = () => {
   const [title, setTitle] = useState("Luxury Villa in Bole");
 
   // Address & Ownership
-  const [subCity, setSubCity] = useState("Bole");
-  const [woreda, setWoreda] = useState("03");
-  const [houseNo, setHouseNo] = useState("456/A");
+  const [subCity, setSubCity] = useState("");
+  const [woreda, setWoreda] = useState("");
+  const [houseNo, setHouseNo] = useState("");
   const [ownershipType, setOwnershipType] = useState("Private");
-  const [specificLandmark, setSpecificLandmark] = useState("Behind Atlas Hotel, Near Japanese Embassy");
+  const [specificLandmark, setSpecificLandmark] = useState("");
+
+  // Sub-city to Woreda mapping
+  const subCityWoredaMap: Record<string, number> = {
+    "Lideta": 10,
+    "Kirkos": 10,
+    "Akaki Kality": 12,
+    "Arada": 8,
+    "Gullele": 10,
+    "Addis Ketema": 12,
+    "Bole": 11,
+    "Yeka": 12,
+    "Kolfe Keranyo": 11,
+    "Nifas Silk-Lafto": 13,
+    "Lemi Kura": 10,
+  };
+
+  const getWoredaOptions = () => {
+    const count = subCityWoredaMap[subCity] || 0;
+    const options = [];
+    for (let i = 1; i <= count; i++) {
+      options.push(
+        <option key={i} value={i.toString().padStart(2, '0')}>
+          Woreda {i.toString().padStart(2, '0')}
+        </option>
+      );
+    }
+    return options;
+  };
 
   // A. Villa / Compound House Specifics
   const [villaBedrooms, setVillaBedrooms] = useState("4");
@@ -255,10 +283,10 @@ export const RegisterPropertyPage: React.FC = () => {
       errs.subCity = "Please select a municipal Sub-city in Addis Ababa.";
     }
     if (!woreda.trim()) {
-      errs.woreda = "Please enter the woreda number (e.g. 03).";
+      errs.woreda = "Please select a woreda.";
     }
     if (!houseNo.trim()) {
-      errs.houseNo = "Please enter the house number (e.g. 456/A or N/A).";
+      errs.houseNo = "Please enter the house number (e.g. 456/A).";
     }
 
     if (propertyType === "Villa") {
@@ -1257,21 +1285,21 @@ export const RegisterPropertyPage: React.FC = () => {
                     </label>
                     <select
                       value={subCity}
-                      onChange={(e) => {setSubCity(e.target.value); clearError("subCity");}}
+                      onChange={(e) => {setSubCity(e.target.value); setWoreda(""); clearError("subCity"); clearError("woreda");}}
                       className="w-full h-11 px-3.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d]"
                     >
                       <option value="">Select Sub-city</option>
-                      <option value="Bole">Bole Sub-city (ቦሌ)</option>
-                      <option value="Kirkos">Kirkos Sub-city (ቂርቆስ)</option>
-                      <option value="Yeka">Yeka Sub-city (የካ)</option>
-                      <option value="Arada">Arada Sub-city (አራዳ)</option>
-                      <option value="Nifas Silk-Lafto">Nifas Silk-Lafto (ንፋስ ስልክ)</option>
-                      <option value="Lideta">Lideta Sub-city (ልደታ)</option>
-                      <option value="Gullele">Gullele Sub-city (ጉለሌ)</option>
-                      <option value="Akaky Kaliti">Akaky Kaliti (አቃቂ ቃሊቲ)</option>
-                      <option value="Kolfe Keranio">Kolfe Keranio (ኮልፌ ቀራኒዮ)</option>
-                      <option value="Addis Ketema">Addis Ketema (አዲስ ከተማ)</option>
-                      <option value="Lemi Kura">Lemi Kura Sub-city (ለሚ ኩራ)</option>
+                      <option value="Lideta">Lideta (10 Woredas)</option>
+                      <option value="Kirkos">Kirkos (10 Woredas)</option>
+                      <option value="Akaki Kality">Akaki Kality (12 Woredas)</option>
+                      <option value="Arada">Arada (8 Woredas)</option>
+                      <option value="Gullele">Gullele (10 Woredas)</option>
+                      <option value="Addis Ketema">Addis Ketema (12 Woredas)</option>
+                      <option value="Bole">Bole (11 Woredas)</option>
+                      <option value="Yeka">Yeka (12 Woredas)</option>
+                      <option value="Kolfe Keranyo">Kolfe Keranyo (11 Woredas)</option>
+                      <option value="Nifas Silk-Lafto">Nifas Silk-Lafto (13 Woredas)</option>
+                      <option value="Lemi Kura">Lemi Kura (10 Woredas)</option>
                     </select>
                   </div>
 
@@ -1279,12 +1307,15 @@ export const RegisterPropertyPage: React.FC = () => {
                     <label className="block text-xs font-medium text-slate-700 mb-1.5">
                       Woreda
                     </label>
-                    <Input
+                    <select
                       value={woreda}
                       onChange={(e) => {setWoreda(e.target.value); clearError("woreda");}}
-                      placeholder="e.g. 03"
-                      className="h-11 text-xs"
-                    />
+                      disabled={!subCity}
+                      className="w-full h-11 px-3.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d] disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      <option value="">Select Woreda</option>
+                      {getWoredaOptions()}
+                    </select>
                   </div>
 
                   <div>
@@ -3155,99 +3186,19 @@ export const RegisterPropertyPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Simulated Digital Certificate Document Body */}
-            <div className="p-6 overflow-y-auto space-y-5 bg-stone-50/60 font-sans">
-              {/* Official Certificate Card Container */}
-              <div className="border-4 border-double border-emerald-900/40 rounded-xl p-6 bg-white shadow-xs relative">
-                {/* Watermark */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
-                  <span className="text-5xl font-black text-emerald-950 uppercase tracking-widest rotate-[-25deg] text-center">
-                    ETHIOPIA CADASTRAL TITLE
-                  </span>
+            {/* Document Preview Body */}
+            <div className="p-6 overflow-y-auto bg-stone-50/60 font-sans">
+              {titleDeedFile?.url ? (
+                <iframe
+                  src={titleDeedFile.url}
+                  className="w-full h-[500px] border-0 rounded-lg"
+                  title="Title Deed Document Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[500px] text-slate-500">
+                  <p>No document uploaded for preview</p>
                 </div>
-
-                {/* Header Emblem */}
-                <div className="text-center pb-4 border-b border-emerald-900/20 space-y-1">
-                  <div className="text-[11px] font-bold tracking-wider text-slate-800 uppercase">
-                    የኢትዮጵያ ፌዴራላዊ ዴሞክራሲያዊ ሪፐብሊክ
-                  </div>
-                  <div className="text-xs font-black tracking-widest text-[#00450d] uppercase">
-                    Federal Democratic Republic of Ethiopia
-                  </div>
-                  <div className="text-[10px] text-slate-600 font-semibold uppercase">
-                    City Government of Addis Ababa • Land Holding & Cadastral Bureau
-                  </div>
-                  <div className="pt-1">
-                    <Badge variant="verified" className="text-[10px]">
-                      OFFICIAL DIGITAL PROPERTY TITLE CERTIFICATE
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Registry Data Grid */}
-                <div className="grid grid-cols-2 gap-3.5 my-5 text-xs">
-                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Cadastral UPI</span>
-                    <p className="font-mono font-bold text-emerald-900 text-sm">{cadastralParcelId}</p>
-                  </div>
-                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Title Deed Number</span>
-                    <p className="font-mono font-bold text-slate-900 text-sm">{titleDeedNumber}</p>
-                  </div>
-                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Registered Owner</span>
-                    <p className="font-bold text-slate-900">{landlordName}</p>
-                  </div>
-                  {/* <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Fayda FIN Digital ID</span>
-                    <p className="font-mono font-bold text-slate-800">{faydaId}</p>
-                  </div> */}
-                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Location / Address</span>
-                    <p className="font-medium text-slate-900">{subCity} Sub-city, Woreda {woreda}, H.No {houseNo}</p>
-                  </div>
-                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-0.5">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase">Property Type & Area</span>
-                    <p className="font-medium text-slate-900">{propertyType} ({getDerivedArea()} m²)</p>
-                  </div>
-                </div>
-
-                {/* Security Verification Footer */}
-                <div className="pt-4 border-t border-emerald-900/20 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-12 h-12 bg-slate-100 rounded-md border border-slate-300 flex items-center justify-center">
-                      <QrCode className="w-9 h-9 text-slate-800" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-slate-500 block">GRAMS Digital Hash</span>
-                      <span className="text-[9px] font-mono text-slate-700 block max-w-[200px] truncate">
-                        SHA256: 8f4a2b91c0e357d6e4b9...a812
-                      </span>
-                      <span className="text-[10px] text-emerald-800 font-bold block">
-                        ✓ Authenticated by Municipal Land Registry
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-right space-y-1">
-                    <div className="w-20 h-10 border-b-2 border-slate-400 mx-auto flex items-end justify-center pb-0.5">
-                      <span className="text-[10px] italic font-serif text-slate-600">M. Kebede</span>
-                    </div>
-                    <span className="text-[9px] text-slate-500 block uppercase font-medium">
-                      Chief Land Registrar
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Source Document File Information */}
-              <div className="flex items-center justify-between text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-800" />
-                  <span>Source File: <strong>{titleDeedFile?.name || "Title_Deed_Certificate_Scan.pdf"}</strong> ({titleDeedFile?.size || "2.4 MB"})</span>
-                </div>
-                <Badge variant="default" className="text-[10px]">PDF Document</Badge>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer Actions */}
