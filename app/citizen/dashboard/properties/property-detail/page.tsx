@@ -35,15 +35,17 @@ import {
   Sparkles,
   ExternalLink,
   QrCode,
-  Check,
+  Trash2,
   Plus,
   DoorOpen,
   ShoppingBag,
   Sliders,
-  ChevronRight
+  ChevronRight,
+  Edit
 } from "lucide-react";
-import { getSession, getMyProperties, getPropertyById, PropertyResponse } from "@/lib/api";
+import { getSession, getMyProperties, getPropertyById, deleteProperty, PropertyResponse } from "@/lib/api";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { PropertyUnit } from "@/types";
 
 // Derives a display label and badge variant from the backend status enum
 function statusMeta(status: PropertyResponse["status"]): { label: string; variant: "active" | "pending" | "rejected" | "default" } {
@@ -91,6 +93,8 @@ function PropertyDetailContent() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<"details" | "units" | "cadastre" | "agreements">("details");
   const [toast, setToast] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch property from database / API
   useEffect(() => {
@@ -153,6 +157,24 @@ function PropertyDetailContent() {
       citizenContext.handleBackFromPropertyDetails();
     }
     router.push("/citizen/dashboard/properties");
+  };
+
+  const handleDeleteProperty = async () => {
+    const session = getSession();
+    const token = session?.token;
+    if (!token || !property) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteProperty(property.id, token);
+      showToast("Property deleted successfully");
+      setShowDeleteConfirm(false);
+      router.push("/citizen/dashboard/properties");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to delete property");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {
@@ -237,15 +259,8 @@ function PropertyDetailContent() {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button
-            onClick={() => showToast("Property verification certificate downloaded (PDF)")}
-            variant="outline"
-            className="h-8.5 px-3 text-xs gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Official Title PDF</span>
-          </Button>
-          {property?.status !== "PENDING" && (
+          
+          {property?.status === "LISTED" && (
             <Button
               onClick={() => {
                 if (citizenContext?.handleNavigate) {
@@ -259,6 +274,18 @@ function PropertyDetailContent() {
               <FileText className="w-3.5 h-3.5" />
               <span>Create Lease Agreement</span>
             </Button>
+          )}
+          {property?.status === "PENDING" && (
+            <>
+              <Button
+                onClick={() => setShowDeleteConfirm(true)}
+                variant="destructive"
+                className="h-8.5 px-3 text-xs gap-1.5 rounded-lg shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Property</span>
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -413,7 +440,7 @@ function PropertyDetailContent() {
 
               {/* Primary Actions */}
               <div className="space-y-2 pt-1">
-                {property?.status !== "PENDING" && (
+                {property?.status === "LISTED" && (
                   <Button
                     onClick={() => {
                       if (citizenContext?.handleNavigate) {
@@ -428,14 +455,6 @@ function PropertyDetailContent() {
                     Manage Rental Contracts
                   </Button>
                 )}
-                <Button
-                  onClick={() => showToast("Property QR Pass generated for municipal inspection")}
-                  variant="outline"
-                  className="w-full border-slate-200 text-slate-700 hover:bg-slate-50 h-9 text-xs font-medium rounded-xl"
-                >
-                  <QrCode className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
-                  Generate GRAMS QR Stamp
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -476,7 +495,7 @@ function PropertyDetailContent() {
           </button>
         )}
 
-        {property?.status !== "PENDING" && (
+        {property?.status === "LISTED" && (
           <button
             onClick={() => setActiveTab("agreements")}
             className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${
@@ -779,6 +798,44 @@ function PropertyDetailContent() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Delete Property</h3>
+                <p className="text-sm text-slate-500">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-6">
+              Are you sure you want to delete this property? This will permanently remove the property and all associated documents from the system.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => setShowDeleteConfirm(false)}
+                variant="outline"
+                disabled={isDeleting}
+                className="text-xs h-9 px-4"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteProperty}
+                variant="destructive"
+                disabled={isDeleting}
+                className="text-xs h-9 px-4"
+              >
+                {isDeleting ? "Deleting..." : "Delete Property"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

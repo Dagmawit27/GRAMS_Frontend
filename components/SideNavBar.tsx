@@ -4,7 +4,6 @@ import { NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/api";
 import Link from "next/link";
-import { useCitizenData } from "@/hooks/useCitizenData";
 import {
   LayoutDashboard,
   Search,
@@ -53,25 +52,48 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   onCloseMobile,
   onLogoutClick,
   pendingAgreementsCount = 2,
-  userRole: propUserRole,
+  userRole: propUserRole = "citizen",
 }) => {
-  const { userRole: localStorageRole } = useCitizenData();
   const session = getSession();
-  // Use localStorage role if available, otherwise fall back to prop
-  const rawRole = localStorageRole || propUserRole;
-  // Normalize to lowercase so comparisons work regardless of how the role is stored
-  const userRole = (rawRole ?? "citizen").toLowerCase() as UserRole;
+  const displayRole = propUserRole.toLowerCase() as UserRole;
 
-  const isOfficer = userRole === "woreda_officer" || userRole === "woreda_supervisor" || session?.user?.userType === "GOVERNMENT_EMPLOYEE";
-  const isSupervisor = userRole === "woreda_supervisor" || session?.user?.roles?.includes("SUPERVISOR");
-
-  const isTenant = userRole === "tenant" || userRole === "citizen";
-  const isLandlord = userRole === "landlord" || userRole === "citizen";
-
-  // Get user name from localStorage
+  const [isOfficer, setIsOfficer] = useState(false);
+  const [isSupervisor, setIsSupervisor] = useState(false);
+  const [isTenant, setIsTenant] = useState(true);
+  const [isLandlord, setIsLandlord] = useState(true);
   const [userName, setUserName] = useState("");
-  
+  const [accountType, setAccountType] = useState("Citizen Account");
+
   useEffect(() => {
+    const role = displayRole;
+    const sessionRoles = (session?.user?.roles ?? []).map((r) => r.toLowerCase());
+
+    setIsOfficer(
+      role === "woreda_officer" ||
+      role === "woreda_supervisor" ||
+      session?.user?.userType === "GOVERNMENT_EMPLOYEE"
+    );
+    setIsSupervisor(
+      role === "woreda_supervisor" ||
+      session?.user?.roles?.some((r) => r.toLowerCase() === "supervisor" || r.toLowerCase() === "woreda_supervisor") === true
+    );
+
+    // isTenant: role is tenant, citizen, or both (can search & request leases)
+    setIsTenant(
+      role === "tenant" || role === "citizen" || (role as string) === "both" ||
+      sessionRoles.includes("tenant") || sessionRoles.includes("citizen") || sessionRoles.includes("both")
+    );
+
+    // isLandlord: role is landlord, citizen, or both (can register properties & manage agreements)
+    setIsLandlord(
+      role === "landlord" || role === "citizen" || (role as string) === "both" ||
+      sessionRoles.includes("landlord") || sessionRoles.includes("citizen") || sessionRoles.includes("both")
+    );
+
+    setAccountType(
+      session?.user?.userType === "GOVERNMENT_EMPLOYEE" ? "Government Employee" : "Citizen Account"
+    );
+
     const userJson = localStorage.getItem("user");
     if (userJson) {
       try {
@@ -82,71 +104,90 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
         console.error("Failed to parse user data:", e);
       }
     }
-  }, []);
+  }, [displayRole, session]);
 
-  
-    // Officer / Supervisor Navigation Items (Exact match to Reference Images 1, 2, 3, 4)
-    const officerNavItems = [
-      {
-        id: "officer-dashboard" as NavPage,
-        label: "Dashboard",
-        icon: LayoutDashboard,
-        href: "/officer/dashboard",
-      },
-      {
-        id: "officer-property-verifications" as NavPage,
-        label: isSupervisor ? "Property Approvals (Final)" : "Property Verifications (Initial)",
-        icon: ShieldCheck,
-        href: "/officer/dashboard/properties",
-      },
-      {
-        id: "officer-agreement-verifications" as NavPage,
-        label: isSupervisor ? "Agreement Approvals (Final)" : "Agreement Verifications (Initial)",
-        icon: FileText,
-        href: "/officer/dashboard/agreements",
-      },
-      {
-        id: "officer-history" as NavPage,
-        label: isSupervisor ? "Reports" : "Approved History",
-        icon: isSupervisor ? BarChart3 : History,
-        href: "/officer/dashboard/history",
-      },
-      {
-        id: "officer-settings" as NavPage,
-        label: "Settings",
-        icon: Settings,
-        href: "/officer/dashboard/settings",
-      },
-    ];
-  
-    // Citizen Nav Items based on Role (Landlord vs Tenant, automatically read from localStorage)
-    const citizenNavItems: Array<{
-      id: NavPage;
-      label: string;
-      icon: React.ComponentType<{ className?: string }>;
-      category?: string;
-      badge?: number;
-      href: string;
-    }> = [
-      { id: "dashboard", label: "Dashboard", href: "/citizen/dashboard", icon: LayoutDashboard, category: "Overview" },
-      ...(isTenant
-        ? [
-            { id: "search" as NavPage, label: "Search House", icon: Search, category: "Rentals", href: "/citizen/dashboard/search" },
-            { id: "agreements-t" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
-          ]
-        : []),
-      ...(isLandlord
-        ? [
-            { id: "properties" as NavPage, label: "My Properties", icon: Building2, category: "Management", href: "/citizen/dashboard/properties" },
-            { id: "register-property" as NavPage, label: "Register Property", icon: PlusCircle, category: "Management", href: "/citizen/dashboard/properties/register" },
-            { id: "agreements" as NavPage, label: "Rental Agreements", icon: FileText, category: "Management", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
-          ]
-        : []),
-      { id: "payments", label: "Payments", icon: CreditCard, category: "Finance", href: "/citizen/dashboard/payments" },
-      { id: "bills", label: "Bills & Invoices", icon: Receipt, category: "Finance", href: "/citizen/dashboard/bills" },
-      { id: "profile", label: "My Profile", icon: User, category: "Account", href: "/citizen/dashboard/profile" },
-    ];
-  
+  const officerBase = isSupervisor ? "/officer/supervisor" : "/officer/office";
+
+  const officerNavItems: Array<{
+    id: NavPage;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    category?: string;
+    badge?: number;
+    href: string;
+  }> = [
+    {
+      id: "officer-dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: `${officerBase}/dashboard`,
+      category: "Overview",
+    },
+    {
+      id: "officer-property-verifications",
+      label: isSupervisor ? "Property Approvals" : "Property Verifications",
+      icon: ShieldCheck,
+      href: `${officerBase}/properties`,
+      category: "Management",
+    },
+    {
+      id: "officer-agreement-verifications",
+      label: isSupervisor ? "Agreement Approvals" : "Agreement Reviews",
+      icon: FileText,
+      href: `${officerBase}/agreements`,
+      category: "Management",
+    },
+    isSupervisor
+      ? {
+          id: "officer-reports" as NavPage,
+          label: "Reports",
+          icon: BarChart3,
+          href: `${officerBase}/reports`,
+          category: "Reports" as const,
+        }
+      : {
+          id: "officer-history" as NavPage,
+          label: "Approved History",
+          icon: History,
+          href: `${officerBase}/history`,
+          category: "Reports" as const,
+        },
+    {
+      id: "officer-settings",
+      label: "Settings",
+      icon: Settings,
+      href: `${officerBase}/settings`,
+      category: "Account",
+    },
+  ];
+
+  const citizenNavItems: Array<{
+    id: NavPage;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    category?: string;
+    badge?: number;
+    href: string;
+  }> = [
+    { id: "dashboard", label: "Dashboard", href: "/citizen/dashboard", icon: LayoutDashboard, category: "Overview" },
+    ...(isTenant
+      ? [
+          { id: "search" as NavPage, label: "Search House", icon: Search, category: "Rentals", href: "/citizen/dashboard/search" },
+          { id: "agreements-t" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/leases" },
+        ]
+      : []),
+    ...(isLandlord
+      ? [
+          { id: "properties" as NavPage, label: "My Properties", icon: Building2, category: "Management", href: "/citizen/dashboard/properties" },
+          { id: "register-property" as NavPage, label: "Register Property", icon: PlusCircle, category: "Management", href: "/citizen/dashboard/properties/register" },
+          { id: "agreements" as NavPage, label: "Rental Agreements", icon: FileText, category: "Management", badge: pendingAgreementsCount, href: "/citizen/dashboard/agreements" },
+        ]
+      : []),
+    { id: "payments", label: "Payments", icon: CreditCard, category: "Finance", href: "/citizen/dashboard/payments" },
+    { id: "bills", label: "Bills & Invoices", icon: Receipt, category: "Finance", href: "/citizen/dashboard/bills" },
+    { id: "profile", label: "My Profile", icon: User, category: "Account", href: "/citizen/dashboard/profile" },
+  ];
+
   const currentNavItems = isOfficer ? officerNavItems : citizenNavItems;
 
   const sidebarContent = (
@@ -190,7 +231,7 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
                   <div>
                     <h1 className="text-base font-bold text-slate-900 tracking-tight leading-none">GRAMS</h1>
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
-                      {userRole === "landlord" ? "Landlord Desk" : "Citizen Portal"}
+                      {displayRole === "landlord" ? "Landlord Desk" : "Citizen Portal"}
                     </p>
                   </div>
                 )}
@@ -276,7 +317,7 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
               <div>
                 <p className="text-xs font-semibold text-slate-900">{userName || "User"}</p>
                 <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
-                  {session?.user?.userType === "GOVERNMENT_EMPLOYEE" ? "Government Employee" : "Citizen Account"}
+                  {accountType}
                 </p>
               </div>
               <button

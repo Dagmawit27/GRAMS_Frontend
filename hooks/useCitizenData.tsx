@@ -109,16 +109,15 @@ const VALID_ROLES: UserRole[] = [
 ];
 
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Role & Navigation State - Reads role stored in localStorage during login
-  const [userRole, setUserRoleState] = useState<UserRole>(() => {
-    if (typeof window === "undefined") {
-      return "citizen";
-    }
+  // Role & Navigation State — always start with a stable SSR default, then sync from localStorage on mount
+  const [userRole, setUserRoleState] = useState<UserRole>("citizen");
 
+  useEffect(() => {
     const saved = localStorage.getItem("userRole");
 
     if (saved && VALID_ROLES.includes(saved as UserRole)) {
-      return saved as UserRole;
+      setUserRoleState(saved as UserRole);
+      return;
     }
 
     const rawUser = localStorage.getItem("user");
@@ -126,19 +125,16 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (rawUser) {
       try {
         const user = JSON.parse(rawUser);
-
         const role = user.roles?.[0]?.toLowerCase();
 
         if (role && VALID_ROLES.includes(role as UserRole)) {
-          return role as UserRole;
+          setUserRoleState(role as UserRole);
         }
       } catch {
         // Ignore invalid user data
       }
     }
-
-    return "citizen";
-  });
+  }, []);
 
   const setUserRole = (role: UserRole) => {
     setUserRoleState(role);
@@ -177,8 +173,9 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     const session = getSession();
-    if (session) {
-      getMyProperties(session.token).then(data => {
+    // Government employees (officers, supervisors) have no properties to load
+    if (session && session.user.userType !== "GOVERNMENT_EMPLOYEE") {
+      void getMyProperties(session.token).then(data => {
         const mapped: Property[] = data.map(pr => ({
           id: pr.id,
           title: pr.propertyCode || pr.propertyType + " Property",

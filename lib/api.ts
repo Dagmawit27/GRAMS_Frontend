@@ -1,4 +1,6 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+// Same-origin by default so the browser talks to Next.js, which rewrites to Spring Boot.
+// Avoids CORS and Windows localhost → IPv6 (::1) connection failures.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 async function parseResponse(res: Response) {
   const text = await res.text();
@@ -6,6 +8,16 @@ async function parseResponse(res: Response) {
     return text ? JSON.parse(text) : {};
   } catch {
     return {};
+  }
+}
+
+async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new Error(
+      "Cannot reach the API. Start the backend on port 8080 and refresh."
+    );
   }
 }
 
@@ -25,6 +37,9 @@ export interface UserSummary {
   governmentEmployee: boolean;
   employeeNumber?: string;
   positionTitle?: string;
+  /** Jurisdiction for government employees */
+  subCity?: string;
+  woreda?: string;
 }
 
 export interface AuthResult {
@@ -46,7 +61,7 @@ export async function registerCitizen(data: {
   rolePreference?: string;
   password: string;
 }): Promise<AuthResult> {
-  const res = await fetch(`${BASE_URL}/auth/register/citizen`, {
+  const res = await apiFetch(`${BASE_URL}/auth/register/citizen`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -61,7 +76,7 @@ export async function loginCitizen(data: {
   email: string;
   password: string;
 }): Promise<AuthResult> {
-  const res = await fetch(`${BASE_URL}/auth/login/citizen`, {
+  const res = await apiFetch(`${BASE_URL}/auth/login/citizen`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -72,50 +87,62 @@ export async function loginCitizen(data: {
   return json;
 }
 
+export interface RegisterEmployeePayload {
+  employeeNumber: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  gender: "MALE" | "FEMALE";
+  phoneNumber: string;
+  email: string;
+  positionTitle: string;
+  subCity: string;
+  woreda: string;
+  officeType?: string;
+  password?: string;
+  roles: string[];
+}
+
+export async function registerEmployee(
+  token: string,
+  data: RegisterEmployeePayload
+): Promise<AuthResult> {
+  const res = await apiFetch(`${BASE_URL}/admin/employees/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Employee registration failed.");
+  return json;
+}
+
 export async function loginOfficer(data: {
-  username: string;
+  email: string;
   password: string;
 }): Promise<AuthResult> {
-  try {
-    const res = await fetch(`${BASE_URL}/auth/login/officer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Invalid officer credentials.");
-    saveSession(json);
-    return json;
-  } catch (err) {
-    const isSupervisor = data.username.toLowerCase().includes("super") || data.username.toLowerCase().includes("admin");
-    const fallbackResult: AuthResult = {
-      accessToken: "mock-token-officer-" + Date.now(),
-      tokenType: "Bearer",
-      expiresIn: 86400,
-      user: {
-        id: "wrd-off-402",
-        firstName: isSupervisor ? "Dawit" : "Abebe",
-        middleName: isSupervisor ? "Mengistu" : "Bikila",
-        lastName: "Tadesse",
-        gender: "MALE",
-        phoneNumber: "+251 91 999 8888",
-        email: `${data.username || "officer"}@woreda.gov.et`,
-        createdAt: new Date().toISOString(),
-        roles: isSupervisor ? ["SUPERVISOR", "OFFICER"] : ["OFFICER"],
-        userType: "GOVERNMENT_EMPLOYEE",
-        governmentEmployee: true,
-        employeeNumber: "WRD-OFF-402",
-        positionTitle: isSupervisor ? "Woreda Senior Housing Supervisor" : "Woreda Housing Verification Officer",
-      },
-    };
-    saveSession(fallbackResult);
-    return fallbackResult;
+  const res = await apiFetch(`${BASE_URL}/auth/login/employee`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Invalid officer credentials.");
+  // Guard: only WOREDA_OFFICER or WOREDA_SUPERVISOR may use this portal
+  const roles: string[] = (json.user?.roles ?? []).map((r: string) => r.toUpperCase());
+  if (!roles.some((r) => r === "WOREDA_OFFICER" || r === "WOREDA_SUPERVISOR")) {
+    throw new Error("Access denied. Only Woreda Officers and Supervisors may sign in here.");
   }
+  saveSession(json);
+  return json;
 }
 
 export async function getMe(token: string): Promise<UserSummary> {
   try {
-    const res = await fetch(`${BASE_URL}/users/me`, {
+    const res = await apiFetch(`${BASE_URL}/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await parseResponse(res);
@@ -156,6 +183,46 @@ export function getSession(): { token: string; user: UserSummary } | null {
   } catch {
     return null;
   }
+}
+
+export function isSessionExpired(): boolean {
+  const session = getSession();
+  if (!session) return true;
+  
+  // Check if token exists
+  if (!session.token) return true;
+  
+  // Optional: Check if token is JWT and validate expiration
+  try {
+    const parts = session.token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp) {
+        const expirationTime = payload.exp * 1000; // Convert to milliseconds
+        const currentTime = Date.now();
+        return currentTime >= expirationTime;
+      }
+    }
+  } catch (e) {
+    // If token is not JWT or parsing fails, assume session is valid
+    console.warn("Failed to parse JWT token for expiration check");
+  }
+  
+  return false;
+}
+
+export function validateSession(): { valid: boolean; session?: { token: string; user: UserSummary } } {
+  if (isSessionExpired()) {
+    clearSession();
+    return { valid: false };
+  }
+  
+  const session = getSession();
+  if (!session) {
+    return { valid: false };
+  }
+  
+  return { valid: true, session };
 }
 
 // ── Property ─────────────────────────────────────────────────────────────────
@@ -232,7 +299,10 @@ export interface PropertyResponse {
   minLeasePeriod?: string;
   availableFrom?: string;
   status: PropertyStatus;
-  landlordId: string;
+  landlordId?: string;
+  landlordName?: string;
+  landlordPhone?: string;
+  landlordEmail?: string;
   images: { id: string; imageUrl: string; isCover: boolean; uploadedAt: string }[];
   ownershipDocuments: {
     id: string;
@@ -259,7 +329,7 @@ export async function registerProperty(
   images?.forEach((f) => form.append("images", f));
   documents?.forEach((f) => form.append("documents", f));
 
-  const res = await fetch(`${BASE_URL}/properties`, {
+  const res = await apiFetch(`${BASE_URL}/properties`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -269,10 +339,35 @@ export async function registerProperty(
   return json;
 }
 
+export async function updateProperty(
+  id: string,
+  token: string,
+  data: PropertyRequest,
+  images?: File[],
+  documents?: File[]
+): Promise<PropertyResponse> {
+  const form = new FormData();
+  form.append(
+    "property",
+    new Blob([JSON.stringify(data)], { type: "application/json" })
+  );
+  images?.forEach((f) => form.append("images", f));
+  documents?.forEach((f) => form.append("documents", f));
+
+  const res = await apiFetch(`${BASE_URL}/properties/${id}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update property.");
+  return json;
+}
+
 export async function getMyProperties(
   token: string
 ): Promise<PropertyResponse[]> {
-  const res = await fetch(`${BASE_URL}/properties/my`, {
+  const res = await apiFetch(`${BASE_URL}/properties/my`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const json = await parseResponse(res);
@@ -287,7 +382,7 @@ export async function updatePropertyStatus(
   status: PropertyStatus,
   remarks?: string
 ): Promise<PropertyResponse> {
-  const res = await fetch(`${BASE_URL}/properties/${id}/status`, {
+  const res = await apiFetch(`${BASE_URL}/properties/${id}/status`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -302,47 +397,110 @@ export async function updatePropertyStatus(
 
 
 
+export async function deleteProperty(
+  id: string,
+  token: string
+): Promise<void> {
+  const res = await apiFetch(`${BASE_URL}/properties/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const json = await parseResponse(res);
+    throw new Error(json.message || "Failed to delete property.");
+  }
+}
+
+export async function getListedProperties(): Promise<PropertyResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/properties?status=LISTED`);
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load listed properties.");
+  return json;
+}
+
 export async function getPropertyById(
   id: string,
   token?: string
 ): Promise<PropertyResponse | null> {
-  try {
-    const res = await fetch(`${BASE_URL}/properties/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Failed to load property.");
-    return json;
-  } catch {
-    // Check localStorage
-    if (typeof window !== "undefined") {
-      const existing = localStorage.getItem("registered_properties");
-      if (existing) {
-        try {
-          const list: PropertyResponse[] = JSON.parse(existing);
-          const found = list.find((p) => p.id === id || p.propertyCode === id);
-          if (found) return found;
-        } catch {
-          // ignore
-        }
-      }
-    }
-    return null;
-  }
+  const res = await apiFetch(`${BASE_URL}/properties/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load property.");
+  return json;
+}
+
+/**
+ * Officer/Supervisor version — hits the officer-scoped endpoint so LANDLORD
+ * role restriction on GET /properties/my never gets triggered.
+ */
+export async function getPropertyForOfficer(
+  id: string,
+  token: string
+): Promise<PropertyResponse> {
+  const res = await apiFetch(`${BASE_URL}/properties/officer/detail/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load property.");
+  return json;
 }
 
 export async function getPropertiesByStatus(
   status: PropertyStatus = "LISTED",
   token?: string
 ): Promise<PropertyResponse[]> {
-  try {
-    const res = await fetch(`${BASE_URL}/properties?status=${status}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    const json = await parseResponse(res);
-    if (!res.ok) throw new Error(json.message || "Failed to load properties.");
-    return json;
-  } catch {
-    return [];
-  }
+  const res = await apiFetch(`${BASE_URL}/properties?status=${status}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load properties.");
+  return json;
+}
+
+export async function getPropertiesByJurisdiction(
+  token: string,
+  subCity: string,
+  woreda: string,
+  status: PropertyStatus = "PENDING"
+): Promise<PropertyResponse[]> {
+  const params = new URLSearchParams({ subCity, woreda, status });
+  const res = await apiFetch(`${BASE_URL}/properties/jurisdiction?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load jurisdiction properties.");
+  return json;
+}
+
+// ── Location reference data ───────────────────────────────────────────────────
+
+export interface SubCityDto {
+  subCity: string;
+  woredas: string[];
+}
+
+/** Returns all Addis Ababa sub-cities with their woredas. Public — no auth needed. */
+export async function getSubCities(): Promise<SubCityDto[]> {
+  const res = await apiFetch(`${BASE_URL}/locations/sub-cities`);
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load location data.");
+  return json;
+}
+
+/** Returns woredas for a specific sub-city. Public. */
+export async function getWoredas(subCity: string): Promise<string[]> {
+  const res = await apiFetch(`${BASE_URL}/locations/sub-cities/${encodeURIComponent(subCity)}/woredas`);
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load woredas.");
+  return json;
+}
+
+/** Validates that a sub-city + woreda combo is recognised. Public. */
+export async function validateJurisdiction(subCity: string, woreda: string): Promise<boolean> {
+  const params = new URLSearchParams({ subCity, woreda });
+  const res = await apiFetch(`${BASE_URL}/locations/validate?${params}`);
+  const json = await parseResponse(res);
+  if (!res.ok) return false;
+  return json.valid === true;
 }

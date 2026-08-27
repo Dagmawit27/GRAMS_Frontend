@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { OfficerSidebarWrapper } from "@/app/officer/dashboard/sidebar-wrapper";
-import { getSession, clearSession } from "@/lib/api";
+import { getSession, clearSession, validateSession } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { NavPage, UserRole } from "@/types";
 import { useCitizenData } from "@/hooks/useCitizenData";
@@ -43,8 +43,13 @@ export const OfficerDashboardLayout: React.FC<OfficerDashboardLayoutProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setSession(getSession());
-  }, []);
+    const sessionValidation = validateSession();
+    if (!sessionValidation.valid) {
+      router.replace("/officer");
+      return;
+    }
+    setSession(sessionValidation.session || getSession());
+  }, [router]);
 
  const userRole: UserRole =
   contextUserRole ||
@@ -59,7 +64,7 @@ const isSupervisor = userRole === "woreda_supervisor";
 
 useEffect(() => {
   if (!isOfficer) {
-    router.replace("/citizen");
+    router.replace("/officer");
   }
 }, [isOfficer, router]);
 

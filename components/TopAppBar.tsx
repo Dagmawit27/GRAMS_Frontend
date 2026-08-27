@@ -31,7 +31,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   onToggleDarkMode,
   onProfileClick,
   onNavigate,
-  userRole = "landlord",
+  userRole = "citizen",
   onToggleRole,
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);

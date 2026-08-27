@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { SidebarWrapper } from "@/app/citizen/dashboard/sidebar-wrapper";
 import { TopAppBar } from "@/components/TopAppBar";
 import { useCitizenData } from "@/hooks/useCitizenData";
-import { getSession } from "@/lib/api";
+import { getSession, validateSession } from "@/lib/api";
 import { UserRole } from "@/types";
 
 // Interactive Modals
@@ -69,7 +69,13 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
   // On mount: sync userRole from localStorage so it always reflects the
   // role written by saveSession() before navigating here.
   useEffect(() => {
-    const session = getSession();
+    const sessionValidation = validateSession();
+    if (!sessionValidation.valid) {
+      router.push("/citizen");
+      return;
+    }
+
+    const session = sessionValidation.session;
     if (!session) {
       router.push("/citizen");
       return;
@@ -181,7 +187,7 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
               Are you sure you want to sign out of the GRAMS Citizen Portal?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+          <DialogFooter className="mt-4 gap-2 sm:gap-4">
             <Button variant="outline" onClick={() => setIsLogoutModalOpen(false)}>
               Cancel
             </Button>

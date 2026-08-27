@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Property, RentalAgreement, Invoice, ActivityNotification, NavPage } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { getMyProperties, getSession } from "@/lib/api";
 
 interface DashboardPageProps {
   properties?: Property[];
@@ -52,38 +53,39 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
   const nextDueInvoice = invoices.find((i) => i.status === "Pending" || i.status === "Overdue") || invoices[0];
   const unreadNotifsCount = notifications.filter((n) => !n.read).length;
 
-  const chartDataThisYear = [
-    { month: "Jan", amount: 15000 },
-    { month: "Feb", amount: 15000 },
-    { month: "Mar", amount: 18000 },
-    { month: "Apr", amount: 22000 },
-    { month: "May", amount: 22000 },
-    { month: "Jun", amount: 22000 },
-    { month: "Jul", amount: 25000 },
-    { month: "Aug", amount: 25000 },
-    { month: "Sep", amount: 35000 },
-    { month: "Oct", amount: 37500 },
-    { month: "Nov", amount: 42000 },
-    { month: "Dec", amount: 45000 },
-  ];
+  // Calculate chart data from actual agreements
+  const calculateChartData = (year: "this" | "last") => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentYear = new Date().getFullYear();
+    const targetYear = year === "this" ? currentYear : currentYear - 1;
 
-  const chartDataLastYear = [
-    { month: "Jan", amount: 10000 },
-    { month: "Feb", amount: 10000 },
-    { month: "Mar", amount: 12000 },
-    { month: "Apr", amount: 12000 },
-    { month: "May", amount: 15000 },
-    { month: "Jun", amount: 15000 },
-    { month: "Jul", amount: 15000 },
-    { month: "Aug", amount: 15000 },
-    { month: "Sep", amount: 15000 },
-    { month: "Oct", intelligence: 18000, amount: 18000 },
-    { month: "Nov", amount: 20000 },
-    { month: "Dec", amount: 22000 },
-  ];
+    return months.map((month) => {
+      const monthIndex = months.indexOf(month);
+      // Calculate revenue from active agreements for this month
+      const monthlyRevenue = agreements
+        .filter((a) => {
+          const startDate = new Date(a.startDate);
+          const endDate = a.endDate ? new Date(a.endDate) : new Date(targetYear, monthIndex + 1, 0);
+          const agreementYear = startDate.getFullYear();
+          
+          // Check if agreement was active in this month of target year
+          if (agreementYear > targetYear) return false;
+          if (agreementYear < targetYear && endDate.getFullYear() < targetYear) return false;
+          
+          // Simple calculation: if agreement exists and is active, count its rent
+          return a.status === "Active";
+        })
+        .reduce((sum, a) => sum + a.monthlyRent, 0);
+
+      return { month, amount: monthlyRevenue || 0 };
+    });
+  };
+
+  const chartDataThisYear = calculateChartData("this");
+  const chartDataLastYear = calculateChartData("last");
 
   const currentChartData = trendYear === "this" ? chartDataThisYear : chartDataLastYear;
-  const maxChartAmount = 50000;
+  const maxChartAmount = Math.max(...currentChartData.map((d) => d.amount), 50000);
 
   return (
     <div className="space-y-3 animate-in fade-in duration-150">
@@ -153,13 +155,25 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
                 <Calendar className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">Sept 30</span>
-              <Badge variant="pending" className="text-[10px]">
-                In 5 days
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-400 mt-1.5">Bole Atlas Apt • ETB 12,500</p>
+            {nextDueInvoice ? (
+              <>
+                <div className="mt-2.5 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-slate-900">
+                    {new Date(nextDueInvoice.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                  <Badge variant={nextDueInvoice.status === "Overdue" ? "pending" : "active"} className="text-[10px]">
+                    {nextDueInvoice.status}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  {nextDueInvoice.propertyTitle || "Property"} • ETB {(nextDueInvoice.totalAmount || 0).toLocaleString()}
+                </p>
+              </>
+            ) : (
+              <div className="mt-2.5">
+                <span className="text-sm font-medium text-slate-500">No pending invoices</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 

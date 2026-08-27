@@ -150,7 +150,7 @@ export const RegisterPropertyPage: React.FC = () => {
     "Addis Ketema": 12,
     "Bole": 11,
     "Yeka": 12,
-    "Kolfe Keranyo": 11,
+    "Kolfe Keranio": 11,
     "Nifas Silk-Lafto": 13,
     "Lemi Kura": 10,
   };
@@ -427,6 +427,16 @@ export const RegisterPropertyPage: React.FC = () => {
     if (!e.target.files || e.target.files.length === 0) return;
     const newFiles: File[] = Array.from(e.target.files);
     
+    // Check file size limit (15MB)
+    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB in bytes
+    const oversizedFiles = newFiles.filter(file => file.size > MAX_FILE_SIZE);
+    
+    if (oversizedFiles.length > 0) {
+      const oversizedNames = oversizedFiles.map(f => f.name).join(", ");
+      alert(`The following files exceed the 15MB limit: ${oversizedNames}. Please compress or select smaller files.`);
+      return;
+    }
+    
     const newImgs: UploadedPropertyImage[] = newFiles.map((file: File, idx: number) => ({
       id: `custom-img-${Date.now()}-${idx}`,
       url: URL.createObjectURL(file),
@@ -443,6 +453,14 @@ export const RegisterPropertyPage: React.FC = () => {
   const handleTitleDeedUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
+    
+    // Check file size limit (15MB)
+    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`File "${file.name}" exceeds the 15MB limit. Please compress or select a smaller file.`);
+      return;
+    }
+    
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + " MB";
     setTitleDeedFile({
       name: file.name,
@@ -459,6 +477,14 @@ export const RegisterPropertyPage: React.FC = () => {
     setIsDeedDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
+      
+      // Check file size limit (15MB)
+      const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`File "${file.name}" exceeds the 15MB limit. Please compress or select a smaller file.`);
+        return;
+      }
+      
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + " MB";
       const objectUrl = URL.createObjectURL(file);
       setTitleDeedFile({
@@ -641,11 +667,9 @@ export const RegisterPropertyPage: React.FC = () => {
   const mallTotalMonthlyGrossRent = mallUnits.reduce((acc, u) => acc + (Number(u.rentAmount) || 0), 0);
 
   // Step 3: Documents & Cadastre
-  const [cadastralParcelId, setCadastralParcelId] = useState("AA-BOL-03-P99120");
-  const [titleDeedNumber, setTitleDeedNumber] = useState("ETH-MUDC-2024-88412");
-  const [description, setDescription] = useState(
-    "High-standard registered property located in Addis Ababa, fully compliant with national housing registry and cadastral standards."
-  );
+  const [cadastralParcelId, setCadastralParcelId] = useState("");
+  const [titleDeedNumber, setTitleDeedNumber] = useState("");
+  const [description, setDescription] = useState("");
 
   // Step 4: Proclamation Consent
   const [agreedToProclamation, setAgreedToProclamation] = useState(true);
@@ -872,9 +896,6 @@ export const RegisterPropertyPage: React.FC = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Register New Property
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Submit property holding details for municipal cadastral certification and digital lease integration.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1297,7 +1318,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       <option value="Addis Ketema">Addis Ketema (12 Woredas)</option>
                       <option value="Bole">Bole (11 Woredas)</option>
                       <option value="Yeka">Yeka (12 Woredas)</option>
-                      <option value="Kolfe Keranyo">Kolfe Keranyo (11 Woredas)</option>
+                      <option value="Kolfe Keranio">Kolfe Keranio (11 Woredas)</option>
                       <option value="Nifas Silk-Lafto">Nifas Silk-Lafto (13 Woredas)</option>
                       <option value="Lemi Kura">Lemi Kura (10 Woredas)</option>
                     </select>
@@ -1329,6 +1350,22 @@ export const RegisterPropertyPage: React.FC = () => {
                       className="h-11 text-xs"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    Property Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => {setDescription(e.target.value); clearError("description");}}
+                    placeholder="Describe your property (e.g., location features, amenities, nearby facilities)"
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d] resize-none"
+                  />
+                  {errors.description && (
+                    <p className="text-[10px] text-red-600 mt-1">{errors.description}</p>
+                  )}
                 </div>
               </div>
 
