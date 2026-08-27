@@ -20,6 +20,7 @@ export type UserRole = 'landlord' | 'tenant' | 'citizen' | 'woreda_officer' | 'w
 
 export interface Property {
   id: string;
+  propertyCode?: string;
   title: string;
   type: 'Apartment' | 'Villa' | 'Condominium' | 'Commercial';
   price: number; // in ETB
@@ -50,18 +51,19 @@ export interface Property {
 export interface PropertyUnit {
   id: string;
   unitCode: string;
-  name: string;
-  type: string;
-  area: number;
+  unitName?: string;
+  unitType?: string;
+  areaSqMeter?: number;
   status: 'Rented' | 'Available' | 'Reserved';
   rentAmount?: number;
-  tenant?: string;
+  tenantName?: string;
   floorLevel?: string;
   category?: string;
   shopNumber?: string;
   submeter?: boolean;
   waterSupply?: boolean;
   frontage?: string;
+  description?: string;
 }
 
 export interface LeaseRequest {

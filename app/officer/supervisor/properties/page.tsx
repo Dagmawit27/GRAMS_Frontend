@@ -142,12 +142,6 @@ export default function SupervisorPropertiesQueuePage() {
         </div>
       </div>
 
-      {/* Info banner */}
-      <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
-        <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
-        These properties have been verified by a Woreda Officer. Review and approve to list them publicly.
-      </div>
-
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-16 gap-2 text-slate-400 text-sm">
@@ -198,7 +192,7 @@ export default function SupervisorPropertiesQueuePage() {
                   paginated.map((p) => (
                     <tr key={p.id} onClick={() => handleReview(p.id)}
                       className="hover:bg-slate-50/80 transition-colors cursor-pointer group">
-                      <td className="py-4 px-6 font-black text-slate-900 font-mono tracking-tight whitespace-nowrap">
+                      <td className="py-4 px-6 font-black text-slate-900 font-mono text-[10px] tracking-tight whitespace-nowrap">
                         {p.propertyCode}
                       </td>
                       <td className="py-4 px-6">

@@ -31,7 +31,6 @@ import {
   Calendar
 } from "lucide-react";
 import { useCitizenData } from "@/hooks/useCitizenData";
-import { INITIAL_PROPERTIES } from "@/data/mockData";
 import { PropertyResponse, getListedProperties, getSession } from "@/lib/api";
 
 interface SearchHousePageProps {
@@ -91,7 +90,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
           id: rp.id,
           propertyCode: rp.propertyCode,
           title: rp.title || `${rp.propertyType} in ${rp.address?.subCity || "Addis Ababa"}`,
-          type: (rp.propertyType as any) || "Apartment",
+          type: (rp.propertyType as 'Apartment' | 'Villa' | 'Condominium' | 'Commercial') || 'Apartment',
           price: rp.monthlyRent || 0,
           location: `${rp.address?.subCity || ""}, Woreda ${rp.address?.woreda || ""}, Addis Ababa`,
           subCity: rp.address?.subCity || "Bole Sub City",
@@ -103,9 +102,9 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
           floor: rp.floorNumber,
           status: "Available",
           verified: true,
-          featuredImage: rp.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80",
+          featuredImage: rp.images?.[0]?.imageUrl,
           galleryImages: rp.images?.map((i) => i.imageUrl) || [],
-          description: rp.description || "Government registered municipal property.",
+          description: rp.description || "",
           amenities: ["Verified Ownership Deed", "Municipal Registration", "Water & Power Access"],
           securityDepositMonths: rp.securityDepositMonths || 2,
           minLeasePeriod: rp.minLeasePeriod || "1 Year",
@@ -113,19 +112,12 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
           availableFrom: rp.availableFrom || "Immediate",
           landlordName: rp.landlordName || "N/A",
           unitsCount: rp.units?.length,
-          units: rp.units
+          units: rp.units || undefined
         });
       }
     });
 
-    // 2. Props or context properties
-    const primaryList = props.properties || context?.properties || [];
-    primaryList.forEach(addProp);
-
-    // 3. Initial static dataset
-    INITIAL_PROPERTIES.forEach(addProp);
-
-    // 4. LocalStorage registered properties
+    // 2. LocalStorage registered properties
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("registered_properties");
@@ -159,7 +151,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                 availableFrom: "Immediate",
                 landlordName: rp.landlordName || "Registered Landlord",
                 unitsCount: rp.units?.length,
-                units: rp.units
+                units: rp.units || undefined
               });
             }
           });
@@ -170,7 +162,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
     }
 
     return combined;
-  }, [props.properties, context?.properties, listedProperties]);
+  }, [listedProperties]);
 
   // Handle Input Change with automatic Capitalization
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,7 +256,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto leading-relaxed">
-            Enter an official government-registered Property Code to look up certified residential and commercial property records.
+            Enter an official government-registered Property Code 
           </p>
 
           {/* Focused Property Code Search Bar */}
@@ -287,7 +279,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                   placeholder="Enter Property Code (e.g. PRP-2023-0891)"
                   value={propertyCodeInput}
                   onChange={handleInputChange}
-                  className="pl-10 pr-10 h-12 text-sm font-mono uppercase bg-slate-50/70 border-slate-300 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 rounded-xl transition-all tracking-wider"
+                  className="pl-10 pr-10 h-12 text-[100px] font-mono uppercase bg-slate-50/70 border-slate-300 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 rounded-xl transition-all tracking-wider"
                   autoFocus
                 />
 
@@ -340,9 +332,8 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                 <span>Where do I find my Property Code?</span>
               </div>
               <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
-                <li>Printed on your official FDRE Municipal Title Deed Certificate</li>
                 <li>Issued upon completion of Landlord Property Registration</li>
-                <li>Included in your government lease agreement documents</li>
+                <li>Included in landloard property documents</li>
               </ul>
             </div>
           </div>

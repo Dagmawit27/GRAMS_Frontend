@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PropertyResponse, getPropertyById, updatePropertyStatus, getSession } from "@/lib/api";
+import { PropertyResponse, getPropertyById, updatePropertyStatus, getSession, getUnitById, PropertyUnitResponse } from "@/lib/api";
 
 export default function VerificationDetailPage() {
   const router = useRouter();
@@ -46,6 +46,8 @@ export default function VerificationDetailPage() {
   const [returnNotes, setReturnNotes] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<PropertyUnitResponse | null>(null);
+  const [showUnitModal, setShowUnitModal] = useState(false);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -171,6 +173,18 @@ export default function VerificationDetailPage() {
     }
   };
 
+  const handleUnitClick = async (unitId: string) => {
+    if (!session?.token) return;
+
+    try {
+      const unitData = await getUnitById(unitId, session.token);
+      setSelectedUnit(unitData);
+      setShowUnitModal(true);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to load unit details");
+    }
+  };
+
   return (
     <div className="w-full bg-[#f8fafc] text-slate-900 font-sans antialiased">
       {/* Toast Notification */}
@@ -268,7 +282,7 @@ export default function VerificationDetailPage() {
       {/* ========================================================================= */}
       {/* MAIN CONTENT COMPONENT ONLY (NO STATIC SIDEBAR OR STATIC TOP NAV BAR)     */}
       {/* ========================================================================= */}
-      <main className="w-full min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      <main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 pt-2 pb-6 max-w-7xl mx-auto space-y-6">
         {/* Navigation Breadcrumb / Back Button */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-200/90">
           <button
@@ -280,7 +294,7 @@ export default function VerificationDetailPage() {
           </button>
 
           <span className="text-xs text-slate-500 font-medium">
-            Municipal Cadastre Desk • Ref: <span className="font-mono text-slate-800 font-bold">{propertyData.propertyCode}</span>
+            Property ID: <span className="font-mono text-slate-800 font-bold">{propertyData.propertyCode}</span>
           </span>
         </div>
 
@@ -468,6 +482,57 @@ export default function VerificationDetailPage() {
               </div>
             </div>
 
+            {/* Card 4: Mall Units (for shopping malls) */}
+            {(propertyData.propertyType?.toLowerCase().includes("mall") ||
+              propertyData.propertyType?.toLowerCase().includes("commercial") ||
+              propertyData.propertyType?.toLowerCase().includes("plaza") ||
+              propertyData.propertyType?.toLowerCase().includes("shopping") ||
+              propertyData.propertyType?.toLowerCase().includes("retail") ||
+              (propertyData.units && propertyData.units.length > 0)) && propertyData.units && propertyData.units.length > 0 && (
+              <div className="bg-white rounded-xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h3 className="text-base font-black text-slate-900 tracking-tight">
+                    Shopping Mall Units
+                  </h3>
+                  <span className="text-xs font-semibold text-slate-500">
+                    {propertyData.units.length} Units
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {propertyData.units.map((unit) => (
+                    <div
+                      key={unit.id}
+                      className="p-3 rounded-lg bg-[#fafbfc] border border-slate-200/80 hover:bg-slate-100/60 transition-colors cursor-pointer"
+                      onClick={() => handleUnitClick(unit.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded bg-emerald-100 text-[#00450d] flex items-center justify-center font-bold text-xs">
+                            {unit.unitCode?.slice(0, 2) || "UN"}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">{unit.unitCode || unit.shopNumber || "—"}</p>
+                            <p className="text-[11px] text-slate-500">{unit.unitType || unit.category || "—"}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-slate-900">{unit.rentAmount ? `ETB ${Number(unit.rentAmount).toLocaleString()}` : "—"}</p>
+                          <p className="text-[10px] text-slate-500">{unit.areaSqMeter ? `${Number(unit.areaSqMeter).toLocaleString()} m²` : "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* --------------------------------------------------------------------- */}
+          {/* RIGHT COLUMN (1/3 Width): Recommendation, Checklist & Action Buttons  */}
+          {/* --------------------------------------------------------------------- */}
+          <div className="space-y-6">
+            
             {/* Card 3: Attached Documentation */}
             <div className="bg-white rounded-xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -521,13 +586,6 @@ export default function VerificationDetailPage() {
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* --------------------------------------------------------------------- */}
-          {/* RIGHT COLUMN (1/3 Width): Recommendation, Checklist & Action Buttons  */}
-          {/* --------------------------------------------------------------------- */}
-          <div className="space-y-6">
-            
 
             {/* Card 3: Action Buttons */}
             <div className="space-y-3">
@@ -604,6 +662,69 @@ export default function VerificationDetailPage() {
                 Confirm Approval
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unit Detail Modal */}
+      {showUnitModal && selectedUnit && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900">Unit Details</h3>
+              <button
+                onClick={() => setShowUnitModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Unit Code</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.unitCode || selectedUnit.shopNumber || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Type</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.unitType || selectedUnit.category || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Floor</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.floorLevel || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Area</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.areaSqMeter ? `${Number(selectedUnit.areaSqMeter).toLocaleString()} m²` : "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Monthly Rent</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.rentAmount ? `ETB ${Number(selectedUnit.rentAmount).toLocaleString()}` : "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Status</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.status}</span>
+                </div>
+              </div>
+              {selectedUnit.tenantName && (
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Current Tenant</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.tenantName}</span>
+                </div>
+              )}
+              {selectedUnit.description && (
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Description</span>
+                  <p className="text-slate-700 leading-relaxed">{selectedUnit.description}</p>
+                </div>
+              )}
+            </div>
+            <Button
+              onClick={() => setShowUnitModal(false)}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs h-9 rounded-lg"
+            >
+              Close
+            </Button>
           </div>
         </div>
       )}

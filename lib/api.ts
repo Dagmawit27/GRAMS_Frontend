@@ -312,7 +312,56 @@ export interface PropertyResponse {
     issueDate?: string;
     expiryDate?: string;
   }[];
+  units: {
+    id: string;
+    unitCode: string;
+    unitName: string;
+    unitType: string;
+    areaSqMeter: number;
+    status: string;
+    rentAmount: number;
+    tenantName: string;
+    floorLevel: string;
+    category: string;
+    shopNumber: string;
+    submeter: boolean;
+    waterSupply: boolean;
+    frontage: string;
+    description: string;
+  }[];
   createdAt: string;
+}
+
+export interface PropertyUnitResponse {
+  id: string;
+  unitCode: string;
+  unitName: string;
+  unitType: string;
+  areaSqMeter: number;
+  status: string;
+  rentAmount: number;
+  tenantName: string;
+  floorLevel: string;
+  category: string;
+  shopNumber: string;
+  submeter: boolean;
+  waterSupply: boolean;
+  frontage: string;
+  description: string;
+}
+
+export async function getUnitById(unitId: string, token: string): Promise<PropertyUnitResponse> {
+  const response = await fetch(`${BASE_URL}/properties/units/${unitId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch unit details");
+  }
+
+  return response.json();
 }
 
 export async function registerProperty(

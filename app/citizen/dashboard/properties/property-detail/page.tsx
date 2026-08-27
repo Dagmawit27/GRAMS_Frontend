@@ -28,7 +28,7 @@ import {
   Share2,
   Phone,
   Mail,
-  User,
+  Eye,
   Zap,
   Droplets,
   Layers,
@@ -41,9 +41,9 @@ import {
   ShoppingBag,
   Sliders,
   ChevronRight,
-  Edit
+  X,
 } from "lucide-react";
-import { getSession, getMyProperties, getPropertyById, deleteProperty, PropertyResponse } from "@/lib/api";
+import { getSession, getMyProperties, getPropertyById, deleteProperty, PropertyResponse, getUnitById, PropertyUnitResponse } from "@/lib/api";
 import { useCitizenData } from "@/hooks/useCitizenData";
 import { PropertyUnit } from "@/types";
 
@@ -95,6 +95,8 @@ function PropertyDetailContent() {
   const [toast, setToast] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<PropertyUnitResponse | null>(null);
+  const [showUnitModal, setShowUnitModal] = useState(false);
 
   // Fetch property from database / API
   useEffect(() => {
@@ -177,6 +179,20 @@ function PropertyDetailContent() {
     }
   };
 
+  const handleUnitClick = async (unitId: string) => {
+    const session = getSession();
+    const token = session?.token;
+    if (!token) return;
+
+    try {
+      const unitData = await getUnitById(unitId, token);
+      setSelectedUnit(unitData);
+      setShowUnitModal(true);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to load unit details");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-slate-500 gap-3">
@@ -220,9 +236,12 @@ function PropertyDetailContent() {
   const hasImages = images.length > 0;
 
   const currentImage = hasImages ? images[selectedImageIndex]?.imageUrl : null;
-  const isCommercial = property.propertyType.toLowerCase().includes("mall") || 
-                       property.propertyType.toLowerCase().includes("commercial") ||
-                       property.propertyType.toLowerCase().includes("plaza");
+  const isCommercial = property.propertyType?.toLowerCase().includes("mall") ||
+                       property.propertyType?.toLowerCase().includes("commercial") ||
+                       property.propertyType?.toLowerCase().includes("plaza") ||
+                       property.propertyType?.toLowerCase().includes("shopping") ||
+                       property.propertyType?.toLowerCase().includes("retail") ||
+                       (property.units && property.units.length > 0);
 
   return (
     <div className="space-y-5 animate-in fade-in duration-150 max-w-6xl mx-auto pb-12">
@@ -423,21 +442,6 @@ function PropertyDetailContent() {
                 )}
               </div>
 
-              {/* Cadastral ID and Registration Stamp */}
-              <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-emerald-900 font-bold text-xs">
-                  <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span>Cadastral Security Verified</span>
-                </div>
-                <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  Registered under Federal Urban Land Registry. Verified ownership rights and municipal digital deed on file.
-                </p>
-                <div className="pt-1 flex items-center justify-between text-[10px] font-mono text-emerald-900">
-                  <span>REG ID: {property.id}</span>
-                  <span className="font-bold">STATUS: OK</span>
-                </div>
-              </div>
-
               {/* Primary Actions */}
               <div className="space-y-2 pt-1">
                 {property?.status === "LISTED" && (
@@ -600,13 +604,13 @@ function PropertyDetailContent() {
                       </div>
                     </div>
                     <Button
-                      onClick={() => showToast(`Downloading verified certificate ${doc.documentNumber}`)}
+                      onClick={() => showToast(`Viewing verified certificate ${doc.documentNumber}`)}
                       variant="outline"
                       size="sm"
                       className="h-8 text-xs gap-1.5 border-slate-300 text-slate-700 hover:bg-white rounded-lg"
                     >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download Scan</span>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>View</span>
                     </Button>
                   </div>
                 ))
@@ -622,13 +626,13 @@ function PropertyDetailContent() {
                     </div>
                   </div>
                   <Button
-                    onClick={() => showToast("Downloading verified certificate TD-ET-902148")}
+                    onClick={() => showToast("Viewing verified certificate TD-ET-902148")}
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs gap-1.5 border-slate-300 text-slate-700 hover:bg-white rounded-lg"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download Scan</span>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View</span>
                   </Button>
                 </div>
               )}
@@ -671,72 +675,112 @@ function PropertyDetailContent() {
               <CardTitle className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                 Shopping Mall Units & Retail Directory
               </CardTitle>
-              <p className="text-[11px] text-slate-400">Total 24 Sub-metered units across Ground + 3 levels</p>
+              <p className="text-[11px] text-slate-400">
+                Total {property.units?.length || 0} units across {property.units?.length ? "multiple levels" : "Ground + 3 levels"}
+              </p>
             </div>
-            <Button
-              onClick={() => showToast("Add unit modal opened")}
-              size="sm"
-              className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-8 px-3 rounded-lg gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Shop Unit</span>
-            </Button>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-2.5 px-4">Unit #</th>
-                  <th className="py-2.5 px-4">Type</th>
-                  <th className="py-2.5 px-4">Floor</th>
-                  <th className="py-2.5 px-4">Area</th>
-                  <th className="py-2.5 px-4">Monthly Rent</th>
-                  <th className="py-2.5 px-4">Status</th>
-                  <th className="py-2.5 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {[
-                  { code: "G-01", type: "Anchor Retail", floor: "Ground Floor", area: "65 m²", rent: "ETB 32,000", status: "Rented", tenant: "Al-Noor Electronics" },
-                  { code: "G-02", type: "Coffee Kiosk", floor: "Ground Floor", area: "18 m²", rent: "ETB 14,500", status: "Rented", tenant: "Kaldis Express" },
-                  { code: "G-03", type: "Pharmacy", floor: "Ground Floor", area: "52 m²", rent: "ETB 26,000", status: "Available", tenant: "—" },
-                  { code: "F1-01", type: "Bank Branch", floor: "1st Floor", area: "120 m²", rent: "ETB 58,000", status: "Rented", tenant: "Dashen Bank" },
-                  { code: "F1-02", type: "Dental Clinic", floor: "1st Floor", area: "75 m²", rent: "ETB 34,000", status: "Available", tenant: "—" },
-                  { code: "F2-01", type: "Spa & Salon", floor: "2nd Floor", area: "85 m²", rent: "ETB 38,000", status: "Rented", tenant: "Elegance Lounge" },
-                ].map((u) => (
-                  <tr key={u.code} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900">{u.code}</td>
-                    <td className="py-3 px-4 text-slate-700">{u.type}</td>
-                    <td className="py-3 px-4 text-slate-500">{u.floor}</td>
-                    <td className="py-3 px-4 text-slate-600">{u.area}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900">{u.rent}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant={u.status === "Available" ? "active" : "secondary"} className="text-[10px]">
-                        {u.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Button
-                        onClick={() => {
-                          if (citizenContext?.handleNavigate) {
-                            citizenContext.handleNavigate("agreements");
-                          } else {
-                            router.push("/citizen/dashboard/agreements");
-                          }
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs text-[#00450d] hover:bg-emerald-50 px-2 rounded-md"
-                      >
-                        Lease Contract
-                      </Button>
-                    </td>
+            {property.units && property.units.length > 0 ? (
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-2.5 px-4">Unit #</th>
+                    <th className="py-2.5 px-4">Type</th>
+                    <th className="py-2.5 px-4">Floor</th>
+                    <th className="py-2.5 px-4">Area</th>
+                    <th className="py-2.5 px-4">Monthly Rent</th>
+                    <th className="py-2.5 px-4">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {property.units.map((unit) => (
+                    <tr key={unit.id} className="hover:bg-slate-50/70 transition-colors cursor-pointer" onClick={() => handleUnitClick(unit.id)}>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{unit.unitCode || unit.shopNumber || "—"}</td>
+                      <td className="py-3 px-4 text-slate-700">{unit.unitType || unit.category || "—"}</td>
+                      <td className="py-3 px-4 text-slate-500">{unit.floorLevel || "—"}</td>
+                      <td className="py-3 px-4 text-slate-600">{unit.areaSqMeter ? `${Number(unit.areaSqMeter).toLocaleString()} m²` : "—"}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900">{unit.rentAmount ? `ETB ${Number(unit.rentAmount).toLocaleString()}` : "—"}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={unit.status === "AVAILABLE" ? "active" : "secondary"} className="text-[10px]">
+                        {unit.status}
+                      </Badge>
+    </td>
+  </tr>
+))}
+</tbody>
+</table>
+) : (
+  <div className="p-8 text-center text-slate-500 text-xs">
+    <Store className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+    <p>No units registered yet for this property.</p>
+  </div>
+)}
+</CardContent>
+</Card>
+)}
+
+      {/* Unit Detail Modal */}
+      {showUnitModal && selectedUnit && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-black text-slate-900">Unit Details</h3>
+              <button
+                onClick={() => setShowUnitModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Unit Code</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.unitCode || selectedUnit.shopNumber || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Type</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.unitType || selectedUnit.category || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Floor</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.floorLevel || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Area</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.areaSqMeter ? `${Number(selectedUnit.areaSqMeter).toLocaleString()} m²` : "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Monthly Rent</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.rentAmount ? `ETB ${Number(selectedUnit.rentAmount).toLocaleString()}` : "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Status</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.status}</span>
+                </div>
+              </div>
+              {selectedUnit.tenantName && (
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Current Tenant</span>
+                  <span className="font-semibold text-slate-900">{selectedUnit.tenantName}</span>
+                </div>
+              )}
+              {selectedUnit.description && (
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block">Description</span>
+                  <p className="text-slate-700 leading-relaxed">{selectedUnit.description}</p>
+                </div>
+              )}
+            </div>
+            <Button
+              onClick={() => setShowUnitModal(false)}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs h-9 rounded-lg"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Tab 4: Registered Lease Contracts */}

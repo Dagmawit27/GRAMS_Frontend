@@ -361,7 +361,6 @@ const router = useRouter();
       <Navbar
         onOpenLogin={() => openAuth("signin")}
         onOpenRegister={() => openAuth("register")}
-        onOpenDashboard={() => handleNavigate("dashboard")}
       />
 
       {/* Main Container with Smooth AnimatePresence */}

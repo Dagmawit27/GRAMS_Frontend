@@ -60,10 +60,8 @@ export interface MallShopUnit {
   area: number;
   rentAmount: number;
   category: string;
-  frontage: string;
   submeter: boolean;
   waterSupply: boolean;
-  status: 'Available' | 'Rented' | 'Reserved';
 }
 
 export interface TitleDeedDoc {
@@ -550,10 +548,8 @@ export const RegisterPropertyPage: React.FC = () => {
       area: 45,
       rentAmount: 28000,
       category: "Retail / Boutique",
-      frontage: "Glass Display Window Frontage",
       submeter: true,
       waterSupply: true,
-      status: "Available",
     },
     {
       id: "unit-2",
@@ -562,10 +558,8 @@ export const RegisterPropertyPage: React.FC = () => {
       area: 35,
       rentAmount: 22000,
       category: "Café / Restaurant",
-      frontage: "Glass Display Window Frontage",
       submeter: true,
       waterSupply: true,
-      status: "Available",
     },
     {
       id: "unit-3",
@@ -574,10 +568,8 @@ export const RegisterPropertyPage: React.FC = () => {
       area: 55,
       rentAmount: 20000,
       category: "Electronics / Telecom",
-      frontage: "Glass Display Window Frontage",
       submeter: true,
       waterSupply: false,
-      status: "Available",
     },
     {
       id: "unit-4",
@@ -586,10 +578,8 @@ export const RegisterPropertyPage: React.FC = () => {
       area: 40,
       rentAmount: 18000,
       category: "Pharmacy / Clinic",
-      frontage: "Roller Shutter Frontage",
       submeter: true,
       waterSupply: true,
-      status: "Available",
     },
   ]);
 
@@ -616,7 +606,6 @@ export const RegisterPropertyPage: React.FC = () => {
       ...source,
       id: `unit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       shopNumber: nextShopNumber,
-      status: "Available",
     };
 
     const updated = [...mallUnits];
@@ -634,10 +623,8 @@ export const RegisterPropertyPage: React.FC = () => {
       area: 40,
       rentAmount: 25000,
       category: "Retail / Boutique",
-      frontage: "Glass Display Window Frontage",
       submeter: true,
       waterSupply: true,
-      status: "Available",
     };
     setMallUnits([...mallUnits, newUnit]);
   };
@@ -791,6 +778,24 @@ export const RegisterPropertyPage: React.FC = () => {
       securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
       minLeasePeriod: minLeasePeriod || "1 Year",
       availableFrom: availableFrom || "Immediate",
+      units: propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
+        ? mallUnits.map((unit) => ({
+            unitCode: unit.shopNumber,
+            unitName: unit.shopNumber,
+            unitType: unit.category,
+            areaSqMeter: unit.area,
+            status: "AVAILABLE",
+            rentAmount: unit.rentAmount,
+            tenantName: undefined,
+            floorLevel: unit.floorLevel,
+            category: unit.category,
+            shopNumber: unit.shopNumber,
+            submeter: unit.submeter,
+            waterSupply: unit.waterSupply,
+            frontage: undefined,
+            description: undefined,
+          }))
+        : undefined,
     };
 
     try {
@@ -891,7 +896,7 @@ export const RegisterPropertyPage: React.FC = () => {
       )}
 
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Register New Property
@@ -912,7 +917,7 @@ export const RegisterPropertyPage: React.FC = () => {
       </div>
 
       {/* 4-Step Stepper Header */}
-      <div className="py-2">
+      <div className="py-1">
         <div className="flex items-center justify-between max-w-3xl mx-auto px-4">
           {steps.map((step, idx) => {
             const isCompleted = currentStep > step.num;
@@ -939,7 +944,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     )}
                   </div>
                   <span
-                    className={`text-xs mt-1.5 font-medium whitespace-nowrap ${
+                    className={`text-xs mt-1 font-medium whitespace-nowrap ${
                       isCurrent
                         ? "font-bold text-slate-900"
                         : isCompleted
@@ -1194,12 +1199,7 @@ export const RegisterPropertyPage: React.FC = () => {
           {/* STEP 2: Property Details */}
           {currentStep === 2 && (
             <div className="p-6 sm:p-8 space-y-6">
-              {/* Header Title */}
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Property Details
-                </h2>
-              </div>
+             
 
               {/* 1. Property Type Grid (4 Cards: Villa, Apartment, Condominium, Shopping Mall) */}
               <div className="space-y-2.5">
@@ -1922,7 +1922,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       </div>
 
                       {/* Mall Infrastructure Checklist */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                         <label className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-slate-200 text-xs cursor-pointer hover:bg-slate-50 transition-colors">
                           <input
                             type="checkbox"
@@ -1989,13 +1989,6 @@ export const RegisterPropertyPage: React.FC = () => {
                           </Button>
                         </div>
 
-                        {/* Landlord Notice Box */}
-                        <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-start gap-2.5">
-                          <Lock className="w-4 h-4 text-[#00450d] shrink-0 mt-0.5" />
-                          <div className="text-[11px] text-emerald-950 leading-relaxed">
-                            <span className="font-bold text-[#00450d]">Landlord Exclusive Access:</span> Only the registered property landlord has permission to change and assign official <strong>Shopping House Numbers</strong> (e.g. Shop G-01) for municipal registry records, leasing agreements, and separate utility billing.
-                          </div>
-                        </div>
 
                         {/* Summary KPI Strip */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
@@ -2023,14 +2016,6 @@ export const RegisterPropertyPage: React.FC = () => {
                               ETB {mallTotalMonthlyGrossRent.toLocaleString()}
                             </span>
                           </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                              Initial Status
-                            </span>
-                            <span className="text-base font-bold text-slate-800">
-                              {mallUnits.filter((u) => u.status === "Available").length} Available
-                            </span>
-                          </div>
                         </div>
 
                         {/* Unit Cards List */}
@@ -2050,7 +2035,7 @@ export const RegisterPropertyPage: React.FC = () => {
                                     <div className="flex items-center gap-1.5 mb-1">
                                       <Lock className="w-3 h-3 text-[#00450d]" />
                                       <label className="text-[11px] font-bold text-slate-800">
-                                        Shopping House Number <span className="text-[#00450d]">(Landlord Only)</span>
+                                        Shopping House Number 
                                       </label>
                                     </div>
                                     <Input
@@ -2158,58 +2143,6 @@ export const RegisterPropertyPage: React.FC = () => {
                                     <option value="Supermarket / Kiosk">Supermarket / Grocery / Kiosk</option>
                                     <option value="Storage / Warehouse">Storage / Stock Unit</option>
                                   </select>
-                                </div>
-                              </div>
-
-                              {/* Unit Frontage & Utilities */}
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
-                                <div>
-                                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                                    Frontage Type
-                                  </label>
-                                  <Input
-                                    value={unit.frontage}
-                                    onChange={(e) => handleUpdateUnit(idx, "frontage", e.target.value)}
-                                    placeholder="Glass Display Window Frontage"
-                                    className="h-8 text-xs bg-white"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                                    Occupancy Status
-                                  </label>
-                                  <select
-                                    value={unit.status}
-                                    onChange={(e) => handleUpdateUnit(idx, "status", e.target.value as any)}
-                                    className="w-full h-8 px-2.5 rounded-md border border-slate-200 bg-white text-xs text-slate-900 font-semibold"
-                                  >
-                                    <option value="Available">Available (For Lease)</option>
-                                    <option value="Rented">Rented / Occupied</option>
-                                    <option value="Reserved">Reserved / Under Fit-out</option>
-                                  </select>
-                                </div>
-
-                                <div className="flex items-center gap-3 pt-4">
-                                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={unit.submeter}
-                                      onChange={(e) => handleUpdateUnit(idx, "submeter", e.target.checked)}
-                                      className="w-3.5 h-3.5 text-[#00450d] rounded border-slate-300"
-                                    />
-                                    <span>Electric Sub-Meter</span>
-                                  </label>
-
-                                  <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={unit.waterSupply}
-                                      onChange={(e) => handleUpdateUnit(idx, "waterSupply", e.target.checked)}
-                                      className="w-3.5 h-3.5 text-[#00450d] rounded border-slate-300"
-                                    />
-                                    <span>Water Point</span>
-                                  </label>
                                 </div>
                               </div>
                             </div>
@@ -2834,7 +2767,6 @@ export const RegisterPropertyPage: React.FC = () => {
                           <th className="py-2 px-3">Area (m²)</th>
                           <th className="py-2 px-3">Rent (ETB)</th>
                           <th className="py-2 px-3">Utilities</th>
-                          <th className="py-2 px-3">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -2851,14 +2783,6 @@ export const RegisterPropertyPage: React.FC = () => {
                               {[unit.submeter ? "Sub-meter" : null, unit.waterSupply ? "Water" : null]
                                 .filter(Boolean)
                                 .join(", ") || "None"}
-                            </td>
-                            <td className="py-2 px-3">
-                              <Badge
-                                variant={unit.status === "Available" ? "active" : "secondary"}
-                                className="text-[10px]"
-                              >
-                                {unit.status}
-                              </Badge>
                             </td>
                           </tr>
                         ))}
