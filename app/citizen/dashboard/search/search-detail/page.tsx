@@ -67,7 +67,7 @@ export default function SearchDetailPage() {
         const session = getSession();
         const propertyData = await getPropertyByCode(propertyCodeParam, session?.token);
         setProperty(propertyData);
-        setProposedRent(propertyData.monthlyRent || 0);
+        setProposedRent(propertyData?.monthlyRent || 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load property");
       } finally {
