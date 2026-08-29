@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { RentalAgreement, LeaseRequest } from "@/types";
+import React, { useState, useEffect } from "react";
+import { LeaseRequestResponse, getLandlordLeaseRequests, getSession } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,41 +20,64 @@ import {
   MapPin,
   FileText,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  Building
 } from "lucide-react";
-import { useCitizenData } from "@/hooks/useCitizenData";
+import { useRouter } from "next/navigation";
 
 export const LandlordAgreementsView: React.FC = () => {
-  const {
-    agreements,
-    leaseRequests,
-    setIsNewAgreementModalOpen,
-    setViewingAgreement,
-    handleOpenLandlordReview,
-  } = useCitizenData();
-
+  const router = useRouter();
+  const [leaseRequests, setLeaseRequests] = useState<LeaseRequestResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
 
+  useEffect(() => {
+    const fetchLeaseRequests = async () => {
+      try {
+        const session = getSession();
+        if (!session?.token) {
+          setError("No authentication token found");
+          return;
+        }
+        const data = await getLandlordLeaseRequests(session.token);
+        setLeaseRequests(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load lease requests");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLeaseRequests();
+  }, []);
+
   // Filter requests waiting for landlord review
   const pendingRequests = leaseRequests.filter(
-    (r) => r.status === "Pending Review" || (r.role === "Landlord" && r.status !== "Accepted")
+    (r) => r.status === "PENDING"
   );
 
-  const filteredAgreements = agreements.filter((item) => {
+  const handleOpenLandlordReview = (req: LeaseRequestResponse) => {
+    router.push(`/citizen/dashboard/agreements/lease-review/${req.id}`);
+  };
+
+  if (isLoading) {
     return (
-      item.agreementCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.propertyTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.counterpartyName.toLowerCase().includes(searchQuery.toLowerCase())
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      </div>
     );
-  });
+  }
 
-  const totalPages = Math.ceil(filteredAgreements.length / itemsPerPage) || 1;
-  const paginatedAgreements = filteredAgreements.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+        <p className="text-red-800 text-sm">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -104,7 +127,7 @@ export const LandlordAgreementsView: React.FC = () => {
                 pendingRequests.map((req) => (
                   <TableRow key={req.id} className="hover:bg-slate-50/80 transition-colors">
                     <TableCell className="font-mono font-medium text-xs text-slate-900">
-                      {req.requestCode}
+                      {req.id.substring(0, 8)}
                     </TableCell>
 
                     <TableCell>
@@ -113,14 +136,15 @@ export const LandlordAgreementsView: React.FC = () => {
                           {req.propertyTitle}
                         </span>
                         <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-slate-400" />
-                          {req.propertyLocation}
+                          <Building className="w-3 h-3 text-slate-400" />
+                          {req.propertyCode}
+                          {req.unitCode && ` • Unit: ${req.unitCode}`}
                         </span>
                       </div>
                     </TableCell>
 
                     <TableCell className="text-xs font-medium text-slate-900">
-                      {req.counterpartyName}
+                      {req.applicantName}
                     </TableCell>
 
                     <TableCell className="font-semibold text-xs text-slate-900">
@@ -144,143 +168,6 @@ export const LandlordAgreementsView: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Section 2: Active Agreements Table (Matching Screenshot 1) */}
-      <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
-        <CardHeader className="p-4 pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-base font-semibold text-slate-900">
-            Active Agreements
-          </CardTitle>
-          <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="Search agreements..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8.5 h-8 text-xs bg-slate-50 border-slate-200"
-            />
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50/50">
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">AGREEMENT ID</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">PROPERTY</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">COUNTERPARTY</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">START DATE</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">MONTHLY RENT</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">STATUS</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">ACTION</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedAgreements.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-xs text-slate-400">
-                    No agreements found matching your search.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedAgreements.map((agr) => (
-                  <TableRow key={agr.id} className="hover:bg-slate-50/80 transition-colors">
-                    <TableCell className="font-mono font-medium text-xs text-slate-900">
-                      {agr.agreementCode}
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="font-medium text-xs text-slate-900 block">
-                        {agr.propertyTitle}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center font-medium text-[9px]">
-                          {agr.counterpartyInitials}
-                        </div>
-                        <span className="text-xs text-slate-800">{agr.counterpartyName}</span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="text-xs text-slate-600">
-                      {agr.startDate}
-                    </TableCell>
-
-                    <TableCell className="font-semibold text-xs text-slate-900">
-                      {agr.monthlyRent.toLocaleString()} ETB
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge
-                        variant={agr.status === "Active" ? "active" : "expired"}
-                        className="text-[10px]"
-                      >
-                        {agr.status}
-                      </Badge>
-                    </TableCell>
-
-                    <TableCell className="text-right">
-                      <button
-                        onClick={() => setViewingAgreement(agr)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#00450d] hover:text-[#1b5e20] hover:underline"
-                      >
-                        <span>View Agreement</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-
-          {/* Pagination Footer (Matching Screenshot 1) */}
-          <div className="p-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>
-              Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-              {Math.min(currentPage * itemsPerPage, filteredAgreements.length)} of{" "}
-              {filteredAgreements.length} agreements
-            </span>
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="h-7 w-7 p-0"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </Button>
-              {[...Array(totalPages)].map((_, i) => (
-                <Button
-                  key={i}
-                  variant={currentPage === i + 1 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`h-7 w-7 p-0 text-xs ${
-                    currentPage === i + 1
-                      ? "bg-[#00450d] hover:bg-[#1b5e20] text-white"
-                      : "text-slate-700"
-                  }`}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="h-7 w-7 p-0"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

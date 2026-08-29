@@ -565,3 +565,141 @@ export async function validateJurisdiction(subCity: string, woreda: string): Pro
   if (!res.ok) return false;
   return json.valid === true;
 }
+
+// ── Lease Request API ─────────────────────────────────────────────────────────
+
+export interface LeaseRequestRequest {
+  propertyId: string;
+  unitId?: string;
+  proposedRent: number;
+  leaseDurationMonths: number;
+  applicantNotes?: string;
+}
+
+export interface LeaseRequestResponse {
+  id: string;
+  propertyId: string;
+  propertyCode: string;
+  propertyTitle: string;
+  propertyType: string;
+  propertyLocation: string;
+  propertyImage: string;
+  propertyImages: string[];
+  unitId?: string;
+  unitCode?: string;
+  unitNumber?: string;
+  area?: number;
+  applicantId: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone?: string;
+  applicantNationalId?: string;
+  applicantEmployment?: string;
+  landlordId: string;
+  landlordName: string;
+  landlordEmail: string;
+  proposedRent: number;
+  securityDeposit: number;
+  leaseDurationMonths: number;
+  startDate: string;
+  endDate: string;
+  applicantNotes?: string;
+  landlordRemarks?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "EXPIRED";
+  createdAt: string;
+  reviewedAt?: string;
+  expiresAt?: string;
+}
+
+export interface LeaseStatusUpdateRequest {
+  status: "APPROVED" | "REJECTED";
+  remarks?: string;
+}
+
+export async function submitLeaseRequest(
+  token: string,
+  request: LeaseRequestRequest
+): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to submit lease request.");
+  return json;
+}
+
+export async function getMyLeaseRequests(token: string): Promise<LeaseRequestResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/my`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load lease requests.");
+  return json;
+}
+
+export async function getLandlordLeaseRequests(token: string): Promise<LeaseRequestResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/landlord`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load lease requests.");
+  return json;
+}
+
+export async function getLeaseRequestById(token: string, id: string): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load lease request.");
+  return json;
+}
+
+export async function updateLeaseRequestStatus(
+  token: string,
+  id: string,
+  request: LeaseStatusUpdateRequest
+): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${id}/status`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update lease request status.");
+  return json;
+}
+
+export async function cancelLeaseRequest(token: string, id: string): Promise<void> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${id}/cancel`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to cancel lease request.");
+}
+
+export async function getPendingRequestsForProperty(
+  token: string,
+  propertyId: string
+): Promise<LeaseRequestResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/property/${propertyId}/pending`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load pending requests.");
+  return json;
+}
+
+export async function getPendingRequestsForUnit(
+  token: string,
+  unitId: string
+): Promise<LeaseRequestResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/unit/${unitId}/pending`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load pending requests.");
+  return json;
+}

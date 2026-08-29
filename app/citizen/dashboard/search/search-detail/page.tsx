@@ -32,7 +32,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PropertyResponse, getPropertyByCode, getSession } from "@/lib/api";
+import { PropertyResponse, getPropertyByCode, getSession, submitLeaseRequest } from "@/lib/api";
 
 export default function SearchDetailPage() {
   const router = useRouter();
@@ -105,16 +105,36 @@ export default function SearchDetailPage() {
     setSelectedUnit(unit);
   };
 
-  const handleConfirmLeaseApplication = () => {
-    setIsApplyModalOpen(false);
-    if (selectedUnit) {
-      showToast(`Lease application submitted for unit ${selectedUnit.unitCode}!`);
-    } else {
-      showToast(`Lease application submitted for ${property?.propertyCode}!`);
+  const handleConfirmLeaseApplication = async () => {
+    try {
+      const session = getSession();
+      if (!session?.token) {
+        showToast("Please log in to submit a lease application");
+        return;
+      }
+
+      if (!property) {
+        showToast("Property information not available");
+        return;
+      }
+
+      const leaseRequest = {
+        propertyId: property.id,
+        unitId: selectedUnit?.id,
+        proposedRent: selectedUnit?.rentAmount || proposedRent,
+        leaseDurationMonths: leaseDurationMonths,
+        applicantNotes: applicantNotes,
+      };
+
+      await submitLeaseRequest(session.token, leaseRequest);
+      setIsApplyModalOpen(false);
+      showToast("Lease application submitted successfully!");
+      setTimeout(() => {
+        router.push("/citizen/dashboard/leases");
+      }, 1500);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to submit lease application");
     }
-    setTimeout(() => {
-      router.push("/citizen/dashboard/lease-requests");
-    }, 2000);
   };
 
   const galleryList = property?.images?.map((img) => ({
@@ -701,11 +721,21 @@ export default function SearchDetailPage() {
               <Button
                 size="sm"
                 onClick={() => handleApplyLease(property)}
-                className="w-full flex-1 bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs font-medium h-9 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                disabled={property?.units && property.units.length > 1 && !selectedUnit}
+                className={`w-full flex-1 text-xs font-medium h-9 rounded-lg flex items-center justify-center gap-1.5 shadow-2xs ${
+                  property?.units && property.units.length > 1 && !selectedUnit
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    : "bg-[#00450d] hover:bg-[#1b5e20] text-white cursor-pointer"
+                }`}
               >
                 <span>{selectedUnit ? `Apply for Unit ${selectedUnit.unitCode}` : "Apply Lease"}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
+              {property?.units && property.units.length > 1 && !selectedUnit && (
+                <p className="text-center text-[10px] text-amber-700 font-medium">
+                  Please select a unit above to apply for lease
+                </p>
+              )}
               {selectedUnit && (
                 <Button
                   size="sm"

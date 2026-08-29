@@ -394,15 +394,6 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                       <span>View Details</span>
                       <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                     </Button>
-
-                    <Button
-                      size="sm"
-                      onClick={() => handleApplyLease(property)}
-                      className="flex-1 bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs font-medium h-9 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
-                    >
-                      <span>Apply Lease</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
                   </div>
                 </CardContent>
               </Card>

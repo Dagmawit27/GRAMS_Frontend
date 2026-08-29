@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { LeaseRequest } from "@/types";
+import React, { useState, useEffect } from "react";
+import { LeaseRequestResponse, getMyLeaseRequests, cancelLeaseRequest, getSession } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,33 +15,83 @@ import {
   Search,
   Plus
 } from "lucide-react";
-import { useCitizenData } from "@/hooks/useCitizenData";
+import { useRouter } from "next/navigation";
 
 export const TenantLeaseRequestsView: React.FC = () => {
-  const {
-    leaseRequests,
-    handleOpenTenantSigning,
-    handleWithdrawLeaseRequest,
-    handleNavigate
-  } = useCitizenData();
-
+  const router = useRouter();
+  const [leaseRequests, setLeaseRequests] = useState<LeaseRequestResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "action" | "pending" | "declined">("all");
 
-  // Get tenant-specific requests (or all requests matching tenant viewpoint)
-  const tenantRequests = leaseRequests.filter(
-    (r) => r.role === "Tenant App" || r.id.startsWith("req-tenant-") || r.status === "Ready to Sign" || r.status === "Awaiting Approval"
-  );
+  useEffect(() => {
+    const fetchLeaseRequests = async () => {
+      try {
+        const session = getSession();
+        if (!session?.token) {
+          setError("No authentication token found");
+          return;
+        }
+        const data = await getMyLeaseRequests(session.token);
+        setLeaseRequests(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load lease requests");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const actionRequiredCount = tenantRequests.filter((r) => r.status === "Ready to Sign").length;
-  const pendingCount = tenantRequests.filter((r) => r.status === "Awaiting Approval" || r.status === "Pending Review").length;
-  const declinedCount = tenantRequests.filter((r) => r.status === "Declined").length;
+    fetchLeaseRequests();
+  }, []);
+
+  const handleWithdrawLeaseRequest = async (id: string) => {
+    try {
+      const session = getSession();
+      if (!session?.token) return;
+      await cancelLeaseRequest(session.token, id);
+      setLeaseRequests(leaseRequests.filter((r) => r.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to withdraw request");
+    }
+  };
+
+  const handleNavigate = (path: string) => {
+    router.push(`/citizen/dashboard/${path}`);
+  };
+
+  const handleOpenTenantSigning = (req: LeaseRequestResponse) => {
+    router.push(`/citizen/dashboard/agreements/lease-signing/${req.id}`);
+  };
+
+  // Get tenant-specific requests
+  const tenantRequests = leaseRequests;
+
+  const actionRequiredCount = tenantRequests.filter((r) => r.status === "APPROVED").length;
+  const pendingCount = tenantRequests.filter((r) => r.status === "PENDING").length;
+  const declinedCount = tenantRequests.filter((r) => r.status === "REJECTED").length;
 
   const filteredRequests = tenantRequests.filter((r) => {
-    if (activeFilter === "action") return r.status === "Ready to Sign";
-    if (activeFilter === "pending") return r.status === "Awaiting Approval" || r.status === "Pending Review";
-    if (activeFilter === "declined") return r.status === "Declined";
+    if (activeFilter === "action") return r.status === "APPROVED";
+    if (activeFilter === "pending") return r.status === "PENDING";
+    if (activeFilter === "declined") return r.status === "REJECTED";
     return true;
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+        <p className="text-red-800 text-sm">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -135,9 +185,9 @@ export const TenantLeaseRequestsView: React.FC = () => {
           </div>
         ) : (
           filteredRequests.map((req) => {
-            const isReadyToSign = req.status === "Ready to Sign";
-            const isAwaiting = req.status === "Awaiting Approval" || req.status === "Pending Review";
-            const isDeclined = req.status === "Declined";
+            const isReadyToSign = req.status === "APPROVED";
+            const isAwaiting = req.status === "PENDING";
+            const isDeclined = req.status === "REJECTED";
 
             return (
               <Card
@@ -165,13 +215,13 @@ export const TenantLeaseRequestsView: React.FC = () => {
                       )}
 
                       <span className="text-[11px] text-slate-400 font-mono">
-                        {req.requestCode}
+                        {req.propertyCode}
                       </span>
                     </div>
 
                     <span className="text-xs text-slate-500 flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      Applied: {req.dateSubmitted}
+                      Applied: {new Date(req.createdAt).toLocaleDateString()}
                     </span>
                   </div>
 
@@ -182,11 +232,12 @@ export const TenantLeaseRequestsView: React.FC = () => {
                         {req.propertyTitle}
                       </h3>
                       <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        {req.propertyLocation}
+                        <Building className="w-3.5 h-3.5 text-slate-400" />
+                        {req.propertyCode}
+                        {req.unitCode && ` • Unit: ${req.unitCode}`}
                       </p>
                       <p className="text-xs text-slate-500 mt-2">
-                        <strong>Landlord:</strong> ({req.landlordInitials || "AG"}) {req.landlordName || req.counterpartyName} &nbsp;•&nbsp; <strong>Lease Term:</strong> {req.leaseDuration || "12 Months"}
+                        <strong>Landlord:</strong> {req.landlordName} &nbsp;•&nbsp; <strong>Lease Term:</strong> {req.leaseDurationMonths} Months
                       </p>
                     </div>
 
@@ -203,12 +254,12 @@ export const TenantLeaseRequestsView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Status Notes Boxes (Matching Screenshot 3) */}
+                  {/* Status Notes Boxes */}
                   {isReadyToSign && (
                     <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-xl p-3 text-xs text-emerald-900 flex items-start gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
-                        {req.statusNote || "Your request has been approved. Please review and digitally sign the agreement to secure the property."}
+                        Your request has been approved. Please review and digitally sign the agreement to secure the property.
                       </p>
                     </div>
                   )}
@@ -217,7 +268,7 @@ export const TenantLeaseRequestsView: React.FC = () => {
                     <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
                       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
-                        {req.statusNote || "The landlord has 48 hours remaining to review your application. You will be notified once a decision is made."}
+                        The landlord is reviewing your application. You will be notified once a decision is made.
                       </p>
                     </div>
                   )}
@@ -229,12 +280,12 @@ export const TenantLeaseRequestsView: React.FC = () => {
                         <span>NOTE FROM LANDLORD</span>
                       </div>
                       <p className="leading-relaxed text-slate-700 italic">
-                        &quot;{req.declineReason || "Thank you for your interest. Unfortunately, we have decided to proceed with another applicant who requested a longer lease term and provided immediate advance payment."}&quot;
+                        &quot;{req.landlordRemarks || "Thank you for your interest. Unfortunately, we have decided to proceed with another applicant."}&quot;
                       </p>
                     </div>
                   )}
 
-                  {/* Bottom Action Buttons (Matching Screenshot 3) */}
+                  {/* Bottom Action Buttons */}
                   <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
                     {isReadyToSign && (
                       <Button

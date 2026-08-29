@@ -174,39 +174,43 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const session = getSession();
     // Government employees (officers, supervisors) have no properties to load
+    // Only load properties for users with landlord role
     if (session && session.user.userType !== "GOVERNMENT_EMPLOYEE") {
-      void getMyProperties(session.token).then(data => {
-        const mapped: Property[] = data.map(pr => ({
-          id: pr.id,
-          title: pr.propertyCode || pr.propertyType + " Property",
-          type: pr.propertyType as any,
-          price: pr.monthlyRent,
-          location: pr.address?.city || "",
-          subCity: pr.address?.subCity || "",
-          woreda: pr.address?.woreda || "",
-          houseNo: pr.houseNumber || "",
-          bedrooms: pr.bedroomCount || 0,
-          bathrooms: pr.bathroomCount || 0,
-          area: pr.areaSqMeter || 0,
-          floor: pr.floorNumber || "",
-          status: pr.status === 'LISTED' ? 'Available' : 'Under Maintenance',
-          verified: pr.status === 'VERIFIED' || pr.status === 'LISTED',
-          featuredImage: pr.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80",
-          galleryImages: pr.images?.map(i => i.imageUrl) || [],
-          description: pr.description || "",
-          amenities: [],
-          securityDepositMonths: 2,
-          minLeasePeriod: "1 Year",
-          utilitiesIncluded: false,
-          availableFrom: pr.createdAt || new Date().toISOString(),
-          landlordName: session.user.firstName + " " + session.user.lastName,
-        }));
-        
-        setProperties(prev => {
-          const newIds = new Set(mapped.map(p => p.id));
-          return [...mapped, ...prev.filter(p => !newIds.has(p.id))];
-        });
-      }).catch(err => console.error("Failed to load properties:", err));
+      const userRole = session.user.roles?.[0]?.toLowerCase();
+      if (userRole === "landlord" || userRole === "both") {
+        void getMyProperties(session.token).then(data => {
+          const mapped: Property[] = data.map(pr => ({
+            id: pr.id,
+            title: pr.propertyCode || pr.propertyType + " Property",
+            type: pr.propertyType as any,
+            price: pr.monthlyRent,
+            location: pr.address?.city || "",
+            subCity: pr.address?.subCity || "",
+            woreda: pr.address?.woreda || "",
+            houseNo: pr.houseNumber || "",
+            bedrooms: pr.bedroomCount || 0,
+            bathrooms: pr.bathroomCount || 0,
+            area: pr.areaSqMeter || 0,
+            floor: pr.floorNumber || "",
+            status: pr.status === 'LISTED' ? 'Available' : 'Under Maintenance',
+            verified: pr.status === 'VERIFIED' || pr.status === 'LISTED',
+            featuredImage: pr.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80",
+            galleryImages: pr.images?.map(i => i.imageUrl) || [],
+            description: pr.description || "",
+            amenities: [],
+            securityDepositMonths: 2,
+            minLeasePeriod: "1 Year",
+            utilitiesIncluded: false,
+            availableFrom: pr.createdAt || new Date().toISOString(),
+            landlordName: session.user.firstName + " " + session.user.lastName,
+          }));
+          
+          setProperties(prev => {
+            const newIds = new Set(mapped.map(p => p.id));
+            return [...mapped, ...prev.filter(p => !newIds.has(p.id))];
+          });
+        }).catch(err => console.error("Failed to load properties:", err));
+      }
     }
   }, []);
 

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LeaseRequest } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface LandlordReviewDetailsViewProps {
 }
 
 export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps> = ({ request }) => {
+  const router = useRouter();
   const {
     setActiveAgreementView,
     setSelectedLeaseRequest,
@@ -38,8 +40,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
   const [declineReason, setDeclineReason] = useState("");
 
   const handleBack = () => {
-    setActiveAgreementView('list');
-    setSelectedLeaseRequest(null);
+    router.push('/citizen/dashboard/agreements');
   };
 
   const handleConfirmDecline = () => {
