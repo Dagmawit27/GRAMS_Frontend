@@ -1,36 +1,36 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Search, Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home } from "lucide-react";
+import { Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home, LogOut } from "lucide-react";
 import { ActivityNotification, NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/api";
 
 interface TopAppBarProps {
   onOpenMobileMenu: () => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  title?: string;
+  subtitle?: string;
   notifications: ActivityNotification[];
   onNotificationClick: (notif: ActivityNotification) => void;
   onClearNotifications: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   onProfileClick: () => void;
-  onNavigate: (page: NavPage) => void;
+  onLogoutClick?: () => void;
   userRole?: UserRole;
   onToggleRole?: (role: UserRole) => void;
 }
 
 export const TopAppBar: React.FC<TopAppBarProps> = ({
   onOpenMobileMenu,
-  searchQuery,
-  onSearchChange,
+  title,
+  subtitle,
   notifications,
   onNotificationClick,
   onClearNotifications,
   isDarkMode,
   onToggleDarkMode,
   onProfileClick,
-  onNavigate,
+  onLogoutClick,
   userRole = "citizen",
   onToggleRole,
 }) => {
@@ -55,8 +55,8 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 
   return (
     <header className="bg-white sticky top-0 z-30 shadow-2xs border-b border-slate-200/90 h-16 px-4 md:px-8 flex items-center justify-between transition-colors">
-      {/* Left: Mobile menu button + Search Input */}
-      <div className="flex items-center gap-3 flex-1 max-w-xl">
+      {/* Left: Mobile menu button + Title */}
+      <div className="flex items-center gap-3 flex-1">
         <button
           onClick={onOpenMobileMenu}
           className="md:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
@@ -65,24 +65,15 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="relative w-full max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search records, properties, agreements, invoices..."
-            className="w-full pl-9 pr-7 py-1.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-2xs"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 bg-slate-200 rounded-full w-4 h-4 flex items-center justify-center"
-            >
-              ×
-            </button>
-          )}
-        </div>
+        {title && (
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-[#00450d]" />
+            <div>
+              <h1 className="text-sm font-bold text-slate-900">{title}</h1>
+              {subtitle && <p className="text-[10px] text-slate-400">{subtitle}</p>}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Controls */}
@@ -90,7 +81,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         {/* Read-only Role Indicator */}
         <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-[#00450d] border border-emerald-200/80 rounded-lg text-xs font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-          <span>{userRole === "landlord" ? "Landlord Account" : userRole === "tenant" ? "Tenant Account" : "Citizen Account"}</span>
+          <span>{userRole === "landlord" ? "Landlord Account" : userRole === "tenant" ? "Tenant Account" : "Both Account"}</span>
         </div>
 
         {/* Notifications Dropdown */}
@@ -145,7 +136,6 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
                         onClick={() => {
                           onNotificationClick(notif);
                           setIsNotifOpen(false);
-                          if (notif.linkPage) onNavigate(notif.linkPage);
                         }}
                         className={cn(
                           "p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3",
@@ -232,6 +222,17 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-600 border-2 border-white rounded-full" />
           </div>
         </div>
+
+        {onLogoutClick && (
+          <button
+            onClick={onLogoutClick}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-red-600 transition-colors"
+            title="Logout"
+            aria-label="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </header>
   );

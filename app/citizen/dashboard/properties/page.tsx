@@ -97,7 +97,7 @@ function getStatusMeta(status: PropertyResponse["status"]): StatusMetaInfo {
   switch (status) {
     case "LISTED":
       return {
-        label: "Listed (Market)",
+        label: "Listed",
         badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200/90",
         dotClass: "bg-emerald-500",
         icon: <Sparkles className="w-3 h-3 text-emerald-600" />,
@@ -113,7 +113,7 @@ function getStatusMeta(status: PropertyResponse["status"]): StatusMetaInfo {
       };
     case "RENTED":
       return {
-        label: "Rented / Occupied",
+        label: "Rented",
         badgeClass: "bg-indigo-50 text-indigo-800 border-indigo-200/90",
         dotClass: "bg-indigo-500",
         icon: <KeyRound className="w-3 h-3 text-indigo-600" />,
@@ -731,9 +731,7 @@ export const PropertiesPage: React.FC = () => {
                   <div className="absolute top-3 right-3">
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold backdrop-blur-md shadow-xs border ${
-                        p.status === "LISTED"
-                          ? "bg-emerald-950/80 text-emerald-200 border-emerald-500/40"
-                          : p.status === "VERIFIED"
+                        p.status === "VERIFIED"
                           ? "bg-blue-950/80 text-blue-200 border-blue-500/40"
                           : p.status === "RENTED"
                           ? "bg-indigo-950/80 text-indigo-200 border-indigo-500/40"

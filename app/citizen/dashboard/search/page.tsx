@@ -30,8 +30,7 @@ import {
   User,
   Calendar
 } from "lucide-react";
-import { useCitizenData } from "@/hooks/useCitizenData";
-import { PropertyResponse, getListedProperties, getSession } from "@/lib/api";
+import { PropertyResponse, getPropertyByCode, getSession } from "@/lib/api";
 
 interface SearchHousePageProps {
   properties?: Property[];
@@ -41,197 +40,108 @@ interface SearchHousePageProps {
 
 export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
   const router = useRouter();
-  const context = useCitizenData();
 
   // Search state - ONLY search by propertyCode, initially empty with NO default properties displayed
   const [propertyCodeInput, setPropertyCodeInput] = useState<string>("");
   const [submittedCode, setSubmittedCode] = useState<string>("");
   const [hasSearched, setHasSearched] = useState<boolean>(false);
-  const [listedProperties, setListedProperties] = useState<PropertyResponse[]>([]);
+  const [searchedProperty, setSearchedProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
-  // Fetch listed properties from backend on mount
-  useEffect(() => {
-    const fetchListedProperties = async () => {
-      setIsLoading(true);
-      try {
-        const properties = await getListedProperties();
-        setListedProperties(properties);
-      } catch (error) {
-        console.error("Failed to fetch listed properties:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchListedProperties();
-  }, []);
-
-  // Merge all available properties across sources
-  const allKnownProperties = useMemo(() => {
-    const combined: Property[] = [];
-    const seenCodes = new Set<string>();
-
-    const addProp = (p: Property) => {
-      const code = (p.propertyCode || p.id).toUpperCase();
-      if (!seenCodes.has(code)) {
-        seenCodes.add(code);
-        combined.push({
-          ...p,
-          propertyCode: p.propertyCode || p.id
-        });
-      }
-    };
-
-    // 1. Backend listed properties (only LISTED status)
-    listedProperties.forEach((rp) => {
-      if (rp.status === "LISTED") {
-        addProp({
-          id: rp.id,
-          propertyCode: rp.propertyCode,
-          title: rp.title || `${rp.propertyType} in ${rp.address?.subCity || "Addis Ababa"}`,
-          type: (rp.propertyType as 'Apartment' | 'Villa' | 'Condominium' | 'Commercial') || 'Apartment',
-          price: rp.monthlyRent || 0,
-          location: `${rp.address?.subCity || ""}, Woreda ${rp.address?.woreda || ""}, Addis Ababa`,
-          subCity: rp.address?.subCity || "Bole Sub City",
-          woreda: rp.address?.woreda || "Woreda 01",
-          houseNo: rp.houseNumber || rp.address?.houseNumber,
-          bedrooms: rp.bedroomCount,
-          bathrooms: rp.bathroomCount,
-          area: rp.areaSqMeter || 100,
-          floor: rp.floorNumber,
-          status: "Available",
-          verified: true,
-          featuredImage: rp.images?.[0]?.imageUrl,
-          galleryImages: rp.images?.map((i) => i.imageUrl) || [],
-          description: rp.description || "",
-          amenities: ["Verified Ownership Deed", "Municipal Registration", "Water & Power Access"],
-          securityDepositMonths: rp.securityDepositMonths || 2,
-          minLeasePeriod: rp.minLeasePeriod || "1 Year",
-          utilitiesIncluded: false,
-          availableFrom: rp.availableFrom || "Immediate",
-          landlordName: rp.landlordName || "N/A",
-          unitsCount: rp.units?.length,
-          units: rp.units || undefined
-        });
-      }
-    });
-
-    // 2. LocalStorage registered properties
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("registered_properties");
-        if (stored) {
-          const parsed: PropertyResponse[] = JSON.parse(stored);
-          parsed.forEach((rp) => {
-            if (rp.status === "LISTED") {
-              addProp({
-                id: rp.id,
-                propertyCode: rp.propertyCode,
-                title: rp.title || `${rp.propertyType} in ${rp.address?.subCity || "Addis Ababa"}`,
-                type: (rp.propertyType as any) || "Apartment",
-                price: rp.monthlyRent || 0,
-                location: `${rp.address?.subCity || ""}, Woreda ${rp.address?.woreda || ""}, Addis Ababa`,
-                subCity: rp.address?.subCity || "Bole Sub City",
-                woreda: rp.address?.woreda || "Woreda 01",
-                houseNo: rp.houseNumber || rp.address?.houseNumber,
-                bedrooms: rp.bedroomCount,
-                bathrooms: rp.bathroomCount,
-                area: rp.areaSqMeter || 100,
-                floor: rp.floorNumber,
-                status: "Available",
-                verified: true,
-                featuredImage: rp.images?.[0]?.imageUrl || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80",
-                galleryImages: rp.images?.map((i) => i.imageUrl) || [],
-                description: rp.description || "Government registered municipal property.",
-                amenities: ["Verified Ownership Deed", "Municipal Registration", "Water & Power Access"],
-                securityDepositMonths: 2,
-                minLeasePeriod: "1 Year",
-                utilitiesIncluded: false,
-                availableFrom: "Immediate",
-                landlordName: rp.landlordName || "Registered Landlord",
-                unitsCount: rp.units?.length,
-                units: rp.units || undefined
-              });
-            }
-          });
-        }
-      } catch {
-        // ignore JSON parse error
-      }
-    }
-
-    return combined;
-  }, [listedProperties]);
+  // Convert PropertyResponse to Property
+  const convertToProperty = (rp: PropertyResponse): Property => ({
+    id: rp.id,
+    propertyCode: rp.propertyCode,
+    title: rp.title || `${rp.propertyType} in ${rp.address?.subCity || "Addis Ababa"}`,
+    type: (rp.propertyType as 'Apartment' | 'Villa' | 'Condominium' | 'Commercial') || 'Apartment',
+    price: rp.monthlyRent || 0,
+    location: `${rp.address?.subCity || ""}, Woreda ${rp.address?.woreda || ""}, Addis Ababa`,
+    subCity: rp.address?.subCity || "Bole Sub City",
+    woreda: rp.address?.woreda || "Woreda 01",
+    houseNo: rp.houseNumber || rp.address?.houseNumber,
+    bedrooms: rp.bedroomCount,
+    bathrooms: rp.bathroomCount,
+    area: rp.areaSqMeter || 100,
+    floor: rp.floorNumber,
+    status: "Available",
+    verified: true,
+    featuredImage: rp.images?.[0]?.imageUrl || "",
+    galleryImages: rp.images?.map((i) => i.imageUrl) || [],
+    description: rp.description || "",
+    amenities: ["Verified Ownership Deed", "Municipal Registration", "Water & Power Access"],
+    securityDepositMonths: rp.securityDepositMonths || 2,
+    minLeasePeriod: rp.minLeasePeriod || "1 Year",
+    utilitiesIncluded: false,
+    availableFrom: rp.availableFrom || "Immediate",
+    landlordName: rp.landlordName || "N/A",
+    unitsCount: rp.units?.length,
+    //units: rp.units
+  });
 
   // Handle Input Change with automatic Capitalization
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Automatically capitalize input and remove excessive spaces
     const upperValue = e.target.value.toUpperCase();
     setPropertyCodeInput(upperValue);
     
-    // If user clears the input completely, reset search state so NO default properties show
     if (!upperValue.trim()) {
       setSubmittedCode("");
       setHasSearched(false);
+      setSearchedProperty(null);
+      setError("");
     }
   };
 
-  // Perform search by Property Code (case-insensitive & whitespace tolerant)
-  const handleSearch = (codeToSearch?: string) => {
+  // Perform search by Property Code using API
+  const handleSearch = async (codeToSearch?: string) => {
     const rawQuery = (codeToSearch !== undefined ? codeToSearch : propertyCodeInput).trim();
     if (!rawQuery) {
       setSubmittedCode("");
       setHasSearched(false);
+      setSearchedProperty(null);
+      setError("");
       return;
     }
 
-    // Capitalize query automatically
     const cleanUpperQuery = rawQuery.toUpperCase();
     setPropertyCodeInput(cleanUpperQuery);
     setSubmittedCode(cleanUpperQuery);
     setHasSearched(true);
-  };
+    setIsLoading(true);
+    setError("");
 
-  // Filter properties ONLY by Property Code (matching against propertyCode and ID)
-  const matchedProperties = useMemo(() => {
-    if (!hasSearched || !submittedCode.trim()) {
-      return [];
-    }
-
-    const query = submittedCode.trim().toUpperCase().replace(/\s+/g, "");
-
-    return allKnownProperties.filter((item) => {
-      const code = (item.propertyCode || "").toUpperCase().replace(/\s+/g, "");
-      const id = (item.id || "").toUpperCase().replace(/\s+/g, "");
+    try {
+      const session = getSession();
+      const property = await getPropertyByCode(cleanUpperQuery, session?.token);
       
-      // Match exact or partial propertyCode, or id
-      return (
-        code.includes(query) ||
-        id.includes(query) ||
-        query.includes(code)
-      );
-    });
-  }, [allKnownProperties, hasSearched, submittedCode]);
+      if (property) {
+        setSearchedProperty(convertToProperty(property));
+      } else {
+        setSearchedProperty(null);
+        setError("Property not found");
+      }
+    } catch (err) {
+      setSearchedProperty(null);
+      setError(err instanceof Error ? err.message : "Failed to search property");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle Navigation to Property Detail
   const handleViewPropertyDetails = (property: Property) => {
     if (props.onSelectProperty) {
       props.onSelectProperty(property);
-    } else if (context?.handleSelectProperty) {
-      context.handleSelectProperty(property);
     }
     
-    // Also navigate via router to ensure full details page opens
+    // Navigate via router to search-detail page
     const targetCode = property.propertyCode || property.id;
-    router.push(`/citizen/dashboard/properties/property-detail?id=${encodeURIComponent(targetCode)}`);
+    router.push(`/citizen/dashboard/search/search-detail?code=${encodeURIComponent(targetCode)}`);
   };
 
   const handleApplyLease = (property: Property) => {
     if (props.onOpenApplyLease) {
       props.onOpenApplyLease(property);
-    } else if (context?.setApplyingLeaseProperty) {
-      context.setApplyingLeaseProperty(property);
     }
   };
 
@@ -239,6 +149,8 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
     setPropertyCodeInput("");
     setSubmittedCode("");
     setHasSearched(false);
+    setSearchedProperty(null);
+    setError("");
   };
 
   return (
@@ -276,10 +188,10 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                 <Input
                   id="property-code-search-input"
                   type="text"
-                  placeholder="Enter Property Code (e.g. PRP-2023-0891)"
+                  placeholder="Property Code"
                   value={propertyCodeInput}
                   onChange={handleInputChange}
-                  className="pl-10 pr-10 h-12 text-[100px] font-mono uppercase bg-slate-50/70 border-slate-300 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 rounded-xl transition-all tracking-wider"
+                  className="pl-10 pr-10 h-12 text-sm font-mono uppercase bg-slate-50/70 border-slate-300 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 rounded-xl transition-all tracking-wider"
                   autoFocus
                 />
 
@@ -321,9 +233,6 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
               <h3 className="text-base font-semibold text-slate-900">
                 Ready to Search the Municipal Registry
               </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Type or paste a registered <span className="font-mono font-medium text-slate-700">PRP-XXXX-XXXX</span> property code into the search bar above to view certified details, ownership status, and lease application options.
-              </p>
             </div>
 
             <div className="pt-3 border-t border-slate-100 text-left bg-slate-50/80 p-4 rounded-xl space-y-2">
@@ -338,14 +247,14 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
             </div>
           </div>
         </div>
-      ) : matchedProperties.length > 0 ? (
+      ) : searchedProperty ? (
         /* Search Results Found */
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-white px-5 py-3.5 rounded-xl border border-slate-200 shadow-2xs">
             <div className="flex items-center gap-2.5">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs sm:text-sm font-semibold text-slate-900">
-                Found {matchedProperties.length} matching registry {matchedProperties.length === 1 ? "record" : "records"} for{" "}
+                Property found for{" "}
                 <span className="font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/70">
                   {submittedCode}
                 </span>
@@ -364,7 +273,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
 
           {/* Render Matched Property Details Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {matchedProperties.map((property) => (
+            {[searchedProperty].map((property) => (
               <Card
                 key={property.id}
                 className="overflow-hidden border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col bg-white rounded-2xl group"
@@ -500,6 +409,62 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
             ))}
           </div>
         </div>
+      ) : isLoading ? (
+        /* Loading State */
+        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 space-y-4 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto">
+            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <div className="space-y-1 max-w-md mx-auto">
+            <h3 className="text-base font-semibold text-slate-900">
+              Searching Registry
+            </h3>
+            <p className="text-xs text-slate-500">
+              Looking up property code{" "}
+              <span className="font-mono font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
+                {submittedCode}
+              </span>
+            </p>
+          </div>
+        </div>
+      ) : error ? (
+        /* Error State */
+        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 space-y-4 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto text-rose-700">
+            <Building className="w-7 h-7" />
+          </div>
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h3 className="text-base font-semibold text-slate-900">
+              Property Not Found
+            </h3>
+            <p className="text-xs text-slate-500">
+              {error}
+            </p>
+            <div className="pt-2 text-left bg-slate-50/80 p-4 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                <Info className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Troubleshooting Tips</span>
+              </div>
+              <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                <li>Verify the property code is entered correctly</li>
+                <li>Check that the property is listed in the registry</li>
+                <li>Contact support if you believe this is an error</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClear}
+              className="text-xs h-8"
+            >
+              Clear Search
+            </Button>
+          </div>
+        </div>
       ) : (
         /* No Match Found State */
         <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 space-y-4 shadow-xs">
@@ -516,7 +481,6 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
               <span className="font-mono font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
                 {submittedCode}
               </span>
-              . Please verify the code on your Title Deed or municipal certificate and try again.
             </p>
           </div>
 

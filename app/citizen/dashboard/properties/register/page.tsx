@@ -789,7 +789,6 @@ export const RegisterPropertyPage: React.FC = () => {
             tenantName: undefined,
             floorLevel: unit.floorLevel,
             category: unit.category,
-            shopNumber: unit.shopNumber,
             submeter: unit.submeter,
             waterSupply: unit.waterSupply,
             frontage: undefined,
@@ -1065,7 +1064,7 @@ export const RegisterPropertyPage: React.FC = () => {
               <div className="space-y-3 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
                 <div className="flex items-center gap-2 mb-1">
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-xs font-semibold text-slate-500">Owner details from your account (read-only)</span>
+                  <span className="text-xs font-semibold text-slate-500">Owner details</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -1109,9 +1108,6 @@ export const RegisterPropertyPage: React.FC = () => {
                     className="h-10 text-xs font-medium"
                     required
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Give your listing a descriptive title for municipal cataloging and tenant discovery.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1376,11 +1372,8 @@ export const RegisterPropertyPage: React.FC = () => {
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Residential Specifications (Compound House / Villa)
+                      Residential Specifications
                     </h3>
-                    <span className="text-[11px] text-slate-500">
-                      Detached Compound Form
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
@@ -1461,7 +1454,7 @@ export const RegisterPropertyPage: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-slate-200/60">
                     <div>
                       <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                        Compound / Plot Area (m²)
+                       Plot Area (m²)
                       </label>
                       <Input
                         type="number"
@@ -1491,11 +1484,8 @@ export const RegisterPropertyPage: React.FC = () => {
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Apartment Specifications (Fixed Room Typology)
+                      Apartment Specifications
                     </h3>
-                    <Badge variant="default" className="text-[10px]">
-                      Residential Flat
-                    </Badge>
                   </div>
 
                   {/* Room Typology Selector */}
@@ -1609,11 +1599,8 @@ export const RegisterPropertyPage: React.FC = () => {
                 <div className="border border-slate-200/90 rounded-xl p-4 sm:p-5 bg-slate-50/40 space-y-4 animate-in fade-in duration-150">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Condominium Specifications (Scheme & Unit Typology)
+                      Condominium Specifications
                     </h3>
-                    <Badge variant="verified" className="text-[10px]">
-                      Municipal Housing Scheme
-                    </Badge>
                   </div>
 
                   {/* Condominium Scheme Selector */}
@@ -1635,7 +1622,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                        Condominium Site / Project Name
+                        Condominium Site
                       </label>
                       <Input
                         value={condoSiteName}
@@ -1653,10 +1640,10 @@ export const RegisterPropertyPage: React.FC = () => {
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       {[
-                        { id: "studio", label: "Studio (ስቱዲዮ)" },
-                        { id: "1-bed", label: "1 Bedroom (ባለ 1 መኝታ)" },
-                        { id: "2-bed", label: "2 Bedrooms (ባለ 2 መኝታ)" },
-                        { id: "3-bed", label: "3 Bedrooms (ባለ 3 መኝታ)" },
+                        { id: "studio", label: "Studio" },
+                        { id: "1-bed", label: "1 Bedroom" },
+                        { id: "2-bed", label: "2 Bedrooms" },
+                        { id: "3-bed", label: "3 Bedrooms" },
                       ].map((t) => (
                         <button
                           key={t.id}
@@ -1735,9 +1722,6 @@ export const RegisterPropertyPage: React.FC = () => {
                       <h3 className="text-sm font-semibold text-slate-900">
                         Commercial & Shopping Specifications
                       </h3>
-                      <p className="text-[11px] text-slate-500">
-                        Commercial property profile (Excludes residential room specifications).
-                      </p>
                     </div>
                     <Badge variant="default" className="text-[10px]">
                       Commercial Space
@@ -1763,7 +1747,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           <Building2 className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-slate-900">Entire Shopping Mall / Complex</div>
+                          <div className="text-xs font-bold text-slate-900">Entire Shopping Mall</div>
                           <div className="text-[10px] text-slate-500 mt-0.5">Multi-unit retail plaza with commercial amenities</div>
                         </div>
                       </button>
@@ -1781,7 +1765,7 @@ export const RegisterPropertyPage: React.FC = () => {
                           <Store className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-slate-900">Single Retail Shop / Store</div>
+                          <div className="text-xs font-bold text-slate-900">Single Retail Shop</div>
                           <div className="text-[10px] text-slate-500 mt-0.5">Individual boutique, grocery, kiosk or showroom</div>
                         </div>
                       </button>
@@ -1794,7 +1778,7 @@ export const RegisterPropertyPage: React.FC = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                         <div>
                           <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                            Shop / Store Unit Number
+                            Shop Unit Number
                           </label>
                           <Input
                             value={shopNumber}
@@ -1971,12 +1955,9 @@ export const RegisterPropertyPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <Store className="w-4 h-4 text-[#00450d]" />
                               <h4 className="text-sm font-bold text-slate-900">
-                                Shopping House Units Inventory ({mallUnits.length} Units)
+                                Shopping House Units Inventory - {mallUnits.length} Units
                               </h4>
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              Register each individual retail shop house. Use the <strong>Duplicate</strong> button to quickly clone unit configurations.
-                            </p>
                           </div>
 
                           <Button

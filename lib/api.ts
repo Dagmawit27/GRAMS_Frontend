@@ -479,6 +479,18 @@ export async function getPropertyById(
   return json;
 }
 
+export async function getPropertyByCode(
+  propertyCode: string,
+  token?: string
+): Promise<PropertyResponse | null> {
+  const res = await apiFetch(`${BASE_URL}/properties/code/${propertyCode}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load property.");
+  return json;
+}
+
 /**
  * Officer/Supervisor version — hits the officer-scoped endpoint so LANDLORD
  * role restriction on GET /properties/my never gets triggered.
