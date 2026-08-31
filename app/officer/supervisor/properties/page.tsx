@@ -62,6 +62,49 @@ export default function SupervisorPropertiesQueuePage() {
     load(j);
   }, [load]);
 
+  // SSE connection for real-time property verification notifications
+  useEffect(() => {
+    const j = getOfficerJurisdiction();
+    if (!j || !j.woreda) return;
+
+    const supervisorUserId = `woreda-supervisor-${j.woreda}`;
+    console.log("Connecting to SSE with userId:", supervisorUserId);
+    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${supervisorUserId}`);
+
+    eventSource.addEventListener('connected', (event) => {
+      console.log("SSE connected:", event.data);
+    });
+
+    eventSource.addEventListener('notification', (event) => {
+      console.log("Received SSE notification:", event.data);
+      const notification = JSON.parse(event.data);
+      
+      // If notification is about property verification, reload properties
+      if (notification.type === 'PROPERTY_VERIFIED') {
+        console.log("Property verified, reloading...");
+        setTimeout(() => {
+          if (j) load(j);
+          showToast("New verified property received!");
+        }, 500);
+      }
+    });
+
+    eventSource.addEventListener('unreadCount', (event) => {
+      console.log("Received unread count update:", event.data);
+    });
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      console.error("EventSource readyState:", eventSource.readyState);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log("Closing SSE connection");
+      eventSource.close();
+    };
+  }, [load]);
+
   const filtered = useMemo(() =>
     properties.filter((p) => {
       const q = searchQuery.toLowerCase();

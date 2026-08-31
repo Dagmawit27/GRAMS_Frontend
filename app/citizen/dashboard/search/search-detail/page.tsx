@@ -459,34 +459,6 @@ export default function SearchDetailPage() {
                     <span className="font-bold text-slate-900 text-sm">{property.areaSqMeter} m²</span>
                   </div>
                 </div>
-
-                {property.propertyType !== "SHOPPING_MALL" && (
-                  <>
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Bedrooms
-                      </span>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <Bed className="w-4 h-4 text-[#00450d]" />
-                        <span className="font-bold text-slate-900 text-sm">
-                          {property.bedroomCount || "N/A"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Bathrooms
-                      </span>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <Bath className="w-4 h-4 text-[#00450d]" />
-                        <span className="font-bold text-slate-900 text-sm">
-                          {property.bathroomCount || "N/A"}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
 
               {/* Geographic Cadastre Location Box */}

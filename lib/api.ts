@@ -687,6 +687,53 @@ export async function cancelLeaseRequest(token: string, requestCode: string): Pr
   if (!res.ok) throw new Error("Failed to cancel lease request.");
 }
 
+// Notification API functions
+export interface NotificationResponse {
+  id: string;
+  recipientUserId: string;
+  type: "LEASE_REQUEST" | "LEASE_APPROVED" | "LEASE_REJECTED" | "LEASE_CANCELLED" | "PAYMENT" | "AGREEMENT" | "MAINTENANCE" | "SYSTEM";
+  module: string;
+  entityId: string;
+  message: string;
+  channel: "EMAIL" | "SMS" | "IN_APP" | "PUSH";
+  read: boolean;
+  createdAt: string;
+}
+
+export async function getNotifications(token: string, page: number = 0, size: number = 20): Promise<{ content: NotificationResponse[]; totalElements: number }> {
+  const res = await apiFetch(`${BASE_URL}/notifications?page=${page}&size=${size}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load notifications.");
+  return json;
+}
+
+export async function getUnreadNotificationCount(token: string): Promise<{ unreadCount: number }> {
+  const res = await apiFetch(`${BASE_URL}/notifications/unread-count`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load unread count.");
+  return json;
+}
+
+export async function markNotificationAsRead(token: string, id: string): Promise<void> {
+  const res = await apiFetch(`${BASE_URL}/notifications/${id}/read`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to mark notification as read.");
+}
+
+export async function markAllNotificationsAsRead(token: string): Promise<void> {
+  const res = await apiFetch(`${BASE_URL}/notifications/read-all`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to mark all notifications as read.");
+}
+
 export async function getPendingRequestsForProperty(
   token: string,
   propertyId: string

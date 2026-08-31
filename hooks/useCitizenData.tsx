@@ -16,9 +16,8 @@ import {
   INITIAL_AGREEMENTS,
   INITIAL_INVOICES,
   INITIAL_RECEIPTS,
-  INITIAL_NOTIFICATIONS,
 } from "@/data/mockData";
-import { getMyProperties, registerProperty as apiRegisterProperty, getSession, clearSession } from "@/lib/api";
+import { getMyProperties, registerProperty as apiRegisterProperty, getSession, clearSession, getNotifications, getUnreadNotificationCount, markAllNotificationsAsRead } from "@/lib/api";
 
 export interface CitizenContextType {
   // Role & Navigation
@@ -169,12 +168,11 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [agreements, setAgreements] = useState<RentalAgreement[]>(INITIAL_AGREEMENTS);
   const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
   const [receipts, setReceipts] = useState<Receipt[]>(INITIAL_RECEIPTS);
-  const [notifications, setNotifications] = useState<ActivityNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<ActivityNotification[]>([]);
 
   useEffect(() => {
     const session = getSession();
-    // Government employees (officers, supervisors) have no properties to load
-    // Only load properties for users with landlord role
+    // Load properties for landlord users
     if (session && session.user.userType !== "GOVERNMENT_EMPLOYEE") {
       const userRole = session.user.roles?.[0]?.toLowerCase();
       if (userRole === "landlord" || userRole === "both") {
@@ -211,6 +209,22 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
         }).catch(err => console.error("Failed to load properties:", err));
       }
+    }
+
+    // Load notifications from backend
+    if (session && session.token) {
+      void getNotifications(session.token, 0, 10).then(data => {
+        const mapped: ActivityNotification[] = data.content.map(n => ({
+          id: n.id,
+          type: n.type.toLowerCase() as any,
+          title: n.type.replace(/_/g, ' '),
+          description: n.message,
+          timestamp: new Date(n.createdAt).toLocaleString(),
+          read: n.read,
+          linkPage: undefined
+        }));
+        setNotifications(mapped);
+      }).catch(err => console.error("Failed to load notifications:", err));
     }
   }, []);
 
@@ -547,8 +561,20 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   };
 
-  const handleClearNotifications = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleClearNotifications = async () => {
+    const session = getSession();
+    if (session && session.token) {
+      try {
+        await markAllNotificationsAsRead(session.token);
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      } catch (err) {
+        console.error("Failed to mark all notifications as read:", err);
+        // Fallback to local update
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      }
+    } else {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    }
   };
 
   return (

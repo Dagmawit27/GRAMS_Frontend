@@ -460,13 +460,17 @@ export const RegisterPropertyPage: React.FC = () => {
     }
     
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + " MB";
+    const objectUrl = URL.createObjectURL(file);
     setTitleDeedFile({
       name: file.name,
       size: sizeMb,
       number: titleDeedNumber || "ETH-TD-" + Math.floor(100000 + Math.random() * 900000),
       uploadedAt: "Just now",
       file,
+      url: objectUrl,
     });
+    setPreviewDocTab('scan');
+    clearError("titleDeedFile");
   };
   
   // Drag-and-drop file drop handlers

@@ -55,6 +55,7 @@ export default function OfficerPropertiesListPage() {
     setLoading(true);
     setError("");
     try {
+      console.log("[OfficerPropsList] Fetching properties for subCity:", subCity, "woreda:", woreda);
       const data = await getPropertiesByJurisdiction(
         token,
         subCity,
@@ -63,6 +64,7 @@ export default function OfficerPropertiesListPage() {
       );
       // eslint-disable-next-line no-console
       console.log("[OfficerPropsList] loaded count:", data.length);
+      console.log("[OfficerPropsList] loaded properties:", data.map(p => ({ id: p.id, code: p.propertyCode, status: p.status })));
       setProperties(data);
     } catch (err: unknown) {
       // eslint-disable-next-line no-console
@@ -80,6 +82,55 @@ export default function OfficerPropertiesListPage() {
   };
 
   useEffect(() => { load(); }, [token, subCity, woreda]);
+
+  // SSE connection for real-time property registration notifications
+  useEffect(() => {
+    if (!jurisdiction || !woreda) return;
+
+    const officerUserId = `woreda-officer-${woreda}`;
+    console.log("Connecting to SSE with userId:", officerUserId);
+    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${officerUserId}`);
+
+    // Listen for connection confirmation
+    eventSource.addEventListener('connected', (event) => {
+      console.log("SSE connected:", event.data);
+    });
+
+    // Listen for notification events
+    eventSource.addEventListener('notification', (event) => {
+      console.log("Received SSE notification:", event.data);
+      const notification = JSON.parse(event.data);
+      console.log("Reloading properties...");
+      
+      // Add a small delay to ensure backend transaction is committed
+      setTimeout(() => {
+        load();
+        
+        if (notification.type === 'PROPERTY_REGISTERED') {
+          showToast("New property registration received!");
+        } else if (notification.type === 'PROPERTY_DELETED') {
+          showToast("Property deleted by landlord");
+        }
+      }, 500);
+    });
+
+    // Listen for unread count updates
+    eventSource.addEventListener('unreadCount', (event) => {
+      console.log("Received unread count update:", event.data);
+    });
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      console.error("EventSource readyState:", eventSource.readyState);
+      console.error("EventSource URL:", eventSource.url);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log("Closing SSE connection");
+      eventSource.close();
+    };
+  }, [jurisdiction, woreda]);
 
   const filtered = useMemo(() =>
     properties.filter((p) => {

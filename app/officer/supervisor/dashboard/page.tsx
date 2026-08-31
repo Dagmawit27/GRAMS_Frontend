@@ -293,26 +293,6 @@ export const SupervisorDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Supervisor Dashboard Title & Export Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Supervisor Dashboard
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-normal">
-                Overview of pending verifications and woreda metrics.
-              </p>
-            </div>
-
-            <button
-              onClick={handleExportReport}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-lg text-xs font-bold uppercase tracking-wider shadow-2xs transition-colors self-start sm:self-auto cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-slate-600" />
-              <span>EXPORT REPORT</span>
-            </button>
-      </div>
-
       {/* 4 Metric KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* KPI 1: AWAITING FINAL APPROVAL */}

@@ -158,18 +158,11 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
       {/* Search Header and Property Code Search Bar Section */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="max-w-3xl mx-auto text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            FDRE Housing & Urban Registry
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Property Code Search
+          
+          <h1 className="text-1xl sm:text-2xl font-bold tracking-tight text-slate-600">
+            Enter an official government-registered Property Code 
           </h1>
 
-          <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto leading-relaxed">
-            Enter an official government-registered Property Code 
-          </p>
 
           {/* Focused Property Code Search Bar */}
           <div className="mt-6 pt-2 max-w-2xl mx-auto">

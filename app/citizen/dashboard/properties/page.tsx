@@ -238,6 +238,56 @@ export const PropertiesPage: React.FC = () => {
       });
   }, []);
 
+  // SSE connection for real-time property status updates
+  useEffect(() => {
+    const s = getSession();
+    if (!s?.user?.email) return;
+
+    const landlordUserId = s.user.email;
+    console.log("Connecting to SSE with userId:", landlordUserId);
+    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${landlordUserId}`);
+
+    eventSource.addEventListener('connected', (event) => {
+      console.log("SSE connected:", event.data);
+    });
+
+    eventSource.addEventListener('notification', (event) => {
+      console.log("Received SSE notification:", event.data);
+      const notification = JSON.parse(event.data);
+      
+      // If notification is about property status change, reload properties
+      if (notification.type === 'PROPERTY_VERIFIED' || notification.type === 'PROPERTY_APPROVED' || notification.type === 'PROPERTY_REJECTED') {
+        console.log("Property status changed, reloading...");
+        setTimeout(() => {
+          const token = s?.token || "demo-token";
+          getMyProperties(token)
+            .then((data) => {
+              setProperties(data || []);
+              showToast("Property status updated!");
+            })
+            .catch((err) => {
+              console.error("Failed to reload properties:", err);
+            });
+        }, 500);
+      }
+    });
+
+    eventSource.addEventListener('unreadCount', (event) => {
+      console.log("Received unread count update:", event.data);
+    });
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      console.error("EventSource readyState:", eventSource.readyState);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log("Closing SSE connection");
+      eventSource.close();
+    };
+  }, []);
+
   // Compute Counts for Status Pills
   const counts = useMemo(() => {
     const total = properties.length;

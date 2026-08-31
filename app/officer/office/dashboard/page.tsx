@@ -99,43 +99,6 @@ export default function OfficerDashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Dashboard Overview
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-[#00450d]" />
-            {jurisdiction
-              ? `${jurisdiction.subCity} Sub-City · Woreda ${jurisdiction.woreda}`
-              : "Woreda Administration Desk"}
-            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
-              Woreda Officer
-            </span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => alert("Exporting Woreda summary report (CSV/PDF)...")}
-            className="h-10 text-xs font-semibold gap-1.5 text-slate-700 border-slate-200 bg-white hover:bg-slate-50"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export Report</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => go("properties")}
-            className="h-10 text-xs font-semibold gap-1.5 bg-[#00450d] hover:bg-[#164e23] text-white shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Registration</span>
-          </Button>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs">

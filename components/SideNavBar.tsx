@@ -416,16 +416,14 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       {/* Sidebar Footer */}
       <div className="p-3.5 border-t border-slate-100 bg-slate-50/50">
         {!collapsed ? (
-          <div className="flex flex-col gap-2.5">
-              <button
-                onClick={onLogoutClick}
-                className="w-full flex items-center gap-1 text-xs font-medium text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-md transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </button>
-          </div>
+          <button
+            onClick={onLogoutClick}
+            className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 px-3 py-2.5 rounded-lg transition-colors border border-rose-200 hover:border-rose-300"
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
         ) : (
           <div className="flex justify-center">
             <button
