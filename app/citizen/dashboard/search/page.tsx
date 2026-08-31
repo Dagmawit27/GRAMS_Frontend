@@ -191,7 +191,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                   placeholder="Property Code"
                   value={propertyCodeInput}
                   onChange={handleInputChange}
-                  className="pl-10 pr-10 h-12 text-sm font-mono uppercase bg-slate-50/70 border-slate-300 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 rounded-xl transition-all tracking-wider"
+                  className="pl-10 pr-10 h-12 text-xs font-mono uppercase bg-slate-50/70 border-slate-300 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 rounded-xl transition-all tracking-wider"
                   autoFocus
                 />
 

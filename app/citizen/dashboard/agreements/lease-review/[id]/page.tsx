@@ -10,7 +10,7 @@ export default function LeaseReviewPage() {
   const params = useParams();
   const router = useRouter();
   const { userRole } = useCitizenData();
-  const leaseRequestId = params.id as string;
+  const requestCode = params.id as string;
 
   const [leaseRequest, setLeaseRequest] = useState<LeaseRequestResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,8 +27,8 @@ export default function LeaseReviewPage() {
 
   useEffect(() => {
     const fetchLeaseRequest = async () => {
-      if (!leaseRequestId) {
-        setError("Lease request ID not provided");
+      if (!requestCode) {
+        setError("Lease request code not provided");
         setIsLoading(false);
         return;
       }
@@ -43,7 +43,7 @@ export default function LeaseReviewPage() {
           return;
         }
 
-        const data = await getLeaseRequestById(session.token, leaseRequestId);
+        const data = await getLeaseRequestById(session.token, requestCode);
         setLeaseRequest(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load lease request");
@@ -53,7 +53,7 @@ export default function LeaseReviewPage() {
     };
 
     fetchLeaseRequest();
-  }, [leaseRequestId]);
+  }, [requestCode]);
 
   // Show access denied for non-landlord users
   if (isRedirecting || (userRole === "tenant" || userRole === "citizen")) {

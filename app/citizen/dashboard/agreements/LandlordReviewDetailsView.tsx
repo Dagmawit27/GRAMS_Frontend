@@ -4,6 +4,7 @@ import { LeaseRequest } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Download,
@@ -22,6 +23,7 @@ import {
   Printer
 } from "lucide-react";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { acceptLeaseRequest, declineLeaseRequest, getSession } from "@/lib/api";
 
 interface LandlordReviewDetailsViewProps {
   request: LeaseRequest;
@@ -32,19 +34,61 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
   const {
     setActiveAgreementView,
     setSelectedLeaseRequest,
-    handleAcceptLeaseRequest,
-    handleDeclineLeaseRequest,
   } = useCitizenData();
 
   const [isDeclining, setIsDeclining] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(request.status);
+  const [isAcceptDialogOpen, setIsAcceptDialogOpen] = useState(false);
 
   const handleBack = () => {
     router.push('/citizen/dashboard/agreements');
   };
 
-  const handleConfirmDecline = () => {
-    handleDeclineLeaseRequest(request.id, declineReason);
+  const handleConfirmDecline = async () => {
+    const session = getSession();
+    if (!session?.token) {
+      alert("Authentication required");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await declineLeaseRequest(session.token, request.id, declineReason);
+      setCurrentStatus("REJECTED");
+      setIsDeclining(false);
+      setDeclineReason("");
+      alert("Lease request declined successfully");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to decline lease request");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAccept = () => {
+    setIsAcceptDialogOpen(true);
+  };
+
+  const handleConfirmAccept = async () => {
+    const session = getSession();
+    if (!session?.token) {
+      alert("Authentication required");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await acceptLeaseRequest(session.token, request.id);
+      setCurrentStatus("APPROVED");
+      setIsAcceptDialogOpen(false);
+      alert("Lease request accepted successfully");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to accept lease request");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -65,8 +109,11 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 Agreement {request.requestCode}
               </h2>
-              <Badge variant="pending" className="text-xs px-2.5 py-0.5 uppercase tracking-wider font-semibold">
-                Pending Review
+              <Badge
+                variant={currentStatus === "APPROVED" ? "verified" : currentStatus === "REJECTED" ? "rejected" : "pending"}
+                className="text-xs px-2.5 py-0.5 uppercase tracking-wider font-semibold"
+              >
+                {currentStatus === "APPROVED" ? "Approved" : currentStatus === "REJECTED" ? "Rejected" : "Pending Review"}
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
@@ -243,7 +290,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
       
 
       {/* Decline Dialog Modal */}
-      {isDeclining && (
+      {isDeclining && currentStatus === "PENDING" && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 space-y-3 animate-in fade-in">
           <div className="flex items-center gap-2 text-rose-800 font-semibold text-sm">
             <X className="w-4 h-4" />
@@ -262,6 +309,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
               size="sm"
               onClick={() => setIsDeclining(false)}
               className="text-xs h-8"
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
@@ -270,8 +318,9 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
               size="sm"
               onClick={handleConfirmDecline}
               className="text-xs h-8"
+              disabled={isSubmitting}
             >
-              Confirm Decline
+              {isSubmitting ? "Declining..." : "Confirm Decline"}
             </Button>
           </div>
         </div>
@@ -288,23 +337,62 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
         </Button>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setIsDeclining(true)}
-            className="text-xs h-9 px-4 text-rose-600 hover:bg-rose-50 border-rose-200 font-semibold"
-          >
-            Decline Request
-          </Button>
+          {currentStatus === "PENDING" ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeclining(true)}
+                className="text-xs h-9 px-4 text-rose-600 hover:bg-rose-50 border-rose-200 font-semibold"
+                disabled={isSubmitting}
+              >
+                Decline Request
+              </Button>
 
-          <Button
-            onClick={() => handleAcceptLeaseRequest(request)}
-            className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-9 px-5 font-semibold gap-1.5 shadow-xs"
-          >
-            <Check className="w-4 h-4" />
-            <span>Accept Agreement</span>
-          </Button>
+              <Button
+                onClick={handleAccept}
+                className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-9 px-5 font-semibold gap-1.5 shadow-xs"
+                disabled={isSubmitting}
+              >
+                <Check className="w-4 h-4" />
+                <span>Accept Agreement</span>
+              </Button>
+            </>
+          ) : currentStatus === "APPROVED" ? (
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 px-5 font-semibold gap-1.5 shadow-xs"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Generate Agreement</span>
+            </Button>
+          ) : (
+            <span className="text-xs text-slate-500 font-medium">Request has been rejected</span>
+          )}
         </div>
       </div>
+
+      {/* Accept Agreement Confirmation Dialog */}
+      <Dialog open={isAcceptDialogOpen} onOpenChange={setIsAcceptDialogOpen}>
+        <DialogContent onClose={() => setIsAcceptDialogOpen(false)} className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle>Confirm Accept Agreement</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to accept this lease request? This will approve the agreement and notify the tenant.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-4">
+            <Button variant="outline" onClick={() => setIsAcceptDialogOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#00450d] hover:bg-[#1b5e20] text-white"
+              onClick={handleConfirmAccept}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Accepting..." : "Accept Agreement"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

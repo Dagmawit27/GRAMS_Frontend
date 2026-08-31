@@ -44,12 +44,12 @@ export const TenantLeaseRequestsView: React.FC = () => {
     fetchLeaseRequests();
   }, []);
 
-  const handleWithdrawLeaseRequest = async (id: string) => {
+  const handleWithdrawLeaseRequest = async (requestCode: string) => {
     try {
       const session = getSession();
       if (!session?.token) return;
-      await cancelLeaseRequest(session.token, id);
-      setLeaseRequests(leaseRequests.filter((r) => r.id !== id));
+      await cancelLeaseRequest(session.token, requestCode);
+      setLeaseRequests(leaseRequests.filter((r) => r.requestCode !== requestCode));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to withdraw request");
     }
@@ -60,7 +60,7 @@ export const TenantLeaseRequestsView: React.FC = () => {
   };
 
   const handleOpenTenantSigning = (req: LeaseRequestResponse) => {
-    router.push(`/citizen/dashboard/agreements/lease-signing/${req.id}`);
+    router.push(`/citizen/dashboard/agreements/lease-signing/${req.requestCode}`);
   };
 
   // Get tenant-specific requests
@@ -95,26 +95,6 @@ export const TenantLeaseRequestsView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/70">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            My Lease Requests
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Track the status of your applications and manage pending agreements.
-          </p>
-        </div>
-
-        <Button
-          onClick={() => handleNavigate("search")}
-          className="bg-[#00450d] hover:bg-[#1b5e20] text-white shadow-xs font-medium gap-2 self-start sm:self-auto h-9 px-4 rounded-lg"
-        >
-          <Search className="w-4 h-4" />
-          <span>Search Properties</span>
-        </Button>
-      </div>
-
       {/* Filter Tabs / Pills (Matching Screenshot 3) */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <button
@@ -184,14 +164,14 @@ export const TenantLeaseRequestsView: React.FC = () => {
             No lease requests found in this category.
           </div>
         ) : (
-          filteredRequests.map((req) => {
+          filteredRequests.map((req, index) => {
             const isReadyToSign = req.status === "APPROVED";
             const isAwaiting = req.status === "PENDING";
             const isDeclined = req.status === "REJECTED";
 
             return (
               <Card
-                key={req.id}
+                key={req.requestCode}
                 className="bg-white border-slate-200 shadow-clean hover:border-slate-300 transition-all overflow-hidden"
               >
                 <CardContent className="p-4 sm:p-5 space-y-4">

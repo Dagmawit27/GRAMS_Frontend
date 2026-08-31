@@ -16,13 +16,13 @@ export const RentalAgreementsPage: React.FC = () => {
 
   // Redirect tenants to their lease page
   useEffect(() => {
-    if (userRole === "tenant" || userRole === "citizen") {
+    if (userRole === "tenant") {
       router.push("/citizen/dashboard/leases");
     }
   }, [userRole, router]);
 
   // Show access denied for non-landlord users
-  if (userRole === "tenant" || userRole === "citizen") {
+  if (userRole === "tenant") {
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
         <p className="text-red-800 text-sm font-medium">Access Denied: This page is for landlords only</p>

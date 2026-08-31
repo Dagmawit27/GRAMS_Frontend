@@ -578,24 +578,21 @@ export interface LeaseRequestRequest {
 
 export interface LeaseRequestResponse {
   id: string;
-  propertyId: string;
+  requestCode: string;
   propertyCode: string;
   propertyTitle: string;
   propertyType: string;
   propertyLocation: string;
   propertyImage: string;
   propertyImages: string[];
-  unitId?: string;
   unitCode?: string;
   unitNumber?: string;
   area?: number;
-  applicantId: string;
   applicantName: string;
   applicantEmail: string;
   applicantPhone?: string;
   applicantNationalId?: string;
   applicantEmployment?: string;
-  landlordId: string;
   landlordName: string;
   landlordEmail: string;
   proposedRent: number;
@@ -609,10 +606,12 @@ export interface LeaseRequestResponse {
   createdAt: string;
   reviewedAt?: string;
   expiresAt?: string;
+  agreementGenerated?: boolean;
+  leaseDuration?: string;
 }
 
 export interface LeaseStatusUpdateRequest {
-  status: "APPROVED" | "REJECTED";
+  newStatus: "APPROVED" | "REJECTED";
   remarks?: string;
 }
 
@@ -648,8 +647,8 @@ export async function getLandlordLeaseRequests(token: string): Promise<LeaseRequ
   return json;
 }
 
-export async function getLeaseRequestById(token: string, id: string): Promise<LeaseRequestResponse> {
-  const res = await apiFetch(`${BASE_URL}/lease-requests/${id}`, {
+export async function getLeaseRequestById(token: string, requestCode: string): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const json = await parseResponse(res);
@@ -659,10 +658,10 @@ export async function getLeaseRequestById(token: string, id: string): Promise<Le
 
 export async function updateLeaseRequestStatus(
   token: string,
-  id: string,
+  requestCode: string,
   request: LeaseStatusUpdateRequest
 ): Promise<LeaseRequestResponse> {
-  const res = await apiFetch(`${BASE_URL}/lease-requests/${id}/status`, {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}/status`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -672,8 +671,16 @@ export async function updateLeaseRequestStatus(
   return json;
 }
 
-export async function cancelLeaseRequest(token: string, id: string): Promise<void> {
-  const res = await apiFetch(`${BASE_URL}/lease-requests/${id}/cancel`, {
+export async function acceptLeaseRequest(token: string, requestCode: string, remarks?: string): Promise<LeaseRequestResponse> {
+  return updateLeaseRequestStatus(token, requestCode, { newStatus: "APPROVED", remarks });
+}
+
+export async function declineLeaseRequest(token: string, requestCode: string, remarks?: string): Promise<LeaseRequestResponse> {
+  return updateLeaseRequestStatus(token, requestCode, { newStatus: "REJECTED", remarks });
+}
+
+export async function cancelLeaseRequest(token: string, requestCode: string): Promise<void> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}/cancel`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
   });
