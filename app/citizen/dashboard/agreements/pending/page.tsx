@@ -46,6 +46,57 @@ export default function PendingAgreementsPage() {
     fetchLeaseRequests();
   }, []);
 
+  // SSE connection for real-time lease request notifications
+  useEffect(() => {
+    const session = getSession();
+    if (!session?.user?.email) return;
+
+    const landlordUserId = session.user.email;
+    console.log("Connecting to SSE with userId:", landlordUserId);
+    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${landlordUserId}`);
+
+    eventSource.addEventListener('connected', (event) => {
+      console.log("SSE connected:", event.data);
+    });
+
+    eventSource.addEventListener('notification', (event) => {
+      console.log("Received SSE notification:", event.data);
+      const notification = JSON.parse(event.data);
+      
+      // If notification is about new lease request, reload
+      if (notification.type === 'AGREEMENT_REQUESTED') {
+        console.log("New lease request received, reloading...");
+        setTimeout(() => {
+          const session = getSession();
+          if (session?.token) {
+            getLandlordLeaseRequests(session.token)
+              .then((data) => {
+                setLeaseRequests(data);
+              })
+              .catch((err) => {
+                console.error("Failed to reload lease requests:", err);
+              });
+          }
+        }, 500);
+      }
+    });
+
+    eventSource.addEventListener('unreadCount', (event) => {
+      console.log("Received unread count update:", event.data);
+    });
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      console.error("EventSource readyState:", eventSource.readyState);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log("Closing SSE connection");
+      eventSource.close();
+    };
+  }, []);
+
   // Redirect tenants to their lease page
   useEffect(() => {
     if (userRole === "tenant") {

@@ -1,41 +1,31 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useCitizenData } from "@/hooks/useCitizenData";
-import { AgreementResponse, getAgreementByRequestCode, getSession, signAgreement } from "@/lib/api";
+import { LeaseRequestResponse, getLeaseRequestById, getSession, signAgreement } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
-  ShieldCheck,
   CheckCircle2,
   FileCheck,
   Download,
   Printer,
   PenTool,
-  Lock,
-  Stamp,
   Fingerprint,
-  Info,
   Building,
   User,
   DollarSign,
   Calendar,
 } from "lucide-react";
 
-/**
- * /citizen/dashboard/agreements/pending/[requestCode]/form
- * Shows the generated agreement form with landlord OTP signing capability
- */
-export default function PendingAgreementFormPage() {
-  const { userRole } = useCitizenData();
+export default function TenantSigningPage() {
   const router = useRouter();
   const params = useParams();
   const requestCode = params.id as string;
 
-  const [agreement, setAgreement] = useState<AgreementResponse | null>(null);
+  const [leaseRequest, setLeaseRequest] = useState<LeaseRequestResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
@@ -45,37 +35,30 @@ export default function PendingAgreementFormPage() {
   const [hasSigned, setHasSigned] = useState(false);
 
   useEffect(() => {
-    const fetchAgreement = async () => {
+    const fetchLeaseRequest = async () => {
       try {
         const session = getSession();
         if (!session?.token) {
           setError("No authentication token found");
           return;
         }
-        const data = await getAgreementByRequestCode(session.token, requestCode);
-        setAgreement(data);
-        setHasSigned(data.landlordSigned);
+        const data = await getLeaseRequestById(session.token, requestCode);
+        setLeaseRequest(data);
+        setHasSigned(data.tenantSigned || false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load agreement");
+        setError(err instanceof Error ? err.message : "Failed to load lease request");
       } finally {
         setIsLoading(false);
       }
     };
 
     if (requestCode) {
-      fetchAgreement();
+      fetchLeaseRequest();
     }
   }, [requestCode]);
 
-  // Redirect tenants to their lease page
-  useEffect(() => {
-    if (userRole === "tenant") {
-      router.push("/citizen/dashboard/leases");
-    }
-  }, [userRole, router]);
-
   const handleBack = () => {
-    router.push(`/citizen/dashboard/agreements/pending/${requestCode}`);
+    router.push("/citizen/dashboard/leases");
   };
 
   const handleExecuteSign = async () => {
@@ -95,24 +78,14 @@ export default function PendingAgreementFormPage() {
       setIsSignModalOpen(false);
       alert("Agreement signed successfully!");
       
-      // Reload agreement to get updated status
-      const data = await getAgreementByRequestCode(session.token, requestCode);
-      setAgreement(data);
-      setHasSigned(data.landlordSigned);
+      // Reload lease request to get updated status
+      const data = await getLeaseRequestById(session.token, requestCode);
+      setLeaseRequest(data);
     } catch (error) {
       setIsSigningLoading(false);
       alert(error instanceof Error ? error.message : "Failed to sign agreement");
     }
   };
-
-  // Show access denied for non-landlord users
-  if (userRole === "tenant") {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <p className="text-red-800 text-sm font-medium">Access Denied: This page is for landlords only</p>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -122,10 +95,32 @@ export default function PendingAgreementFormPage() {
     );
   }
 
-  if (error || !agreement) {
+  if (error || !leaseRequest) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <p className="text-red-800 text-sm">{error || "Agreement not found"}</p>
+        <p className="text-red-800 text-sm">{error || "Lease request not found"}</p>
+        <Button
+          variant="outline"
+          onClick={handleBack}
+          className="mt-4"
+        >
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  if (!leaseRequest.agreementGenerated) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+        <p className="text-amber-800 text-sm">The landlord has not generated the agreement yet. Please wait for the landlord to generate the agreement.</p>
+        <Button
+          variant="outline"
+          onClick={handleBack}
+          className="mt-4"
+        >
+          Go Back
+        </Button>
       </div>
     );
   }
@@ -139,7 +134,7 @@ export default function PendingAgreementFormPage() {
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors mb-2 group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span>Back to Agreement Details</span>
+          <span>Back to My Lease Requests</span>
         </button>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 pb-4 border-b border-slate-200/70">
@@ -156,7 +151,7 @@ export default function PendingAgreementFormPage() {
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Please review the final lease agreement below and provide your digital signature to proceed.
+              Please review the final lease agreement below and provide your digital signature to secure the property.
             </p>
           </div>
 
@@ -193,7 +188,7 @@ export default function PendingAgreementFormPage() {
                   Property
                 </span>
                 <span className="text-sm font-medium text-slate-900">
-                  {agreement.propertyRegion}, {agreement.propertyCity}
+                  {leaseRequest.propertyTitle}
                 </span>
               </div>
             </div>
@@ -201,10 +196,10 @@ export default function PendingAgreementFormPage() {
               <User className="w-4 h-4 text-slate-400 mt-0.5" />
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">
-                  Tenant
+                  Landlord
                 </span>
                 <span className="text-sm font-medium text-slate-900">
-                  {agreement.tenantName}
+                  {leaseRequest.landlordName}
                 </span>
               </div>
             </div>
@@ -215,7 +210,7 @@ export default function PendingAgreementFormPage() {
                   Monthly Rent
                 </span>
                 <span className="text-sm font-bold text-slate-900">
-                  {agreement.monthlyRentInBirr.toLocaleString()} ETB
+                  {leaseRequest.proposedRent.toLocaleString()} ETB
                 </span>
               </div>
             </div>
@@ -223,10 +218,10 @@ export default function PendingAgreementFormPage() {
               <Calendar className="w-4 h-4 text-slate-400 mt-0.5" />
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">
-                  Contract Date
+                  Duration
                 </span>
                 <span className="text-sm font-medium text-slate-900">
-                  {agreement.contractDate}
+                  {leaseRequest.leaseDuration || "12 Months"}
                 </span>
               </div>
             </div>
@@ -265,7 +260,7 @@ export default function PendingAgreementFormPage() {
                 GOVERNMENT RENTAL ADMINISTRATION & MONITORING SYSTEM (GRAMS)
               </h3>
               <p className="text-xs font-semibold text-emerald-800">
-                STATUTORY DIGITAL LEASE CONTRACT — REGISTRATION REF: #{agreement.agreementCode}
+                STATUTORY DIGITAL LEASE CONTRACT — REGISTRATION REF: #{leaseRequest.requestCode}
               </p>
             </div>
 
@@ -273,32 +268,32 @@ export default function PendingAgreementFormPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Monthly Rent</span>
-                <span className="font-bold text-slate-900 text-sm">{agreement.monthlyRentInBirr.toLocaleString()} ETB</span>
+                <span className="font-bold text-slate-900 text-sm">{leaseRequest.proposedRent.toLocaleString()} ETB</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Security Deposit</span>
-                <span className="font-bold text-slate-900 text-sm">{agreement.advancePaymentBirr.toLocaleString()} ETB</span>
+                <span className="font-bold text-slate-900 text-sm">{(leaseRequest.securityDeposit || leaseRequest.proposedRent * 2).toLocaleString()} ETB</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Term</span>
-                <span className="font-bold text-slate-900 text-sm">12 Months</span>
+                <span className="font-bold text-slate-900 text-sm">{leaseRequest.leaseDuration || "12 Months"}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Commencement</span>
-                <span className="font-bold text-slate-900 text-sm">{agreement.contractDate}</span>
+                <span className="font-bold text-slate-900 text-sm">{leaseRequest.startDate || "To be determined"}</span>
               </div>
             </div>
 
             {/* Terms and conditions text */}
             <div className="space-y-3.5 text-xs text-slate-700">
               <p>
-                <strong>1. PREMISES:</strong> The Lessor agrees to demise and lease to the Lessee ({agreement.tenantName}) the residential property located at <strong>{agreement.propertyRegion}, {agreement.propertyCity}, {agreement.propertySubCity}</strong>, house number <strong>{agreement.propertyHouseNo}</strong>.
+                <strong>1. PREMISES:</strong> The Lessor agrees to demise and lease to the Lessee ({leaseRequest.applicantName}) the residential property located at <strong>{leaseRequest.propertyLocation}</strong>, unit number <strong>{leaseRequest.unitCode || "To be assigned"}</strong>.
               </p>
               <p>
-                <strong>2. PAYMENT TERMS:</strong> Monthly rent of <strong>ETB {agreement.monthlyRentInBirr.toLocaleString()}</strong> is due and payable on or before the {agreement.monthlyPaymentDueDay}th day of each calendar month. Payments must be processed through certified national electronic settlement rails (Telebirr, CBE Birr, or Commercial Bank Electronic Clearing).
+                <strong>2. PAYMENT TERMS:</strong> Monthly rent of <strong>ETB {leaseRequest.proposedRent.toLocaleString()}</strong> is due and payable on or before the 5th day of each calendar month. Payments must be processed through certified national electronic settlement rails (Telebirr, CBE Birr, or Commercial Bank Electronic Clearing).
               </p>
               <p>
-                <strong>3. DEPOSIT ESCROW:</strong> The security deposit of <strong>ETB {agreement.advancePaymentBirr.toLocaleString()}</strong> shall be retained in municipal escrow under Proclamation No. 1204/2020 and refunded upon conclusive exit inspection.
+                <strong>3. DEPOSIT ESCROW:</strong> The security deposit of <strong>ETB {(leaseRequest.securityDeposit || leaseRequest.proposedRent * 2).toLocaleString()}</strong> shall be retained in municipal escrow under Proclamation No. 1204/2020 and refunded upon conclusive exit inspection.
               </p>
               <p>
                 <strong>4. STATUTORY JURISDICTION:</strong> Both parties agree to abide by Addis Ababa City Administration Housing Bureau arbitration protocols in the event of dispute resolution.
@@ -313,6 +308,27 @@ export default function PendingAgreementFormPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Landlord Stamp */}
+                <div className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      LANDLORD SIGNATURE
+                    </span>
+                    <span className="bg-emerald-200/80 text-emerald-900 font-bold text-[9px] px-1.5 py-0.5 rounded">
+                      SEALED
+                    </span>
+                  </div>
+                  <p className="font-bold text-slate-900 text-xs">
+                    {leaseRequest.landlordName}
+                  </p>
+                  <p className="font-mono text-[10px] text-slate-500">
+                    HASH: SHA256-{Math.random().toString(36).substring(7)}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    OTP Verified • Previously Signed
+                  </p>
+                </div>
+
+                {/* Tenant Stamp */}
                 <div className={`border rounded-xl p-3.5 space-y-1.5 transition-all ${
                   hasSigned
                     ? "border-emerald-200 bg-emerald-50/50"
@@ -320,7 +336,7 @@ export default function PendingAgreementFormPage() {
                 }`}>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
-                      LANDLORD SIGNATURE
+                      TENANT SIGNATURE
                     </span>
                     <span className={`font-bold text-[9px] px-1.5 py-0.5 rounded ${
                       hasSigned
@@ -331,7 +347,7 @@ export default function PendingAgreementFormPage() {
                     </span>
                   </div>
                   <p className="font-bold text-slate-900 text-xs">
-                    Landlord Name
+                    {leaseRequest.applicantName}
                   </p>
                   {hasSigned ? (
                     <>
@@ -347,27 +363,6 @@ export default function PendingAgreementFormPage() {
                       Awaiting your digital confirmation to finalize the contract.
                     </p>
                   )}
-                </div>
-
-                {/* Tenant Stamp */}
-                <div className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-3.5 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                      TENANT SIGNATURE
-                    </span>
-                    <span className="bg-emerald-200/80 text-emerald-900 font-bold text-[9px] px-1.5 py-0.5 rounded">
-                      SEALED
-                    </span>
-                  </div>
-                  <p className="font-bold text-slate-900 text-xs">
-                    {agreement.tenantName}
-                  </p>
-                  <p className="font-mono text-[10px] text-slate-500">
-                    HASH: SHA256-{Math.random().toString(36).substring(7)}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    Previously Signed
-                  </p>
                 </div>
               </div>
             </div>
@@ -409,9 +404,9 @@ export default function PendingAgreementFormPage() {
 
             <div className="space-y-3.5 text-xs text-slate-600">
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
-                <p className="font-medium text-slate-900">Contract Reference: {agreement.agreementCode}</p>
-                <p>Monthly Rent: <strong>{agreement.monthlyRentInBirr.toLocaleString()} ETB</strong></p>
-                <p>Security Deposit: <strong>{agreement.advancePaymentBirr.toLocaleString()} ETB</strong></p>
+                <p className="font-medium text-slate-900">Contract Reference: {leaseRequest.requestCode}</p>
+                <p>Monthly Rent: <strong>{leaseRequest.proposedRent.toLocaleString()} ETB</strong></p>
+                <p>Security Deposit: <strong>{(leaseRequest.securityDeposit || leaseRequest.proposedRent * 2).toLocaleString()} ETB</strong></p>
               </div>
 
               <div>

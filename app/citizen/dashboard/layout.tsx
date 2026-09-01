@@ -33,6 +33,7 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
     notifications,
     handleNotificationClick,
     handleClearNotifications,
+    handleAddNotification,
     isDarkMode,
     setIsDarkMode,
     
@@ -106,23 +107,12 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
         {/* Top App Bar */}
         <TopAppBar
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
-          searchQuery={globalSearch}
-          onSearchChange={(q) => {
-            setGlobalSearch(q);
-            if (q.trim() && currentPage !== "search") {
-              handleNavigate("search");
-              setSelectedProperty(null);
-            }
-          }}
           notifications={notifications}
           onNotificationClick={handleNotificationClick}
           onClearNotifications={handleClearNotifications}
+          onAddNotification={handleAddNotification}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
-          onProfileClick={() => handleNavigate("profile")}
-          onNavigate={handleNavigate}
-          userRole={userRole}
-          onToggleRole={(role) => setUserRole(role)}
         />
 
         {/* Dynamic Page Views */}

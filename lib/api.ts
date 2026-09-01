@@ -606,8 +606,63 @@ export interface LeaseRequestResponse {
   createdAt: string;
   reviewedAt?: string;
   expiresAt?: string;
-  agreementGenerated?: boolean;
   leaseDuration?: string;
+}
+
+export interface AgreementResponse {
+  id: number;
+  agreementCode: string;
+  requestCode: string;
+  contractDate: string;
+  contractNumber: string;
+  landlordName: string;
+  landlordSubCity: string;
+  landlordWoreda: string;
+  landlordHouseNo: string;
+  landlordPhone: string;
+  landlordRegion: string;
+  landlordCity: string;
+  landlordSpecificPlace: string;
+  tenantName: string;
+  tenantSubCity: string;
+  tenantWoreda: string;
+  tenantHouseNo: string;
+  tenantPhone: string;
+  tenantRegion: string;
+  tenantCity: string;
+  tenantSpecificPlace: string;
+  propertyRegion: string;
+  propertyCity: string;
+  propertySubCity: string;
+  propertyWoreda: string;
+  propertySpecificPlace: string;
+  propertyHouseNo: string;
+  propertyOwnershipType: string;
+  propertyCondition: string;
+  monthlyRentInBirr: number;
+  monthlyRentInWords: string;
+  utilitiesPaidBy: string;
+  advancePaymentMonths: string;
+  advancePaymentBirr: number;
+  advancePaymentWords: string;
+  monthlyPaymentDueDay: string;
+  landlordSignature?: string;
+  landlordSignedAt?: string;
+  tenantSignature?: string;
+  tenantSignedAt?: string;
+  officerName?: string;
+  officerSignature?: string;
+  officerSignedAt?: string;
+  witness1Name?: string;
+  witness1Signature?: string;
+  witness1SignedAt?: string;
+  witness2Name?: string;
+  witness2Signature?: string;
+  witness2SignedAt?: string;
+  landlordSigned: boolean;
+  tenantSigned: boolean;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface LeaseStatusUpdateRequest {
@@ -684,7 +739,69 @@ export async function cancelLeaseRequest(token: string, requestCode: string): Pr
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error("Failed to cancel lease request.");
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to cancel lease request.");
+}
+
+export async function deleteLeaseRequest(token: string, requestCode: string): Promise<void> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to delete lease request.");
+}
+
+export async function generateAgreement(token: string, requestCode: string): Promise<AgreementResponse> {
+  const res = await apiFetch(`${BASE_URL}/agreements/generate`, {
+    method: "POST",
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ requestCode }),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to generate agreement.");
+  return json;
+}
+
+export async function signAgreement(token: string, requestCode: string, otp: string): Promise<AgreementResponse> {
+  const res = await apiFetch(`${BASE_URL}/agreements/sign`, {
+    method: "POST",
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ requestCode, otp }),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to sign agreement.");
+  return json;
+}
+
+export async function signAgreementByTenant(token: string, requestCode: string, otp: string): Promise<AgreementResponse> {
+  const res = await apiFetch(`${BASE_URL}/agreements/sign-tenant`, {
+    method: "POST",
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ requestCode, otp }),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to sign agreement.");
+  return json;
+}
+
+export async function getAgreementByRequestCode(token: string, requestCode: string): Promise<AgreementResponse> {
+  const res = await apiFetch(`${BASE_URL}/agreements/request/${requestCode}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to get agreement.");
+  return json;
 }
 
 // Notification API functions

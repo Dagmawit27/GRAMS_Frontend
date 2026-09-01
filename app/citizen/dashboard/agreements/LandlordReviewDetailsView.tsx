@@ -55,11 +55,12 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
 
     setIsSubmitting(true);
     try {
-      await declineLeaseRequest(session.token, request.id, declineReason);
+      await declineLeaseRequest(session.token, request.requestCode, declineReason);
       setCurrentStatus("REJECTED");
       setIsDeclining(false);
       setDeclineReason("");
       alert("Lease request declined successfully");
+      router.push('/citizen/dashboard/agreements');
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to decline lease request");
     } finally {
@@ -80,10 +81,11 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
 
     setIsSubmitting(true);
     try {
-      await acceptLeaseRequest(session.token, request.id);
+      await acceptLeaseRequest(session.token, request.requestCode);
       setCurrentStatus("APPROVED");
       setIsAcceptDialogOpen(false);
       alert("Lease request accepted successfully");
+      router.push(`/citizen/dashboard/agreements/pending/${request.requestCode}`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to accept lease request");
     } finally {

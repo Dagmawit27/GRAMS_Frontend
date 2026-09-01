@@ -26,6 +26,7 @@ import {
 import { useRouter } from "next/navigation";
 
 export const LandlordAgreementsView: React.FC = () => {
+  console.log("LandlordAgreementsView: Component rendering");
   const router = useRouter();
   const [leaseRequests, setLeaseRequests] = useState<LeaseRequestResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +53,52 @@ export const LandlordAgreementsView: React.FC = () => {
     };
 
     fetchLeaseRequests();
+  }, []);
+
+  // SSE connection for real-time lease request notifications
+  useEffect(() => {
+    console.log("LandlordAgreementsView: SSE useEffect triggered");
+    const session = getSession();
+    console.log("LandlordAgreementsView: Session:", session);
+    if (!session?.user?.email) {
+      console.log("LandlordAgreementsView: No session or email, skipping SSE");
+      return;
+    }
+
+    const landlordUserId = session.user.email;
+    console.log("LandlordAgreementsView: Using global SSE manager for userId:", landlordUserId);
+
+    // Use global SSE manager
+    const { sseManager } = require('@/lib/sseManager');
+    sseManager.connect(landlordUserId);
+
+    // Listen for notifications
+    const unsubscribe = sseManager.onNotification((notification: any) => {
+      console.log("LandlordAgreementsView: Received SSE notification:", notification);
+      
+      // If notification is about new lease request or cancellation, reload
+      const notificationType = notification.type?.toUpperCase();
+      if (notificationType === 'AGREEMENT_REQUESTED' || notificationType === 'LEASE_REQUEST_CANCELLED') {
+        console.log("LandlordAgreementsView: Lease request update received, reloading...");
+        setTimeout(() => {
+          const session = getSession();
+          if (session?.token) {
+            getLandlordLeaseRequests(session.token)
+              .then((data) => {
+                setLeaseRequests(data);
+              })
+              .catch((err) => {
+                console.error("Failed to reload lease requests:", err);
+              });
+          }
+        }, 500);
+      }
+    });
+
+    return () => {
+      console.log("LandlordAgreementsView: Cleaning up SSE listener");
+      unsubscribe();
+    };
   }, []);
 
   // Filter requests waiting for landlord review

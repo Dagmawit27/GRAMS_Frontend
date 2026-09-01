@@ -12,6 +12,7 @@ interface TopAppBarProps {
   notifications: ActivityNotification[];
   onNotificationClick: (notif: ActivityNotification) => void;
   onClearNotifications: () => void;
+  onAddNotification: (notif: ActivityNotification) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   onProfileClick: () => void;
@@ -27,12 +28,9 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   notifications,
   onNotificationClick,
   onClearNotifications,
+  onAddNotification,
   isDarkMode,
   onToggleDarkMode,
-  onProfileClick,
-  onLogoutClick,
-  userRole = "citizen",
-  onToggleRole,
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -52,6 +50,51 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
       }
     }
   }, []);
+
+  // SSE connection for real-time notification updates
+  useEffect(() => {
+    const session = getSession();
+    if (!session?.user?.email) return;
+
+    const userId = session.user.email;
+    console.log("TopAppBar: Connecting to SSE with userId:", userId);
+
+    // Use global SSE manager
+    const { sseManager } = require('@/lib/sseManager');
+    sseManager.connect(userId);
+
+    // Listen for unread count updates
+    const unsubscribeUnreadCount = sseManager.onUnreadCount((count: number) => {
+      console.log("TopAppBar: Received unread count update:", count);
+      // Refresh notifications from backend to update unread count
+      if (onClearNotifications) {
+        onClearNotifications();
+      }
+    });
+
+    // Listen for notifications
+    const unsubscribeNotification = sseManager.onNotification((notification: any) => {
+      console.log("TopAppBar: Received SSE notification:", notification);
+      // Add new notification to the list
+      if (onAddNotification) {
+        const newNotif: ActivityNotification = {
+          id: notification.id,
+          type: notification.type.toLowerCase() as any,
+          title: notification.type.replace(/_/g, ' '),
+          description: notification.message,
+          timestamp: new Date(notification.createdAt).toLocaleString(),
+          read: notification.read,
+        };
+        onAddNotification(newNotif);
+      }
+    });
+
+    return () => {
+      console.log("TopAppBar: Cleaning up SSE listeners");
+      unsubscribeUnreadCount();
+      unsubscribeNotification();
+    };
+  }, [onClearNotifications]);
 
 
   return (
@@ -244,39 +287,9 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
                 onClick={() => setIsProfileOpen(false)}
               />
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in-50 zoom-in-95">
-                <button
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    onProfileClick();
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Profile</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    onProfileClick();
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>Settings</span>
-                </button>
-                <div className="border-t border-slate-100 my-1" />
-                {onLogoutClick && (
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      onLogoutClick();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </button>
-                )}
+                <div className="px-3 py-2 text-xs text-slate-500">
+                  {userName}
+                </div>
               </div>
             </>
           )}

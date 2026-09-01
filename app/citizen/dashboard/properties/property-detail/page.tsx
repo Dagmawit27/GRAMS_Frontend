@@ -294,7 +294,7 @@ function PropertyDetailContent() {
               <span>Create Lease Agreement</span>
             </Button>
           )}
-          {property?.status === "PENDING" && (
+          
             <>
               <Button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -305,7 +305,6 @@ function PropertyDetailContent() {
                 <span>Delete Property</span>
               </Button>
             </>
-          )}
         </div>
       </div>
 

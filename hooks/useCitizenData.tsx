@@ -95,6 +95,7 @@ export interface CitizenContextType {
   handleViewAgreementForProperty: (propTitle: string) => void;
   handleNotificationClick: (notif: ActivityNotification) => void;
   handleClearNotifications: () => void;
+  handleAddNotification: (notif: ActivityNotification) => void;
 }
 
 const CitizenContext = createContext<CitizenContextType | null>(null);
@@ -577,6 +578,10 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const handleAddNotification = (notification: ActivityNotification) => {
+    setNotifications((prev) => [notification, ...prev]);
+  };
+
   return (
     <CitizenContext.Provider
       value={{
@@ -644,6 +649,7 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         handleViewAgreementForProperty,
         handleNotificationClick,
         handleClearNotifications,
+        handleAddNotification,
       }}
     >
       {children}

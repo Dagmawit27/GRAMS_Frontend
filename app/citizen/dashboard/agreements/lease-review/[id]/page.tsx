@@ -91,7 +91,7 @@ export default function LeaseReviewPage() {
   // Convert LeaseRequestResponse to LeaseRequest format expected by LandlordReviewDetailsView
   const convertedRequest = {
     id: leaseRequest.id,
-    requestCode: leaseRequest.id,
+    requestCode: leaseRequest.requestCode,
     propertyTitle: leaseRequest.propertyTitle,
     propertyLocation: leaseRequest.propertyLocation,
     propertyImage: leaseRequest.propertyImage,
