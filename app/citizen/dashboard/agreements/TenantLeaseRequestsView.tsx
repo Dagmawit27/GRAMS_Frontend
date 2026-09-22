@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LeaseRequestResponse, getMyLeaseRequests, cancelLeaseRequest, deleteLeaseRequest, getSession } from "@/lib/api";
+import { LeaseRequestResponse, getMyLeaseRequests, cancelLeaseRequest, getSession, deleteLeaseRequest } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,10 +68,20 @@ export const TenantLeaseRequestsView: React.FC = () => {
     const unsubscribe = sseManager.onNotification((notification: any) => {
       console.log("TenantLeaseRequestsView: Received SSE notification:", notification);
       
-      // If notification is about lease request cancellation or agreement generation, reload
-      const notificationType = notification.type?.toUpperCase();
-      if (notificationType === 'LEASE_REQUEST_CANCELLED' || notificationType === 'AGREEMENT_GENERATED') {
-        console.log("TenantLeaseRequestsView: Lease request updated, reloading...");
+      // If notification is about lease status change, signing, verification, approval, or cancellation, reload
+      const nType = (notification.type || "").toUpperCase();
+      if (
+        notification.module === 'LEASE' ||
+        nType === 'AGREEMENT_REQUESTED' ||
+        nType === 'LEASE_REQUEST_SIGNED' ||
+        nType === 'LEASE_REQUEST_VERIFIED' ||
+        nType === 'LEASE_REQUEST_APPROVED' ||
+        nType === 'AGREEMENT_APPROVED' ||
+        nType === 'AGREEMENT_SIGNED' ||
+        nType === 'LEASE_REQUEST_STATUS_CHANGED' ||
+        nType === 'LEASE_REQUEST_CANCELLED'
+      ) {
+        console.log("TenantLeaseRequestsView: Lease status changed, reloading...");
         setTimeout(() => {
           const session = getSession();
           if (session?.token) {
@@ -157,16 +167,18 @@ export const TenantLeaseRequestsView: React.FC = () => {
     router.push(`/citizen/dashboard/leases/${req.requestCode}`);
   };
 
-  // Get tenant-specific requests
-  const tenantRequests = leaseRequests;
+  // Get tenant-specific requests (approved agreements move to Active Agreements)
+  const tenantRequests = leaseRequests.filter(
+    (r) => r.status !== "SUPERVISOR_APPROVED" && r.status !== "APPROVED"
+  );
 
-  const actionRequiredCount = tenantRequests.filter((r) => r.status === "APPROVED").length;
+  const actionRequiredCount = tenantRequests.filter((r) => r.status === "LANDLORD_APPROVED").length;
   const pendingCount = tenantRequests.filter((r) => r.status === "PENDING").length;
   const declinedCount = tenantRequests.filter((r) => r.status === "REJECTED").length;
   const cancelledCount = tenantRequests.filter((r) => r.status === "CANCELLED").length;
 
   const filteredRequests = tenantRequests.filter((r) => {
-    if (activeFilter === "action") return r.status === "APPROVED";
+    if (activeFilter === "action") return r.status === "LANDLORD_APPROVED";
     if (activeFilter === "pending") return r.status === "PENDING";
     if (activeFilter === "declined") return r.status === "REJECTED";
     if (activeFilter === "cancelled") return r.status === "CANCELLED";
@@ -277,8 +289,12 @@ export const TenantLeaseRequestsView: React.FC = () => {
           </div>
         ) : (
           filteredRequests.map((req, index) => {
-            const isReadyToSign = req.status === "APPROVED";
-            const isAwaitingLandlord = false;
+            const isReadyToSign = req.status === "LANDLORD_APPROVED" && !req.landlordSigned;
+            const isLandlordSigned = req.status === "LANDLORD_APPROVED" && req.landlordSigned === true && req.tenantSigned === false;
+            const isBothSigned = req.landlordSigned === true && req.tenantSigned === true;
+            const isUnderVerification = req.status === "UNDER_VERIFICATION";
+            const isPendingSupervisorApproval = req.status === "PENDING_SUPERVISOR_APPROVAL";
+            const isFullyApproved = req.status === "SUPERVISOR_APPROVED";
             const isAwaiting = req.status === "PENDING";
             const isDeclined = req.status === "REJECTED";
             const isCancelled = req.status === "CANCELLED";
@@ -297,9 +313,29 @@ export const TenantLeaseRequestsView: React.FC = () => {
                           READY TO SIGN
                         </Badge>
                       )}
-                      {isAwaitingLandlord && (
+                      {isLandlordSigned && (
+                        <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border border-purple-200 text-[11px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
+                          LANDLORD SIGNED
+                        </Badge>
+                      )}
+                      {isBothSigned && (
                         <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border border-blue-200 text-[11px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
-                          PENDING LANDLORD AGREEMENT
+                          BOTH SIGNED
+                        </Badge>
+                      )}
+                      {isUnderVerification && (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border border-amber-200 text-[11px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
+                          UNDER VERIFICATION
+                        </Badge>
+                      )}
+                      {isPendingSupervisorApproval && (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border border-blue-200 text-[11px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
+                          VERIFIED
+                        </Badge>
+                      )}
+                      {isFullyApproved && (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border border-green-200 text-[11px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
+                          APPROVED
                         </Badge>
                       )}
                       {isAwaiting && (
@@ -314,7 +350,7 @@ export const TenantLeaseRequestsView: React.FC = () => {
                       )}
                       {isCancelled && (
                         <Badge className="bg-slate-100 text-slate-800 hover:bg-slate-100 border border-slate-200 text-[11px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
-                          REQUEST CANCELLED
+                          CANCELLED
                         </Badge>
                       )}
 
@@ -368,11 +404,11 @@ export const TenantLeaseRequestsView: React.FC = () => {
                     </div>
                   )}
 
-                  {isAwaitingLandlord && (
-                    <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2.5">
-                      <Clock className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  {isLandlordSigned && (
+                    <div className="bg-purple-50/80 border border-purple-200/80 rounded-xl p-3 text-xs text-purple-900 flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
-                        Your request has been approved. The landlord is currently generating the agreement. You will be notified when it's ready for signing.
+                        The landlord has signed the agreement. Please review and sign the agreement to finalize the lease.
                       </p>
                     </div>
                   )}
@@ -399,10 +435,10 @@ export const TenantLeaseRequestsView: React.FC = () => {
                   )}
 
                   {isCancelled && (
-                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-900 flex items-start gap-2.5">
-                      <AlertCircle className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-700 flex items-start gap-2.5">
+                      <XCircle className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
-                        This lease request has been cancelled. You can delete it from your list.
+                        This request has been cancelled by you.
                       </p>
                     </div>
                   )}
@@ -415,6 +451,26 @@ export const TenantLeaseRequestsView: React.FC = () => {
                         className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs font-semibold h-9 px-4 gap-2 shadow-xs"
                       >
                         <span>Review & Sign Agreement</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    )}
+
+                    {isLandlordSigned && (
+                      <Button
+                        onClick={() => handleOpenTenantSigning(req)}
+                        className="bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold h-9 px-4 gap-2 shadow-xs"
+                      >
+                        <span>View & Sign Agreement</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    )}
+
+                    {(isBothSigned || isUnderVerification || isPendingSupervisorApproval || isFullyApproved) && (
+                      <Button
+                        onClick={() => handleOpenTenantSigning(req)}
+                        className="bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold h-9 px-4 gap-2 shadow-xs"
+                      >
+                        <span>View Detail</span>
                         <ArrowRight className="w-4 h-4" />
                       </Button>
                     )}
@@ -436,16 +492,6 @@ export const TenantLeaseRequestsView: React.FC = () => {
                           Withdraw Request
                         </Button>
                       </>
-                    )}
-
-                    {isAwaitingLandlord && (
-                      <Button
-                        variant="outline"
-                        onClick={() => handleOpenDetail(req)}
-                        className="text-xs h-8 text-slate-700 font-medium"
-                      >
-                        View Details
-                      </Button>
                     )}
 
                     {isDeclined && (

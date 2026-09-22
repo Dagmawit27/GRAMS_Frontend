@@ -28,7 +28,8 @@ import {
   ExternalLink,
   Layers,
   User,
-  Calendar
+  Calendar,
+  Lock
 } from "lucide-react";
 import { PropertyResponse, getPropertyByCode, getSession } from "@/lib/api";
 
@@ -64,7 +65,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
     bathrooms: rp.bathroomCount,
     area: rp.areaSqMeter || 100,
     floor: rp.floorNumber,
-    status: "Available",
+    status: (rp.status || "").toUpperCase() === "RENTED" ? "Rented" : "Available",
     verified: true,
     featuredImage: rp.images?.[0]?.imageUrl || "",
     galleryImages: rp.images?.map((i) => i.imageUrl) || [],
@@ -76,7 +77,21 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
     availableFrom: rp.availableFrom || "Immediate",
     landlordName: rp.landlordName || "N/A",
     unitsCount: rp.units?.length,
-    //units: rp.units
+    units: rp.units?.map((u) => ({
+      id: u.id,
+      unitCode: u.unitCode,
+      unitName: u.unitName,
+      unitType: u.unitType,
+      areaSqMeter: u.areaSqMeter,
+      status: u.status,
+      rentAmount: u.rentAmount,
+      floorLevel: u.floorLevel,
+      category: u.category,
+      submeter: u.submeter,
+      waterSupply: u.waterSupply,
+      frontage: u.frontage,
+      description: u.description,
+    })),
   });
 
   // Handle Input Change with automatic Capitalization
@@ -284,7 +299,7 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-black/30" />
 
                   {/* Property Code Pill */}
-                  <div className="absolute top-3 left-3 flex items-center gap-2">
+                  <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2">
                     <span className="bg-slate-900/90 backdrop-blur-md text-emerald-300 font-mono text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-sm flex items-center gap-1.5">
                       <Hash className="w-3.5 h-3.5 text-emerald-400" />
                       {property.propertyCode || property.id}
@@ -296,6 +311,30 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
                         Verified
                       </span>
                     )}
+
+                    {property.units && property.units.length > 0 ? (
+                      (() => {
+                        const availableUnits = property.units.filter(
+                          (u) => (u.status || "").toUpperCase() === "AVAILABLE"
+                        ).length;
+                        return availableUnits > 0 ? (
+                          <span className="bg-blue-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                            <Layers className="w-3 h-3" />
+                            {availableUnits} of {property.units.length} Units Available
+                          </span>
+                        ) : (
+                          <span className="bg-rose-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                            <Lock className="w-3 h-3" />
+                            All Units Rented
+                          </span>
+                        );
+                      })()
+                    ) : property.status === "Rented" ? (
+                      <span className="bg-rose-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                        <Lock className="w-3 h-3" />
+                        Rented
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* Rent Tag */}

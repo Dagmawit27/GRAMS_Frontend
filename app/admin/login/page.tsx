@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ import {
   Activity,
   CheckCircle
 } from "lucide-react";
-import { getSession, getMyProperties, getPropertyById, PropertyResponse } from "@/lib/api";
+import { getSession, getMyProperties, getPropertyById, PropertyResponse, PropertyUnitResponse } from "@/lib/api";
 import { useCitizenData } from "@/hooks/useCitizenData";
 import { PropertyUnit } from "@/types";
 import {
@@ -504,7 +504,7 @@ export const PropertyDetailPage: React.FC = () => {
             (loadedProp.unitsCount && loadedProp.unitsCount > 1);
 
           if (loadedProp.units && loadedProp.units.length > 0) {
-            setPropertyUnits(loadedProp.units);
+            setPropertyUnits(loadedProp.units as PropertyUnit[]);
           } else if (isMall) {
             const count = loadedProp.unitsCount || 24;
             const generated = generateDefaultMallUnits(count, loadedProp.propertyCode);
@@ -619,7 +619,7 @@ export const PropertyDetailPage: React.FC = () => {
     setPropertyUnits(updated);
 
     if (property) {
-      const updatedProp = { ...property, units: updated, unitsCount: updated.length };
+      const updatedProp: PropertyResponse = { ...property, units: updated as PropertyUnitResponse[], unitsCount: updated.length };
       setProperty(updatedProp);
       if (typeof window !== "undefined") {
         const existing = localStorage.getItem("registered_properties");
@@ -698,11 +698,11 @@ export const PropertyDetailPage: React.FC = () => {
       const matchSearch =
         !q ||
         u.unitCode.toLowerCase().includes(q) ||
-        u.name.toLowerCase().includes(q) ||
-        u.type.toLowerCase().includes(q) ||
-        (u.category && u.category.toLowerCase().includes(q)) ||
-        (u.tenant && u.tenant.toLowerCase().includes(q)) ||
-        (u.shopNumber && u.shopNumber.toLowerCase().includes(q));
+        Boolean(u.name && u.name.toLowerCase().includes(q)) ||
+        Boolean(u.type && u.type.toLowerCase().includes(q)) ||
+        Boolean(u.category && u.category.toLowerCase().includes(q)) ||
+        Boolean(u.tenant && u.tenant.toLowerCase().includes(q)) ||
+        Boolean(u.shopNumber && u.shopNumber.toLowerCase().includes(q));
 
       return matchFloor && matchStatus && matchCategory && matchSearch;
     });
@@ -1984,7 +1984,7 @@ export const PropertyDetailPage: React.FC = () => {
                       </div>
                       <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                         <span className="text-[10px] text-slate-500 font-mono">
-                          {new Date(img.uploadedAt).toLocaleDateString()}
+                          {new Date(img.uploadedAt || Date.now()).toLocaleDateString()}
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -2436,4 +2436,10 @@ export const PropertyDetailPage: React.FC = () => {
   );
 };
 
-export default PropertyDetailPage;
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading...</div>}>
+      <PropertyDetailPage />
+    </Suspense>
+  );
+}

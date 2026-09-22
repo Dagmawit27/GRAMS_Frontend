@@ -15,6 +15,7 @@ const OfficerSidebarWrapper = dynamic(
 
 function resolveCurrentPage(pathname: string): NavPage {
   if (pathname.includes("/properties")) return "officer-property-verifications";
+  if (pathname.includes("/agreements/active")) return "officer-agreements-active";
   if (pathname.includes("/agreements")) return "officer-agreement-verifications";
   if (pathname.includes("/history")) return "officer-history";
   if (pathname.includes("/reports")) return "officer-reports";

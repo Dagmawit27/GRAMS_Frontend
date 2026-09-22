@@ -89,17 +89,14 @@ export default function OfficerPropertiesListPage() {
 
     const officerUserId = `woreda-officer-${woreda}`;
     console.log("Connecting to SSE with userId:", officerUserId);
-    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${officerUserId}`);
-
-    // Listen for connection confirmation
-    eventSource.addEventListener('connected', (event) => {
-      console.log("SSE connected:", event.data);
-    });
+    
+    // Use global SSE manager
+    const { sseManager } = require('@/lib/sseManager');
+    sseManager.connect(officerUserId);
 
     // Listen for notification events
-    eventSource.addEventListener('notification', (event) => {
-      console.log("Received SSE notification:", event.data);
-      const notification = JSON.parse(event.data);
+    const unsubscribe = sseManager.onNotification((notification: any) => {
+      console.log("Received SSE notification:", notification);
       console.log("Reloading properties...");
       
       // Add a small delay to ensure backend transaction is committed
@@ -114,21 +111,9 @@ export default function OfficerPropertiesListPage() {
       }, 500);
     });
 
-    // Listen for unread count updates
-    eventSource.addEventListener('unreadCount', (event) => {
-      console.log("Received unread count update:", event.data);
-    });
-
-    eventSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      console.error("EventSource readyState:", eventSource.readyState);
-      console.error("EventSource URL:", eventSource.url);
-      eventSource.close();
-    };
-
     return () => {
-      console.log("Closing SSE connection");
-      eventSource.close();
+      console.log("Cleaning up SSE listener");
+      unsubscribe();
     };
   }, [jurisdiction, woreda]);
 

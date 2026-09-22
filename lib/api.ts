@@ -40,6 +40,27 @@ export interface UserSummary {
   /** Jurisdiction for government employees */
   subCity?: string;
   woreda?: string;
+  /** Citizen specific fields */
+  nationalId?: string;
+  taxIdentificationNumber?: string;
+  tinNumber?: string;
+  city?: string;
+  houseNumber?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  /** Landlord payout settings (Account 1 - Primary) */
+  preferredPaymentMethod?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  /** Account 2 - Secondary */
+  bankName2?: string;
+  accountNumber2?: string;
+  accountHolderName2?: string;
+  /** Account 3 - Tertiary */
+  bankName3?: string;
+  accountNumber3?: string;
+  accountHolderName3?: string;
 }
 
 export interface AuthResult {
@@ -58,6 +79,9 @@ export async function registerCitizen(data: {
   phoneNumber: string;
   email: string;
   worksOn?: string;
+  city?: string;
+  subCity?: string;
+  woreda?: string;
   rolePreference?: string;
   password: string;
 }): Promise<AuthResult> {
@@ -131,10 +155,10 @@ export async function loginOfficer(data: {
   });
   const json = await parseResponse(res);
   if (!res.ok) throw new Error(json.message || "Invalid officer credentials.");
-  // Guard: only WOREDA_OFFICER or WOREDA_SUPERVISOR may use this portal
+  // Guard: only WOREDA_OFFICER, WOREDA_SUPERVISOR, or TAX_OFFICER may use this portal
   const roles: string[] = (json.user?.roles ?? []).map((r: string) => r.toUpperCase());
-  if (!roles.some((r) => r === "WOREDA_OFFICER" || r === "WOREDA_SUPERVISOR")) {
-    throw new Error("Access denied. Only Woreda Officers and Supervisors may sign in here.");
+  if (!roles.some((r) => r === "WOREDA_OFFICER" || r === "WOREDA_SUPERVISOR" || r === "TAX_OFFICER")) {
+    throw new Error("Access denied. Only Woreda Officers, Supervisors, and Tax Officers may sign in here.");
   }
   saveSession(json);
   return json;
@@ -312,42 +336,31 @@ export interface PropertyResponse {
     issueDate?: string;
     expiryDate?: string;
   }[];
-  units: {
-    id: string;
-    unitCode: string;
-    unitName: string;
-    unitType: string;
-    areaSqMeter: number;
-    status: string;
-    rentAmount: number;
-    tenantName: string;
-    floorLevel: string;
-    category: string;
-    shopNumber: string;
-    submeter: boolean;
-    waterSupply: boolean;
-    frontage: string;
-    description: string;
-  }[];
+  units?: PropertyUnitResponse[];
+  unitsCount?: number;
   createdAt: string;
 }
 
 export interface PropertyUnitResponse {
   id: string;
   unitCode: string;
-  unitName: string;
-  unitType: string;
-  areaSqMeter: number;
+  unitName?: string;
+  unitType?: string;
+  areaSqMeter?: number;
   status: string;
-  rentAmount: number;
-  tenantName: string;
-  floorLevel: string;
-  category: string;
-  shopNumber: string;
-  submeter: boolean;
-  waterSupply: boolean;
-  frontage: string;
-  description: string;
+  rentAmount?: number;
+  tenantName?: string;
+  floorLevel?: string;
+  category?: string;
+  shopNumber?: string;
+  submeter?: boolean;
+  waterSupply?: boolean;
+  frontage?: string;
+  description?: string;
+  name?: string;
+  type?: string;
+  area?: number;
+  tenant?: string;
 }
 
 export async function getUnitById(unitId: string, token: string): Promise<PropertyUnitResponse> {
@@ -582,7 +595,8 @@ export interface LeaseRequestResponse {
   propertyCode: string;
   propertyTitle: string;
   propertyType: string;
-  propertyLocation: string;
+  propertySubCity: string;
+  propertyWoreda: string;
   propertyImage: string;
   propertyImages: string[];
   unitCode?: string;
@@ -593,8 +607,15 @@ export interface LeaseRequestResponse {
   applicantPhone?: string;
   applicantNationalId?: string;
   applicantEmployment?: string;
+  applicantCity: string;
+  applicantSubCity: string;
+  applicantWoreda: string;
   landlordName: string;
   landlordEmail: string;
+  landlordPhone?: string;
+  landlordCity?: string;
+  landlordSubCity?: string;
+  landlordWoreda?: string;
   proposedRent: number;
   securityDeposit: number;
   leaseDurationMonths: number;
@@ -602,71 +623,25 @@ export interface LeaseRequestResponse {
   endDate: string;
   applicantNotes?: string;
   landlordRemarks?: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "EXPIRED";
+  status: "PENDING" | "LANDLORD_APPROVED" | "UNDER_VERIFICATION" | "PENDING_SUPERVISOR_APPROVAL" | "SUPERVISOR_APPROVED" | "REJECTED" | "CANCELLED" | "EXPIRED" | "APPROVED";
   createdAt: string;
   reviewedAt?: string;
   expiresAt?: string;
   leaseDuration?: string;
-}
-
-export interface AgreementResponse {
-  id: number;
-  agreementCode: string;
-  requestCode: string;
-  contractDate: string;
-  contractNumber: string;
-  landlordName: string;
-  landlordSubCity: string;
-  landlordWoreda: string;
-  landlordHouseNo: string;
-  landlordPhone: string;
-  landlordRegion: string;
-  landlordCity: string;
-  landlordSpecificPlace: string;
-  tenantName: string;
-  tenantSubCity: string;
-  tenantWoreda: string;
-  tenantHouseNo: string;
-  tenantPhone: string;
-  tenantRegion: string;
-  tenantCity: string;
-  tenantSpecificPlace: string;
-  propertyRegion: string;
-  propertyCity: string;
-  propertySubCity: string;
-  propertyWoreda: string;
-  propertySpecificPlace: string;
-  propertyHouseNo: string;
-  propertyOwnershipType: string;
-  propertyCondition: string;
-  monthlyRentInBirr: number;
-  monthlyRentInWords: string;
-  utilitiesPaidBy: string;
-  advancePaymentMonths: string;
-  advancePaymentBirr: number;
-  advancePaymentWords: string;
-  monthlyPaymentDueDay: string;
-  landlordSignature?: string;
+  landlordSigned?: boolean;
+  tenantSigned?: boolean;
+  supervisorSigned?: boolean;
   landlordSignedAt?: string;
-  tenantSignature?: string;
   tenantSignedAt?: string;
-  officerName?: string;
-  officerSignature?: string;
-  officerSignedAt?: string;
-  witness1Name?: string;
-  witness1Signature?: string;
-  witness1SignedAt?: string;
-  witness2Name?: string;
-  witness2Signature?: string;
-  witness2SignedAt?: string;
-  landlordSigned: boolean;
-  tenantSigned: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  supervisorSignedAt?: string;
+  propertyLocation?: string;
+  propertyCity?: string;
+  propertySpecificPlace?: string;
+  propertyHouseNo?: string;
 }
 
 export interface LeaseStatusUpdateRequest {
-  newStatus: "APPROVED" | "REJECTED";
+  newStatus: "LANDLORD_APPROVED" | "REJECTED";
   remarks?: string;
 }
 
@@ -727,7 +702,7 @@ export async function updateLeaseRequestStatus(
 }
 
 export async function acceptLeaseRequest(token: string, requestCode: string, remarks?: string): Promise<LeaseRequestResponse> {
-  return updateLeaseRequestStatus(token, requestCode, { newStatus: "APPROVED", remarks });
+  return updateLeaseRequestStatus(token, requestCode, { newStatus: "LANDLORD_APPROVED", remarks });
 }
 
 export async function declineLeaseRequest(token: string, requestCode: string, remarks?: string): Promise<LeaseRequestResponse> {
@@ -752,55 +727,61 @@ export async function deleteLeaseRequest(token: string, requestCode: string): Pr
   if (!res.ok) throw new Error(json.message || "Failed to delete lease request.");
 }
 
-export async function generateAgreement(token: string, requestCode: string): Promise<AgreementResponse> {
-  const res = await apiFetch(`${BASE_URL}/agreements/generate`, {
+export async function signAgreementWithPassword(token: string, requestCode: string, password: string): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}/sign-password`, {
     method: "POST",
     headers: { 
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
+      "Content-Type": "text/plain"
     },
-    body: JSON.stringify({ requestCode }),
+    body: password,
   });
   const json = await parseResponse(res);
-  if (!res.ok) throw new Error(json.message || "Failed to generate agreement.");
+  if (!res.ok) throw new Error(json.message || "Failed to sign agreement with password.");
   return json;
 }
 
-export async function signAgreement(token: string, requestCode: string, otp: string): Promise<AgreementResponse> {
-  const res = await apiFetch(`${BASE_URL}/agreements/sign`, {
+export async function signAgreementWithOtp(token: string, requestCode: string, otp: string): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}/sign-otp`, {
     method: "POST",
     headers: { 
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
+      "Content-Type": "text/plain"
     },
-    body: JSON.stringify({ requestCode, otp }),
+    body: otp,
   });
   const json = await parseResponse(res);
-  if (!res.ok) throw new Error(json.message || "Failed to sign agreement.");
+  if (!res.ok) throw new Error(json.message || "Failed to sign agreement with OTP.");
   return json;
 }
 
-export async function signAgreementByTenant(token: string, requestCode: string, otp: string): Promise<AgreementResponse> {
-  const res = await apiFetch(`${BASE_URL}/agreements/sign-tenant`, {
+export async function verifyLeaseRequest(token: string, requestCode: string): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}/verify`, {
     method: "POST",
-    headers: { 
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ requestCode, otp }),
+    headers: { Authorization: `Bearer ${token}` },
   });
   const json = await parseResponse(res);
-  if (!res.ok) throw new Error(json.message || "Failed to sign agreement.");
+  if (!res.ok) throw new Error(json.message || "Failed to verify lease request.");
   return json;
 }
 
-export async function getAgreementByRequestCode(token: string, requestCode: string): Promise<AgreementResponse> {
-  const res = await apiFetch(`${BASE_URL}/agreements/request/${requestCode}`, {
+export async function approveLeaseRequest(token: string, requestCode: string): Promise<LeaseRequestResponse> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/${requestCode}/approve`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to approve lease request.");
+  return json;
+}
+
+export async function getLeaseRequestsByStatus(token: string, status: string): Promise<LeaseRequestResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/lease-requests/status/${status}`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
   const json = await parseResponse(res);
-  if (!res.ok) throw new Error(json.message || "Failed to get agreement.");
+  if (!res.ok) throw new Error(json.message || "Failed to get lease requests by status.");
   return json;
 }
 
@@ -822,7 +803,7 @@ export async function getNotifications(token: string, page: number = 0, size: nu
     headers: { Authorization: `Bearer ${token}` },
   });
   const json = await parseResponse(res);
-  if (!res.ok) throw new Error(json.message || "Failed to load notifications.");
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load notifications.");
   return json;
 }
 
@@ -874,3 +855,474 @@ export async function getPendingRequestsForUnit(
   if (!res.ok) throw new Error(json.message || "Failed to load pending requests.");
   return json;
 }
+
+// Agreement Module API types & functions
+export interface AgreementResponse {
+  id: string;
+  agreementNumber: string;
+  requestCode: string;
+  leaseRequestId: string;
+
+  propertyId: string;
+  propertyCode: string;
+  propertyTitle: string;
+  propertyType: string;
+  propertySubCity?: string;
+  propertyWoreda?: string;
+  unitId?: string;
+  unitCode?: string;
+  unitNumber?: string;
+
+  tenantId: string;
+  tenantName: string;
+  tenantEmail: string;
+  tenantPhone: string;
+  tenantSubCity?: string;
+  tenantWoreda?: string;
+
+  landlordId: string;
+  landlordName: string;
+  landlordEmail: string;
+  landlordPhone: string;
+  landlordSubCity?: string;
+  landlordWoreda?: string;
+  landlordPreferredPaymentMethod?: string;
+  landlordBankName?: string;
+  landlordAccountNumber?: string;
+  landlordAccountHolderName?: string;
+  landlordBankName2?: string;
+  landlordAccountNumber2?: string;
+  landlordAccountHolderName2?: string;
+  landlordBankName3?: string;
+  landlordAccountNumber3?: string;
+  landlordAccountHolderName3?: string;
+
+  monthlyRent: number;
+  securityDeposit: number;
+  advancePaymentMonths: number;
+  leaseDurationMonths: number;
+  contractDate: string;
+  startDate?: string;
+  endDate?: string;
+  monthlyPaymentDueDay: number;
+  utilitiesPaidBy: string;
+  propertyCondition: string;
+  propertyOwnershipType: string;
+  status: string;
+
+  landlordSigned: boolean;
+  landlordSignedAt?: string;
+  landlordSignature?: string;
+  tenantSigned: boolean;
+  tenantSignedAt?: string;
+  tenantSignature?: string;
+  officerVerified: boolean;
+  officerVerifiedAt?: string;
+  officerEmail?: string;
+  supervisorApproved: boolean;
+  supervisorApprovedAt?: string;
+  supervisorEmail?: string;
+
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export async function getMyAgreements(token: string): Promise<AgreementResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/agreements/my-agreements`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load agreements.");
+  return json;
+}
+
+export async function getLandlordAgreements(token: string): Promise<AgreementResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/agreements/landlord`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load landlord agreements.");
+  return json;
+}
+
+export async function getTenantAgreements(token: string): Promise<AgreementResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/agreements/tenant`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load tenant agreements.");
+  return json;
+}
+
+export async function getAgreementByNumber(token: string, agreementNumber: string): Promise<AgreementResponse> {
+  const res = await apiFetch(`${BASE_URL}/agreements/${agreementNumber}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load agreement.");
+  return json;
+}
+
+export async function getAgreementByRequestCode(token: string, requestCode: string): Promise<AgreementResponse> {
+  const res = await apiFetch(`${BASE_URL}/agreements/by-request/${requestCode}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load agreement.");
+  return json;
+}
+
+export async function getAllActiveAgreements(token: string): Promise<AgreementResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/agreements/active`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load active agreements.");
+  return json;
+}
+
+export interface PayoutSettingsPayload {
+  tinNumber?: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolderName?: string;
+  preferredPaymentMethod?: string;
+  bankName2?: string;
+  accountNumber2?: string;
+  accountHolderName2?: string;
+  bankName3?: string;
+  accountNumber3?: string;
+  accountHolderName3?: string;
+}
+
+export async function updatePayoutSettings(
+  token: string,
+  data: PayoutSettingsPayload
+): Promise<UserSummary> {
+  const res = await apiFetch(`${BASE_URL}/users/payout-settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update payout settings.");
+  
+  // Update local session user object if available
+  const session = getSession();
+  if (session && session.user) {
+    if (data.tinNumber) {
+      session.user.tinNumber = data.tinNumber;
+    }
+    session.user.bankName = data.bankName;
+    session.user.accountNumber = data.accountNumber;
+    session.user.accountHolderName = data.accountHolderName;
+    session.user.preferredPaymentMethod = data.preferredPaymentMethod || data.bankName;
+    session.user.bankName2 = data.bankName2;
+    session.user.accountNumber2 = data.accountNumber2;
+    session.user.accountHolderName2 = data.accountHolderName2;
+    session.user.bankName3 = data.bankName3;
+    session.user.accountNumber3 = data.accountNumber3;
+    session.user.accountHolderName3 = data.accountHolderName3;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(session.user));
+    }
+  }
+
+  return json;
+}
+
+export interface UpdateUserProfilePayload {
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  phone?: string;
+  city?: string;
+  subCity?: string;
+  woreda?: string;
+  houseNumber?: string;
+  worksOn?: string;
+  tinNumber?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+}
+
+export async function updateUserProfile(
+  token: string,
+  data: UpdateUserProfilePayload
+): Promise<UserSummary> {
+  const res = await apiFetch(`${BASE_URL}/users/profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update profile.");
+
+  const session = getSession();
+  if (session && session.user) {
+    Object.assign(session.user, data);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(session.user));
+    }
+  }
+  return json;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export async function changePassword(
+  token: string,
+  data: ChangePasswordPayload
+): Promise<{ message: string }> {
+  const res = await apiFetch(`${BASE_URL}/users/change-password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to change password.");
+  return json;
+}
+
+export interface NotificationPreferenceDto {
+  id?: string;
+  userId: string;
+  type: string;
+  enabledChannels: string[];
+}
+
+export async function getNotificationPreferences(
+  token: string
+): Promise<NotificationPreferenceDto[]> {
+  const res = await apiFetch(`${BASE_URL}/notifications/preferences`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load notification preferences.");
+  return Array.isArray(json) ? json : [];
+}
+
+export async function updateNotificationPreference(
+  token: string,
+  data: { type: string; enabledChannels: string[] }
+): Promise<NotificationPreferenceDto> {
+  const res = await apiFetch(`${BASE_URL}/notifications/preferences`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to update notification preference.");
+  return json;
+}
+
+// ── Payment API (Chapa Gateway) ──────────────────────────────────────────────
+
+export interface PaymentInitiateRequest {
+  requestCode: string;
+  amount?: number;
+  phoneNumber?: string;
+  paymentMethod?: string;
+  destinationBankName?: string;
+  destinationAccountNumber?: string;
+  destinationAccountHolderName?: string;
+}
+
+export interface PaymentInitiateResponse {
+  txRef: string;
+  checkoutUrl: string;
+  amount: number;
+  currency: string;
+  status: string;
+  requestCode: string;
+  agreementNumber: string;
+  propertyTitle: string;
+  landlordName: string;
+  landlordBankName: string;
+  landlordAccountNumber: string;
+  landlordAccountHolderName?: string;
+  sandboxMode: boolean;
+}
+
+export interface PaymentResponseDto {
+  id: string;
+  txRef: string;
+  chapaReference?: string;
+  agreementId?: string;
+  agreementNumber: string;
+  requestCode: string;
+  propertyTitle: string;
+  tenantName: string;
+  tenantEmail: string;
+  landlordName: string;
+  landlordEmail: string;
+  landlordBankName: string;
+  landlordAccountNumber: string;
+  landlordAccountHolderName?: string;
+  amount: number;
+  taxAmount: number;
+  netLandlordAmount: number;
+  currency: string;
+  status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  paymentMethod?: string;
+  checkoutUrl?: string;
+  paymentDate?: string;
+  createdAt: string;
+}
+
+export async function initializePayment(
+  token: string,
+  data: PaymentInitiateRequest
+): Promise<PaymentInitiateResponse> {
+  const res = await apiFetch(`${BASE_URL}/payments/initialize`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to initialize payment.");
+  return json;
+}
+
+export async function verifyPayment(
+  token: string,
+  txRef: string
+): Promise<PaymentResponseDto> {
+  const res = await apiFetch(`${BASE_URL}/payments/verify/${encodeURIComponent(txRef)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to verify payment.");
+  return json;
+}
+
+export async function getPaymentsForAgreement(
+  token: string,
+  identifier: string
+): Promise<PaymentResponseDto[]> {
+  const res = await apiFetch(`${BASE_URL}/payments/agreement/${encodeURIComponent(identifier)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to fetch agreement payments.");
+  return json;
+}
+
+export async function getMyPayments(
+  token: string
+): Promise<PaymentResponseDto[]> {
+  const res = await apiFetch(`${BASE_URL}/payments/my-payments`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to fetch user payments.");
+  return Array.isArray(json) ? json : [];
+}
+
+// -------------------------------------------------------------
+// Schedule B Rental Income Tax API
+// -------------------------------------------------------------
+export interface AgreementTaxBreakdown {
+  agreementId: string;
+  agreementNumber: string;
+  requestCode: string;
+  propertyCode: string;
+  propertyTitle: string;
+  tenantName: string;
+  tenantTin: string;
+  monthlyRent: number;
+  monthsCounted: number;
+  grossIncome: number;
+  accruedTaxContribution: number;
+  status: string;
+}
+
+export interface MonthlyTaxAccrual {
+  ethiopianMonth: string;
+  gregorianMonth: string;
+  rentalIncome: number;
+  accruedTax: number;
+  isSummerSettlementMonth: boolean;
+  isSettled: boolean;
+}
+
+export interface TaxSummaryResponse {
+  fiscalYear: string;
+  taxpayerName: string;
+  tinNumber: string;
+  totalGrossRentalIncome: number;
+  totalEstimatedAnnualTax: number;
+  effectiveTaxRate: number;
+  filingStatus: string;
+  summerFilingDeadline: string;
+  isSummerWindowOpen: boolean;
+  clearanceCertificateNumber?: string;
+  settledAt?: string;
+  agreements: AgreementTaxBreakdown[];
+  monthlyAccruals: MonthlyTaxAccrual[];
+  legalProclamationNotice: string;
+}
+
+export interface TaxSettlementPayload {
+  fiscalYear?: string;
+  amount: number;
+  paymentMethod?: string;
+  payerPhoneNumber?: string;
+  taxpayerTin?: string;
+}
+
+export interface TaxSettlementResponse {
+  status: string;
+  clearanceCertificateNumber: string;
+  amountPaid: number;
+  fiscalYear: string;
+  taxpayerName: string;
+  taxpayerTin: string;
+  paymentMethod: string;
+  settledAt: string;
+  receiptPdfUrl: string;
+  message: string;
+}
+
+export async function getRentalTaxSummary(token: string): Promise<TaxSummaryResponse> {
+  const res = await apiFetch(`${BASE_URL}/tax/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load tax summary.");
+  return json;
+}
+
+export async function settleAnnualRentalTax(token: string, payload: TaxSettlementPayload): Promise<TaxSettlementResponse> {
+  const res = await apiFetch(`${BASE_URL}/tax/settle`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to settle annual tax.");
+  return json;
+}
+

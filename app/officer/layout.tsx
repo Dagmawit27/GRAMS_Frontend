@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { CitizenProvider } from "@/hooks/useCitizenData";
 
 // Reads role from localStorage and redirects before rendering children.
 // This runs on every navigation within /officer/**.
@@ -38,9 +39,17 @@ export default function OfficerLayout({ children }: { children: React.ReactNode 
       return;
     }
 
+    if (role === "tax_officer" || role === "taxofficer") {
+      // Tax officers may be under /officer/taxOfficer/** or /officer/taxOffice/**
+      if (!pathname.startsWith("/officer/taxOfficer") && !pathname.startsWith("/officer/taxOffice")) {
+        router.replace("/officer/taxOfficer/dashboard");
+      }
+      return;
+    }
+
     // Any other role has no business here
     router.replace("/officer");
   }, [pathname, router]);
 
-  return <>{children}</>;
+  return <CitizenProvider>{children}</CitizenProvider>;
 }

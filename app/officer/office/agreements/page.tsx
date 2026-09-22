@@ -1,301 +1,282 @@
 "use client";
-import React, { useState } from "react";
-import { useCitizenData } from "@/hooks/useCitizenData";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { LeaseRequestResponse, getLeaseRequestsByStatus, getSession } from "@/lib/api";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
-  ShieldCheck,
-  CheckCircle2,
-  FileText,
-  User,
-  Calendar,
-  DollarSign,
-  Building,
-  Check,
-  X,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  ChevronLeft,
+  ChevronRight,
   Eye,
-  AlertCircle,
+  Calendar,
+  Building,
+  User,
+  ShieldCheck,
 } from "lucide-react";
+import { sseManager } from "@/lib/sseManager";
 
-export const OfficerAgreementVerificationsPage: React.FC = () => {
-  const { handleNavigate } = useCitizenData();
+export default function OfficerAgreementReviewsPage() {
+  const router = useRouter();
+  const [leaseRequests, setLeaseRequests] = useState<LeaseRequestResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const itemsPerPage = 15;
 
-  // Checklist states (Image 3)
-  const [chkTerms, setChkTerms] = useState<boolean>(true);
-  const [chkIdentity, setChkIdentity] = useState<boolean>(true);
-  const [chkRentCap, setChkRentCap] = useState<boolean>(true);
-  const [chkDigitalSignatures, setChkDigitalSignatures] = useState<boolean>(true);
-  const [officerNotes, setOfficerNotes] = useState<string>(
-    "Landlord and tenant national ID biometrics verified with Fayda API. Rent index falls within allowable sub-city tier guidelines."
-  );
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-
-  const handleForwardToSupervisor = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setActionSuccess("Agreement AGR-4402 successfully verified and forwarded to Woreda Supervisor!");
-      setTimeout(() => {
-        handleNavigate("officer-dashboard");
-      }, 1800);
-    }, 900);
+  const fetchLeaseRequests = async () => {
+    try {
+      const session = getSession();
+      if (!session?.token) {
+        setError("Authentication required. Please log in.");
+        return;
+      }
+      const data = await getLeaseRequestsByStatus(session.token, "UNDER_VERIFICATION");
+      setLeaseRequests(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load lease requests");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchLeaseRequests();
+  }, []);
+
+  // SSE connection for real-time notifications on UNDER_VERIFICATION agreements
+  useEffect(() => {
+    const session = getSession();
+    if (!session?.token) return;
+
+    const woreda = session.user?.woreda;
+    const email = session.user?.email;
+
+    if (woreda) {
+      console.log(`OfficerAgreements: Subscribing to woreda-officer-${woreda}`);
+      sseManager.connect(`woreda-officer-${woreda}`);
+    }
+    if (email) {
+      console.log(`OfficerAgreements: Subscribing to ${email}`);
+      sseManager.connect(email);
+    }
+
+    const unsubscribe = sseManager.onNotification((notification) => {
+      console.log("OfficerAgreementsPage: Received SSE notification:", notification);
+      if (
+        notification.module === "LEASE" ||
+        notification.type === "TASK_PENDING_FOR_OFFICER" ||
+        notification.type === "LEASE_REQUEST_SIGNED" ||
+        notification.type === "LEASE_REQUEST_STATUS_CHANGED"
+      ) {
+        console.log("OfficerAgreementsPage: Reloading UNDER_VERIFICATION agreements...");
+        setTimeout(() => {
+          fetchLeaseRequests();
+          setToastMessage("New lease agreement under verification received!");
+          setTimeout(() => setToastMessage(null), 4000);
+        }, 500);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      if (woreda) sseManager.disconnect(`woreda-officer-${woreda}`);
+      if (email) sseManager.disconnect(email);
+    };
+  }, []);
+
+  const totalPages = Math.ceil(leaseRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = leaseRequests.slice(startIndex, endIndex);
+
+  const handleViewDetail = (requestCode: string) => {
+    router.push(`/officer/office/agreements/${requestCode}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-[#00450d] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+        <p className="text-red-800 text-sm font-medium">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      {/* Top Header & Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => handleNavigate("officer-dashboard")}
-            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors"
-            title="Back to Dashboard"
-          >
-            <ArrowLeft className="w-4 h-4" />
+      {/* Real-time Toast Alert */}
+      {toastMessage && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
+          <span>{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-emerald-700 hover:text-emerald-950 font-bold ml-4">
+            ✕
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                Agreement Verification: AGR-4402
-              </h1>
-              <Badge className="bg-sky-100 text-sky-900 hover:bg-sky-100 font-bold border-sky-300 text-[10px] tracking-wider uppercase">
-                Under Initial Verification
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Submitted on Oct 24, 2023 • Property: WRD-9921 • Bole Sub-City Woreda 03
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => alert("Requesting clarification from Landlord...")}
-            className="h-9 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50"
-          >
-            <AlertCircle className="w-3.5 h-3.5 mr-1" />
-            <span>Request Info</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={handleForwardToSupervisor}
-            disabled={isProcessing || !chkTerms || !chkIdentity || !chkRentCap || !chkDigitalSignatures}
-            className="h-9 text-xs font-semibold bg-[#00450d] hover:bg-[#164e23] text-white shadow-sm"
-          >
-            <Check className="w-3.5 h-3.5 mr-1" />
-            <span>{isProcessing ? "Forwarding..." : "Forward to Supervisor"}</span>
-          </Button>
-        </div>
-      </div>
-
-      {actionSuccess && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center gap-2 shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>{actionSuccess}</span>
         </div>
       )}
 
-      {/* Main 2-Column Grid (Image 3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2/3): Agreement Overview & Parties */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Agreement Financial & Term Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-5">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#00450d]" />
-              <span>Rental Agreement Terms & Financials</span>
-            </h3>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Monthly Rent</span>
-                <span className="text-base font-extrabold text-[#00450d]">12,500 ETB</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Lease Duration</span>
-                <span className="text-base font-extrabold text-slate-900">12 Months</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Security Deposit</span>
-                <span className="text-base font-extrabold text-slate-900">25,000 ETB</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Start Date</span>
-                <span className="text-base font-extrabold text-slate-900">Nov 01, 2023</span>
-              </div>
-            </div>
-
-            {/* Parties Involved (Image 3) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              {/* Landlord Box */}
-              <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    LESSOR / LANDLORD
-                  </span>
-                  <span className="text-emerald-700 text-[10px] font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Signed
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-900">Abebe Kebede Gebre</p>
-                <p className="text-slate-500">ID: ET-982-441 • Fayda Verified</p>
-                <p className="text-slate-500">Phone: +251 91 123 4567</p>
-                <p className="text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-100">
-                  Sig: 0x8a92b...e3f1 (Oct 24, 09:15)
-                </p>
-              </div>
-
-              {/* Tenant Box */}
-              <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    LESSEE / TENANT
-                  </span>
-                  <span className="text-emerald-700 text-[10px] font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Signed
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-900">Sara Tekle Haile</p>
-                <p className="text-slate-500">ID: ET-772-115 • Fayda Verified</p>
-                <p className="text-slate-500">Phone: +251 92 881 9900</p>
-                <p className="text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-100">
-                  Sig: 0x4f12a...99b2 (Oct 24, 11:42)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Certified PDF Agreement Preview */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Standard Government Lease Agreement Document</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => alert("Downloading certified legal lease agreement PDF...")}
-                className="h-8 text-xs font-semibold gap-1 text-slate-700"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Full Screen PDF</span>
-              </Button>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed font-serif space-y-2">
-              <p className="font-bold text-center text-slate-900 font-sans uppercase tracking-wider text-[11px]">
-                FEDERAL DEMOCRATIC REPUBLIC OF ETHIOPIA • STANDARD RESIDENTIAL LEASE CONTRACT
-              </p>
-              <p>
-                This Residential Lease Agreement is entered into on 24th October 2023 between the Lessor <strong>Abebe Kebede Gebre</strong> and Lessee <strong>Sara Tekle Haile</strong> regarding Property <strong>WRD-9921</strong> located in Addis Ababa, Bole Sub-City, Woreda 03, House No. 442.
-              </p>
-              <p>
-                The agreed monthly rental rate is <strong>12,500 ETB</strong> payable on or before the 1st day of each calendar month via the national digital payment gateway. Both parties agree to standard municipal dispute mediation mechanisms.
-              </p>
-            </div>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <ShieldCheck className="w-6 h-6 text-[#00450d]" />
+            Agreement Reviews
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Lease agreements signed by both parties, pending Woreda Officer verification
+          </p>
         </div>
-
-        {/* Right Column (1/3): Validity Checklist (Image 3) */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-5">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Officer Verification Checklist</h3>
-              <ShieldCheck className="w-4 h-4 text-[#00450d]" />
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={chkTerms}
-                  onChange={(e) => setChkTerms(e.target.checked)}
-                  className="mt-0.5 accent-[#00450d] rounded"
-                />
-                <div>
-                  <span className="font-bold text-slate-900 block">Compliance with Rental Proclamation</span>
-                  <span className="text-[11px] text-slate-500">Lease terms adhere to national rental code</span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={chkIdentity}
-                  onChange={(e) => setChkIdentity(e.target.checked)}
-                  className="mt-0.5 accent-[#00450d] rounded"
-                />
-                <div>
-                  <span className="font-bold text-slate-900 block">Identity Verification</span>
-                  <span className="text-[11px] text-slate-500">Both Landlord & Tenant Fayda IDs authenticated</span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={chkRentCap}
-                  onChange={(e) => setChkRentCap(e.target.checked)}
-                  className="mt-0.5 accent-[#00450d] rounded"
-                />
-                <div>
-                  <span className="font-bold text-slate-900 block">Municipal Rent Assessment</span>
-                  <span className="text-[11px] text-slate-500">Amount within certified woreda bracket</span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={chkDigitalSignatures}
-                  onChange={(e) => setChkDigitalSignatures(e.target.checked)}
-                  className="mt-0.5 accent-[#00450d] rounded"
-                />
-                <div>
-                  <span className="font-bold text-slate-900 block">Digital Cryptographic Signatures</span>
-                  <span className="text-[11px] text-slate-500">Valid timestamped signatures on file</span>
-                </div>
-              </label>
-            </div>
-
-            {/* Officer Notes */}
-            <div className="space-y-1.5 text-xs">
-              <label className="font-bold text-slate-800 block">Verification Remarks</label>
-              <textarea
-                value={officerNotes}
-                onChange={(e) => setOfficerNotes(e.target.value)}
-                rows={3}
-                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#00450d]"
-                placeholder="Enter remarks for supervisor..."
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <Button
-                onClick={handleForwardToSupervisor}
-                disabled={isProcessing || !chkTerms || !chkIdentity || !chkRentCap || !chkDigitalSignatures}
-                className="w-full h-10 bg-[#00450d] hover:bg-[#164e23] text-white font-bold text-xs uppercase tracking-wider"
-              >
-                {isProcessing ? "Processing..." : "Forward to Supervisor"}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => alert("Requesting amendments from parties...")}
-                disabled={isProcessing}
-                className="w-full h-10 text-xs font-bold text-amber-700 border-amber-200 hover:bg-amber-50 uppercase tracking-wider"
-              >
-                Request Contract Amendments
-              </Button>
-            </div>
-          </div>
-        </div>
+        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 font-bold border-amber-300 text-xs px-3 py-1">
+          {leaseRequests.length} Pending Verification
+        </Badge>
       </div>
+
+      {/* Table Card */}
+      <Card className="border-slate-200 shadow-clean">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50 border-b border-slate-200">
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Request Code
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Property
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Tenant
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Landlord
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Signed Date
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Status
+                </TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider text-right">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm">
+                    No lease requests currently pending verification.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentItems.map((req) => (
+                  <TableRow key={req.requestCode} className="border-b border-slate-100 hover:bg-slate-50">
+                    <TableCell className="text-xs font-mono font-medium text-slate-700">
+                      {req.requestCode}
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-900">
+                      <div className="flex items-center gap-1.5">
+                        <Building className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="font-semibold">{req.propertyTitle}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {req.propertyCode}
+                        {req.unitCode && ` • Unit: ${req.unitCode}`}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-900">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{req.applicantName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-900">
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{req.landlordName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-600">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>
+                          {req.tenantSignedAt
+                            ? new Date(req.tenantSignedAt).toLocaleDateString()
+                            : new Date(req.landlordSignedAt || req.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 font-bold border-amber-300 text-[10px] uppercase tracking-wider">
+                        Under Verification
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        onClick={() => handleViewDetail(req.requestCode)}
+                        className="h-8 text-xs font-semibold bg-[#00450d] hover:bg-[#1b5e20] text-white cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1" />
+                        Verify
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-slate-500">
+            Showing {startIndex + 1} to {Math.min(endIndex, leaseRequests.length)} of {leaseRequests.length} requests
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="h-8 text-xs font-medium"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+              Previous
+            </Button>
+            <div className="text-xs text-slate-700 font-medium">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="h-8 text-xs font-medium"
+            >
+              Next
+              <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default OfficerAgreementVerificationsPage;
+}

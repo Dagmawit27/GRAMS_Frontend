@@ -14,7 +14,7 @@ import {
   User,
   KeyRound,
   FileText,
-  Building,
+  MapPin,
   Check,
   AlertCircle,
   Eye,
@@ -113,6 +113,9 @@ export const CitizenHome: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState<string>("+251 91 234 5678");
   const [email, setEmail] = useState<string>("almaz.bekele@gov.et");
   const [worksOn, setWorksOn] = useState<string>("Commercial Bank of Ethiopia (Senior Analyst)");
+  const [city, setCity] = useState<string>("Addis Ababa");
+  const [subCity, setSubCity] = useState<string>("Bole");
+  const [woreda, setWoreda] = useState<string>("08");
   const [role, setRole] = useState<string>("both");
   const [password, setPassword] = useState<string>("AlmazPass#2025");
   const [confirmPassword, setConfirmPassword] = useState<string>("AlmazPass#2025");
@@ -293,6 +296,9 @@ const router = useRouter();
         phoneNumber: verifiedProfile.phoneFull.replace(/\s/g, ""),
         email: `${verifiedProfile.firstName.toLowerCase()}@example.com`,
         worksOn: "",
+        city: "Addis Ababa",
+        subCity: "Bole",
+        woreda: "08",
         rolePreference: selectedRole.toUpperCase(),
         password: portalPassword,
       });
@@ -325,10 +331,13 @@ const router = useRouter();
         middleName,
         lastName,
         gender: gender.toUpperCase() as "MALE" | "FEMALE",
-        dateOfBirth: dateOfBirth,
+        dateOfBirth,
         phoneNumber: phoneNumber.replace(/\s/g, ""),
         email,
         worksOn,
+        city,
+        subCity,
+        woreda,
         rolePreference: role.toUpperCase(),
         password,
       });
@@ -602,9 +611,6 @@ const router = useRouter();
                           <ShieldCheck className={`w-4 h-4 shrink-0 ${registerMode === "fayda" ? "text-emerald-700" : "text-slate-400"}`} />
                           <div className="text-left leading-tight">
                             <span className="block font-bold text-[11px] sm:text-xs">Register with Fayda ID</span>
-                            <span className="block text-[9px] sm:text-[10px] font-normal text-emerald-700">
-                              FIN & OTP Verification (Instant)
-                            </span>
                           </div>
                         </button>
 
@@ -620,9 +626,6 @@ const router = useRouter();
                           <FileText className={`w-4 h-4 shrink-0 ${registerMode === "manual" ? "text-slate-900" : "text-slate-400"}`} />
                           <div className="text-left leading-tight">
                             <span className="block font-bold text-[11px] sm:text-xs">Manual Registration</span>
-                            <span className="block text-[9px] sm:text-[10px] font-normal text-slate-500">
-                              Insert Full Information
-                            </span>
                           </div>
                         </button>
                       </div>
@@ -681,31 +684,13 @@ const router = useRouter();
                           {/* FAYDA STEP 1: FIN INPUT */}
                           {faydaStep === 1 && (
                             <form onSubmit={handleVerifyFin} className="space-y-3.5">
-                              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3 flex items-start gap-2.5">
-                                <ShieldCheck className="w-4 h-4 text-[#00450d] shrink-0 mt-0.5" />
-                                <div className="text-xs">
-                                  <span className="font-bold text-slate-900 block text-[11px]">
-                                    Direct Integration with National ID Program (NIDP)
-                                  </span>
-                                  <span className="text-slate-600 block mt-0.5 text-[11px] leading-relaxed">
-                                    Enter your 12 to 16 digit Fayda Identification Number (FIN / NID). We will verify your identity and send an SMS OTP to your registered phone.
-                                  </span>
-                                </div>
-                              </div>
-
+                             
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
                                   <label className="text-xs font-bold text-slate-800">
                                     Fayda Identification Number (FIN / NID) <span className="text-red-500">*</span>
                                   </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => setFinNumber("ET-NID-00892418")}
-                                    className="text-[11px] font-semibold text-emerald-800 hover:underline flex items-center gap-1"
-                                  >
-                                    <Sparkles className="w-3 h-3" />
-                                    Use Demo FIN
-                                  </button>
+                                  
                                 </div>
 
                                 <div className="relative">
@@ -718,9 +703,6 @@ const router = useRouter();
                                   />
                                   <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                                 </div>
-                                <p className="text-[10px] text-slate-400">
-                                  Found on the front of your physical Fayda card or Fayda digital mobile wallet.
-                                </p>
                               </div>
 
                               {finError && (
@@ -777,7 +759,7 @@ const router = useRouter();
                                   Enter 6-Digit SMS Verification Code
                                 </h3>
                                 <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                                  We sent an OTP code to your Fayda registered mobile number:{" "}
+                                  mobile number:{" "}
                                   <span className="font-mono font-bold text-slate-900">{verifiedProfile.phoneMasked}</span>
                                 </p>
                               </div>
@@ -802,15 +784,6 @@ const router = useRouter();
                                 </div>
 
                                 <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => setOtpDigits(["5", "8", "2", "9", "1", "4"])}
-                                    className="font-medium text-emerald-800 hover:underline flex items-center gap-1"
-                                  >
-                                    <Sparkles className="w-3 h-3" />
-                                    Auto-fill Demo (582914)
-                                  </button>
-
                                   <div>
                                     {countdown > 0 ? (
                                       <span className="text-slate-400">
@@ -872,18 +845,7 @@ const router = useRouter();
                           {faydaStep === 3 && (
                             <form onSubmit={handleCompleteFaydaRegistration} className="space-y-4">
                               <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2.5">
-                                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
-                                  <div className="flex items-center gap-2">
-                                    <BadgeCheck className="w-4 h-4 text-emerald-700" />
-                                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
-                                      National ID Record Verified
-                                    </span>
-                                  </div>
-                                  <Badge variant="verified" className="text-[10px] py-0.5">
-                                    NIDP Match 100%
-                                  </Badge>
-                                </div>
-
+                                
                                 {/* Citizen Verified Details Card */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                                   <div>
@@ -965,40 +927,32 @@ const router = useRouter();
 
                               {/* Security Setup: Password & PIN */}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                              
                                 <div>
-                                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                                    Create Password <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="relative">
-                                    <Input
-                                      type={showPassword ? "text" : "password"}
-                                      value={portalPassword}
-                                      onChange={(e) => setPortalPassword(e.target.value)}
-                                      placeholder="Minimum 8 characters"
-                                      className="h-8.5 text-xs pr-8 bg-white"
-                                      required
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowPassword(!showPassword)}
-                                      className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
-                                    >
-                                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                                    4-Digit Security PIN
+                                  <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                    Account Password <span className="text-red-500">*</span>
                                   </label>
                                   <Input
                                     type="password"
-                                    maxLength={4}
-                                    value={portalPin}
-                                    onChange={(e) => setPortalPin(e.target.value)}
-                                    placeholder="4 Digits (e.g. 4829)"
-                                    className="h-8.5 text-xs font-mono tracking-widest bg-white"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Minimum 8 characters"
+                                    className="h-8.5 text-xs"
+                                    required
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                    Confirm Password <span className="text-red-500">*</span>
+                                  </label>
+                                  <Input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Re-enter password"
+                                    className="h-8.5 text-xs"
+                                    required
                                   />
                                 </div>
                               </div>
@@ -1029,7 +983,7 @@ const router = useRouter();
                       {/* METHOD B: MANUAL REGISTRATION (FULL INFORMATION FORM)     */}
                       {/* --------------------------------------------------------- */}
                       {registerMode === "manual" && (
-                        <form onSubmit={handleManualSubmit} className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1">
+                        <form onSubmit={handleManualSubmit} className="space-y-3.5 max-h-[600px] overflow-y-auto pr-1">
                           {/* Section 1: Personal Legal Identity */}
                           <div className="space-y-2">
                             <p className="text-red-500 text-xs">{submitError}</p>
@@ -1143,6 +1097,52 @@ const router = useRouter();
                                   value={email}
                                   onChange={(e) => setEmail(e.target.value)}
                                   placeholder="user@domain.et"
+                                  className="h-8.5 text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Section 2: Location Information */}
+                          <div className="space-y-2 pt-2">
+                            <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                              <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                              2. Location Information
+                            </h4>
+
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  City
+                                </label>
+                                <Input
+                                  value={city}
+                                  onChange={(e) => setCity(e.target.value)}
+                                  placeholder="e.g. Addis Ababa"
+                                  className="h-8.5 text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Sub-City
+                                </label>
+                                <Input
+                                  value={subCity}
+                                  onChange={(e) => setSubCity(e.target.value)}
+                                  placeholder="e.g. Bole"
+                                  className="h-8.5 text-xs"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-semibold text-slate-700 block mb-1">
+                                  Woreda
+                                </label>
+                                <Input
+                                  value={woreda}
+                                  onChange={(e) => setWoreda(e.target.value)}
+                                  placeholder="e.g. 08"
                                   className="h-8.5 text-xs"
                                 />
                               </div>

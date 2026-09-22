@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import {
   Building2,
   MapPin,
@@ -19,7 +20,7 @@ import {
   CheckCircle2,
   XCircle,
   Hourglass,
-  ArrowLeft,
+  ChevronLeft,
   Calendar,
   FileText,
   FileCheck2,
@@ -212,13 +213,13 @@ function PropertyDetailContent() {
         <h3 className="text-base font-bold text-slate-900">Property Details Unavailable</h3>
         <p className="text-xs text-slate-500">{error || "The requested property could not be retrieved from the database."}</p>
         <div className="pt-2 flex justify-center gap-3">
-          <Button
-            onClick={handleBack}
-            className="bg-slate-900 hover:bg-slate-800 text-white text-xs h-9 px-4 rounded-lg"
+          <Link
+            href="/citizen/dashboard/properties"
+            className="inline-flex items-center gap-1.5 font-bold text-white bg-slate-900 hover:bg-slate-800 text-xs h-9 px-4 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-            Back to Properties List
-          </Button>
+            <ChevronLeft className="w-4 h-4" />
+            <span>Back to Properties List</span>
+          </Link>
           <Button
             onClick={() => router.push("/citizen/dashboard/properties/register")}
             className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-9 px-4 rounded-lg"
@@ -253,28 +254,24 @@ function PropertyDetailContent() {
         </div>
       )}
 
-      {/* Top Breadcrumb & Action Bar */}
+      {/* Back Navigation Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200/80">
-        <div className="flex items-center gap-2.5">
-          <Button
-            onClick={handleBack}
-            variant="outline"
-            size="sm"
-            className="h-8.5 px-3 text-xs gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs"
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href="/citizen/dashboard/properties"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Properties
-          </Button>
-          <div className="h-4 w-[1px] bg-slate-200 hidden sm:block" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-slate-500 uppercase">{property.propertyCode}</span>
-              <Badge variant={variant} className="text-[10px] py-0.5 px-2 flex items-center gap-1 font-semibold">
-                <StatusIcon status={property.status} />
-                <span>{label}</span>
-              </Badge>
-            </div>
-          </div>
+            <ChevronLeft className="w-4 h-4" />
+            <span>MY PROPERTIES</span>
+          </Link>
+          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <span className="font-mono font-bold text-slate-800">
+            {property.propertyCode}
+          </span>
+          <Badge variant={variant} className="text-[10px] py-0.5 px-2 flex items-center gap-1 font-semibold ml-2">
+            <StatusIcon status={property.status} />
+            <span>{label}</span>
+          </Badge>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">

@@ -11,7 +11,6 @@ import {
   AlertCircle,
   RefreshCw,
   ArrowRight,
-  ArrowLeft,
   CheckCircle2,
 } from "lucide-react";
 
@@ -41,6 +40,7 @@ export const OfficerPage: React.FC = () => {
     if (!token) { setChecking(false); return; }
     if (role === "woreda_officer") { router.replace("/officer/office/dashboard"); return; }
     if (role === "woreda_supervisor") { router.replace("/officer/supervisor/dashboard"); return; }
+    if (role === "tax_officer" || role === "taxofficer") { router.replace("/officer/taxOfficer/dashboard"); return; }
     setChecking(false);
   }, [router]);
 
@@ -54,6 +54,8 @@ export const OfficerPage: React.FC = () => {
       const role = (result.user.roles?.[0] ?? "").toLowerCase();
       if (role === "woreda_supervisor") {
         router.push("/officer/supervisor/dashboard");
+      } else if (role === "tax_officer" || role === "taxofficer") {
+        router.push("/officer/taxOfficer/dashboard");
       } else {
         router.push("/officer/office/dashboard");
       }
@@ -153,10 +155,42 @@ export const OfficerPage: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
-            <p className="text-[11px] text-slate-400">
-              Trouble signing in? Contact the Woreda ICT Bureau · ext 4401
+          <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-2">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Quick Role Sign-In
             </p>
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("taxOfficer@gmail.com");
+                  setPassword("12345678");
+                }}
+                className="text-[11px] px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-md border border-emerald-300 font-medium cursor-pointer"
+              >
+                Tax Officer (taxOfficer@gmail.com)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("officer03@gmail.com");
+                  setPassword("12345678");
+                }}
+                className="text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md border border-slate-300 font-medium cursor-pointer"
+              >
+                Woreda Officer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("supervisor03@gmail.com");
+                  setPassword("12345678");
+                }}
+                className="text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md border border-slate-300 font-medium cursor-pointer"
+              >
+                Supervisor
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -101,14 +101,6 @@ export const CitizenRegisterPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>("");
 
-  // Location fields for agreement form
-  const [region, setRegion] = useState<string>("Addis Ababa");
-  const [city, setCity] = useState<string>("Addis Ababa");
-  const [subCity, setSubCity] = useState<string>("Bole");
-  const [woreda, setWoreda] = useState<string>("04");
-  const [houseNumber, setHouseNumber] = useState<string>("");
-  const [specificPlace, setSpecificPlace] = useState<string>("");
-
   // Completion State
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
@@ -248,12 +240,6 @@ export const CitizenRegisterPage: React.FC = () => {
         worksOn,
         rolePreference: role.toUpperCase(),
         password,
-        region,
-        city,
-        subCity,
-        woreda,
-        houseNumber,
-        specificPlace,
       });
       setIsSuccess(true);
       setTimeout(() => {
@@ -865,7 +851,7 @@ export const CitizenRegisterPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Section 2: Municipal Residency & Address */}
+                  {/* Section 2: Municipal Residency & Address
                   <div className="space-y-3 pt-2">
                     <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100">
                       <MapPin className="w-3.5 h-3.5 text-slate-500" />
@@ -875,88 +861,53 @@ export const CitizenRegisterPage: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          Region
-                        </label>
-                        <Input
-                          value={region}
-                          onChange={(e) => setRegion(e.target.value)}
-                          placeholder="e.g. Addis Ababa"
-                          className="h-9.5 text-xs"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          City
-                        </label>
-                        <Input
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="e.g. Addis Ababa"
-                          className="h-9.5 text-xs"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          Sub-City Administration
+                          Sub-City Administration <span className="text-red-500">*</span>
                         </label>
                         <select
-                          value={subCity}
-                          onChange={(e) => setSubCity(e.target.value)}
+                          value={manualSubCity}
+                          onChange={(e) => setManualSubCity(e.target.value)}
                           className="w-full h-9.5 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-900"
                         >
-                          <option value="Bole">Bole (ቦሌ)</option>
-                          <option value="Kirkos">Kirkos (ቂርቆስ)</option>
-                          <option value="Yeka">Yeka (የካ)</option>
-                          <option value="Arada">Arada (አራዳ)</option>
-                          <option value="Nifas Silk-Lafto">Nifas Silk-Lafto (ንፋስ ስልክ)</option>
-                          <option value="Lideta">Lideta (ልደታ)</option>
-                          <option value="Gullele">Gullele (ጉለሌ)</option>
-                          <option value="Akaky Kaliti">Akaky Kaliti (አቃቂ ቃሊቲ)</option>
-                          <option value="Kolfe Keranio">Kolfe Keranio (ኮልፌ ቀራኒዮ)</option>
-                          <option value="Addis Ketema">Addis Ketema (አዲስ ከተማ)</option>
-                          <option value="Lemi Kura">Lemi Kura (ለሚ ኩራ)</option>
+                          <option value="Bole Sub City">Bole Sub City (ቦሌ)</option>
+                          <option value="Kirkos Sub City">Kirkos Sub City (ቂርቆስ)</option>
+                          <option value="Yeka Sub City">Yeka Sub City (የካ)</option>
+                          <option value="Arada Sub City">Arada Sub City (አራዳ)</option>
+                          <option value="Nifas Silk-Lafto Sub City">Nifas Silk-Lafto (ንፋስ ስልክ)</option>
+                          <option value="Lideta Sub City">Lideta Sub City (ልደታ)</option>
+                          <option value="Gullele Sub City">Gullele Sub City (ጉለሌ)</option>
+                          <option value="Akaky Kaliti Sub City">Akaky Kaliti (አቃቂ ቃሊቲ)</option>
+                          <option value="Kolfe Keranio Sub City">Kolfe Keranio (ኮልፌ ቀራኒዮ)</option>
+                          <option value="Addis Ketema Sub City">Addis Ketema (አዲስ ከተማ)</option>
+                          <option value="Lemi Kura Sub City">Lemi Kura (ለሚ ኩራ)</option>
                         </select>
                       </div>
 
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          Woreda Number
+                          Woreda Number <span className="text-red-500">*</span>
                         </label>
                         <Input
-                          value={woreda}
-                          onChange={(e) => setWoreda(e.target.value)}
-                          placeholder="e.g. 04"
+                          value={manualWoreda}
+                          onChange={(e) => setManualWoreda(e.target.value)}
+                          placeholder="e.g. Woreda 04"
                           className="h-9.5 text-xs"
+                          required
                         />
                       </div>
 
                       <div>
                         <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          House Number
+                          Kebele / House / Block No.
                         </label>
                         <Input
-                          value={houseNumber}
-                          onChange={(e) => setHouseNumber(e.target.value)}
+                          value={manualHouseNo}
+                          onChange={(e) => setManualHouseNo(e.target.value)}
                           placeholder="e.g. House 402 / Block 12"
                           className="h-9.5 text-xs"
                         />
                       </div>
-
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                          Specific Place / Landmark
-                        </label>
-                        <Input
-                          value={specificPlace}
-                          onChange={(e) => setSpecificPlace(e.target.value)}
-                          placeholder="e.g. Near Meskel Square"
-                          className="h-9.5 text-xs"
-                        />
-                      </div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Section 3: Identity Document Upload 
                   <div className="space-y-3 pt-2">

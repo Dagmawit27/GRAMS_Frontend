@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Building2,
   Building,
@@ -20,7 +21,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
-  ArrowLeft,
   ArrowRight,
   Plus,
   Trash2,
@@ -898,24 +898,20 @@ export const RegisterPropertyPage: React.FC = () => {
         </div>
       )}
 
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Register New Property
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleBack}
-            variant="outline"
-            size="sm"
-            className="h-8.5 px-3 text-xs gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs"
+      {/* Back Navigation Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href="/citizen/dashboard/properties"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Properties
-          </Button>
+            <ChevronLeft className="w-4 h-4" />
+            <span>MY PROPERTIES</span>
+          </Link>
+          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <span className="font-mono font-bold text-slate-800">
+            REGISTER NEW PROPERTY
+          </span>
         </div>
       </div>
 
@@ -1153,9 +1149,9 @@ export const RegisterPropertyPage: React.FC = () => {
                       onChange={(e) => setMinLeasePeriod(e.target.value)}
                       className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d]"
                     >
-                      <option value="6 Months">6 Months</option>
-                      <option value="1 Year">1 Year Standard</option>
-                      <option value="2 Years">2 Years Commercial</option>
+                      <option value="2 Years">2 Years</option>
+                      <option value="3 Years">3 Years</option>
+                      <option value="4 Years">4 Years</option>
                     </select>
                   </div>
                 </div>

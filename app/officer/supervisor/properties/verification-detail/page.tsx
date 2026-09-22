@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   FileText,
   Eye,
@@ -29,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PropertyResponse, getPropertyById, updatePropertyStatus, getSession, getUnitById, PropertyUnitResponse } from "@/lib/api";
 
-export default function VerificationDetailPage() {
+function VerificationDetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const propIdParam = searchParams.get("id");
@@ -283,19 +285,21 @@ export default function VerificationDetailPage() {
       {/* MAIN CONTENT COMPONENT ONLY (NO STATIC SIDEBAR OR STATIC TOP NAV BAR)     */}
       {/* ========================================================================= */}
       <main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 pt-2 pb-6 max-w-7xl mx-auto space-y-6">
-        {/* Navigation Breadcrumb / Back Button */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200/90">
-          <button
-            onClick={() => router.push("/officer/supervisor/properties")}
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-[#00450d] transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 text-slate-600" />
-            <span className="uppercase tracking-wider">Back to Properties</span>
-          </button>
-
-          <span className="text-xs text-slate-500 font-medium">
-            Property ID: <span className="font-mono text-slate-800 font-bold">{propertyData.propertyCode}</span>
-          </span>
+        {/* Back Navigation Bar */}
+        <div className="flex items-center justify-between gap-4 pb-3 border-b border-slate-200/90">
+          <div className="flex items-center gap-2 text-xs">
+            <Link
+              href="/officer/supervisor/properties"
+              className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>PROPERTIES</span>
+            </Link>
+            <ChevronRight className="w-3 h-3 text-slate-400" />
+            <span className="font-mono font-bold text-slate-800">
+              {propertyData.propertyCode}
+            </span>
+          </div>
         </div>
 
         {/* Main Title & Status Badge */}
@@ -729,5 +733,13 @@ export default function VerificationDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VerificationDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading property verification...</div>}>
+      <VerificationDetailPageContent />
+    </Suspense>
   );
 }

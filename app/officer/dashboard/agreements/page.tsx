@@ -4,7 +4,8 @@ import { useCitizenData } from "@/hooks/useCitizenData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   CheckCircle2,
   FileText,
@@ -45,29 +46,38 @@ export const OfficerAgreementVerificationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      {/* Top Header & Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+      {/* Back Navigation Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs">
           <button
+            type="button"
             onClick={() => handleNavigate("officer-dashboard")}
-            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors"
-            title="Back to Dashboard"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
+            <span>OFFICER DASHBOARD</span>
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                Agreement Verification: AGR-4402
-              </h1>
-              <Badge className="bg-sky-100 text-sky-900 hover:bg-sky-100 font-bold border-sky-300 text-[10px] tracking-wider uppercase">
-                Under Initial Verification
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Submitted on Oct 24, 2023 • Property: WRD-9921 • Bole Sub-City Woreda 03
-            </p>
+          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <span className="font-mono font-bold text-slate-800">
+            AGR-4402
+          </span>
+        </div>
+      </div>
+
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Agreement Verification: AGR-4402
+            </h1>
+            <Badge className="bg-sky-100 text-sky-900 hover:bg-sky-100 font-bold border-sky-300 text-[10px] tracking-wider uppercase">
+              Under Initial Verification
+            </Badge>
           </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Submitted on Oct 24, 2023 • Property: WRD-9921 • Bole Sub-City Woreda 03
+          </p>
         </div>
 
         <div className="flex items-center gap-2.5">

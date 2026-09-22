@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getPropertyForOfficer, updatePropertyStatus, PropertyResponse, getUnitById, PropertyUnitResponse } from "@/lib/api";
 import { getOfficerJurisdiction } from "@/app/officer/useOfficerJurisdiction";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   CheckCircle2,
   XCircle,
@@ -175,10 +177,22 @@ function DetailContent() {
         </div>
       )}
 
-      <button onClick={() => router.push("/officer/office/properties")}
-        className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-slate-900 uppercase tracking-wider transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Back to Pending List
-      </button>
+      {/* Back Navigation Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs">
+          <Link
+            href="/officer/office/properties"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>PROPERTY VERIFICATIONS</span>
+          </Link>
+          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <span className="font-mono font-bold text-slate-800">
+            {property?.propertyCode || "DETAILS"}
+          </span>
+        </div>
+      </div>
 
       {loading && (
         <div className="flex items-center justify-center py-24 gap-2 text-slate-400 text-sm">
@@ -190,7 +204,13 @@ function DetailContent() {
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <AlertTriangle className="w-10 h-10 text-red-400" />
           <p className="text-sm font-semibold text-slate-700">{error}</p>
-          <Button variant="outline" size="sm" onClick={() => router.push("/officer/office/properties")} className="text-xs">Back</Button>
+          <Link
+            href="/officer/office/properties"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-700 hover:text-[#00450d] transition-colors text-xs border border-slate-200 px-3 py-1.5 rounded-lg"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Back to Pending List</span>
+          </Link>
         </div>
       )}
 

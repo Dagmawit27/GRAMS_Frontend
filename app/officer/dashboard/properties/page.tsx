@@ -4,7 +4,8 @@ import { useCitizenData } from "@/hooks/useCitizenData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
@@ -64,29 +65,38 @@ export const OfficerPropertyVerificationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      {/* Top Breadcrumb & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+      {/* Back Navigation Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs">
           <button
+            type="button"
             onClick={() => handleNavigate("officer-dashboard")}
-            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors"
-            title="Back to Dashboard"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
+            <span>OFFICER DASHBOARD</span>
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                Property Approval: PRP-2023-0891
-              </h1>
-              <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 font-bold border-amber-300 text-[10px] tracking-wider uppercase">
-                Awaiting Supervisor Approval
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Verified by Officer Martha K. on Oct 24, 2023 14:32 EAT • Bole Sub-City, Woreda 03
-            </p>
+          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <span className="font-mono font-bold text-slate-800">
+            PRP-2023-0891
+          </span>
+        </div>
+      </div>
+
+      {/* Top Header & Actions Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Property Approval: PRP-2023-0891
+            </h1>
+            <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 font-bold border-amber-300 text-[10px] tracking-wider uppercase">
+              Awaiting Supervisor Approval
+            </Badge>
           </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Verified by Officer Martha K. on Oct 24, 2023 14:32 EAT • Bole Sub-City, Woreda 03
+          </p>
         </div>
 
         <div className="flex items-center gap-2.5">

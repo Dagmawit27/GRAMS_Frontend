@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
         source: "/api/v1/:path*",
         destination: `${backendOrigin}/api/v1/:path*`,
       },
+      {
+        source: "/api/notifications/:path*",
+        destination: `${backendOrigin}/api/notifications/:path*`,
+      },
+      {
+        source: "/officer/taxOfficer/:path*",
+        destination: "/officer/taxOffice/:path*",
+      },
     ];
   },
 };

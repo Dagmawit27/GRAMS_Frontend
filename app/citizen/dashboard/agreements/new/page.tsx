@@ -3,6 +3,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useCitizenData } from "@/hooks/useCitizenData";
 import { LandlordAgreementsView } from "../LandlordAgreementsView";
+import { getSession } from "@/lib/api";
 
 /**
  * /citizen/dashboard/agreements/new
@@ -14,10 +15,17 @@ export default function NewRequestsPage() {
 
   // Redirect tenants to their lease page
   React.useEffect(() => {
+    const session = getSession();
+    if (!session?.token) {
+      router.push("/citizen");
+      return;
+    }
+    
+    const userRole = session.user.roles?.[0]?.toLowerCase();
     if (userRole === "tenant") {
       router.push("/citizen/dashboard/leases");
     }
-  }, [userRole, router]);
+  }, [router]);
 
   // Show access denied for non-landlord users
   if (userRole === "tenant") {
@@ -30,7 +38,6 @@ export default function NewRequestsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      
       <LandlordAgreementsView />
     </div>
   );

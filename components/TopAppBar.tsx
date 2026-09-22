@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home, LogOut, Settings, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home, LogOut, Settings, ChevronDown, ArrowRight } from "lucide-react";
 import { ActivityNotification, NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/api";
@@ -11,11 +12,11 @@ interface TopAppBarProps {
   subtitle?: string;
   notifications: ActivityNotification[];
   onNotificationClick: (notif: ActivityNotification) => void;
-  onClearNotifications: () => void;
-  onAddNotification: (notif: ActivityNotification) => void;
+  onClearNotifications?: () => void;
+  onAddNotification?: (notif: ActivityNotification) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
-  onProfileClick: () => void;
+  onProfileClick?: () => void;
   onLogoutClick?: () => void;
   userRole?: UserRole;
   onToggleRole?: (role: UserRole) => void;
@@ -30,8 +31,11 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   onClearNotifications,
   onAddNotification,
   isDarkMode,
+  onLogoutClick,
   onToggleDarkMode,
+  userRole,
 }) => {
+  const router = useRouter();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -95,6 +99,34 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
       unsubscribeNotification();
     };
   }, [onClearNotifications]);
+
+  const isOfficerUser =
+    userRole === "woreda_officer" ||
+    userRole === "woreda_supervisor" ||
+    userRole === "tax_officer" ||
+    userRole === "taxofficer" ||
+    userRole === "taxOfficer";
+
+  const settingsHref =
+    userRole === "woreda_supervisor"
+      ? "/officer/supervisor/settings"
+      : isOfficerUser
+      ? "/officer/office/settings"
+      : "/citizen/dashboard/settings";
+
+  const profileList = [
+    ...(isOfficerUser ? [] : [{ label: "Profile", icon: User, href: "/citizen/dashboard/profile" }]),
+    { label: "Settings", icon: Settings, href: settingsHref },
+  ];
+
+  const userInitials = userName
+    ? userName
+        .split(" ")
+        .filter(Boolean)
+        .map((n) => n[0].toUpperCase())
+        .join("")
+        .slice(0, 2)
+    : "OF";
 
 
   return (
@@ -168,67 +200,78 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
                       No notifications at this time.
                     </div>
                   ) : (
-                    <>
-                      {notifications.map((notif) => (
-                        <div
-                          key={notif.id}
-                          onClick={() => {
-                            onNotificationClick(notif);
-                            setIsNotifOpen(false);
-                          }}
-                          className={cn(
-                            "p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3",
-                            !notif.read && "bg-slate-50/60"
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => {
+                          onNotificationClick(notif);
+                          setIsNotifOpen(false);
+                          if (notif.linkPage === "agreements") {
+                            router.push("/citizen/dashboard/agreements/active");
+                          } else if (notif.linkPage === "payments") {
+                            router.push("/citizen/dashboard/payments");
+                          } else if (notif.linkPage === "properties") {
+                            router.push("/citizen/dashboard/properties");
+                          } else {
+                            router.push("/citizen/dashboard/notification");
+                          }
+                        }}
+                        className={cn(
+                          "p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3",
+                          !notif.read && "bg-slate-50/60"
+                        )}
+                      >
+                        <div className="mt-0.5 shrink-0">
+                          {notif.type === "payment" && (
+                            <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </div>
                           )}
-                        >
-                          <div className="mt-0.5 shrink-0">
-                            {notif.type === "payment" && (
-                              <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              </div>
-                            )}
-                            {notif.type === "agreement" && (
-                              <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center">
-                                <FileText className="w-3.5 h-3.5" />
-                              </div>
-                            )}
-                            {notif.type === "maintenance" && (
-                              <div className="w-6 h-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
-                                <AlertCircle className="w-3.5 h-3.5" />
-                              </div>
-                            )}
-                            {notif.type === "system" && (
-                              <div className="w-6 h-6 rounded-full bg-slate-100 text-[#00450d] flex items-center justify-center">
-                                <Sparkles className="w-3.5 h-3.5" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-slate-900 truncate">
-                              {notif.title}
-                            </p>
-                            <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
-                              {notif.description}
-                            </p>
-                            <p className="text-[10px] text-slate-400 mt-1">
-                              {notif.timestamp}
-                            </p>
-                          </div>
+                          {notif.type === "agreement" && (
+                            <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center">
+                              <FileText className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          {notif.type === "maintenance" && (
+                            <div className="w-6 h-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          {notif.type === "system" && (
+                            <div className="w-6 h-6 rounded-full bg-slate-100 text-[#00450d] flex items-center justify-center">
+                              <Sparkles className="w-3.5 h-3.5" />
+                            </div>
+                          )}
                         </div>
-                      ))}
-                      <div className="p-2 border-t border-slate-100">
-                        <button
-                          onClick={() => {
-                            setIsNotifOpen(false);
-                            onNotificationClick({ id: 'see-all', type: 'system', title: '', description: '', timestamp: '', read: true } as any);
-                          }}
-                          className="w-full text-xs font-semibold text-[#00450d] hover:bg-emerald-50 py-2 rounded-lg transition-colors"
-                        >
-                          See All Notifications
-                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-900 truncate">
+                            {notif.title}
+                          </p>
+                          <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
+                            {notif.description}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {notif.timestamp}
+                          </p>
+                        </div>
                       </div>
-                    </>
+                    ))
                   )}
+                </div>
+
+                {/* See All Notifications Action Button */}
+                <div className="p-2 border-t border-slate-100 bg-slate-50/60 rounded-b-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNotifOpen(false);
+                      router.push("/citizen/dashboard/notification");
+                    }}
+                    className="w-full text-xs font-bold text-[#00450d] hover:bg-emerald-50 hover:text-[#06380c] py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 border border-emerald-200/50"
+                  >
+                    <span>See All Notifications</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </>
@@ -273,7 +316,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
                 }}
               />
               <div className="hidden w-8 h-8 rounded-full bg-slate-900 text-white font-semibold text-xs items-center justify-center">
-                DM
+                {userInitials}
               </div>
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-600 border-2 border-white rounded-full" />
             </div>
@@ -288,7 +331,25 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
               />
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in-50 zoom-in-95">
                 <div className="px-3 py-2 text-xs text-slate-500">
-                  {userName}
+                  {profileList.map((item) => (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </a>
+                  ))}
+
+                  <button
+                    onClick={onLogoutClick}
+                    className="w-full flex mt-2 items-center justify-center gap-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 px-3 py-2.5 rounded-lg transition-colors border border-rose-200 hover:border-rose-300"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
                 </div>
               </div>
             </>

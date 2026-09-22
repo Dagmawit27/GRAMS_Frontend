@@ -19,7 +19,7 @@ export default function LeaseReviewPage() {
 
   // Redirect tenants to their lease page
   useEffect(() => {
-    if (userRole === "tenant" || userRole === "citizen") {
+    if (userRole === "tenant") {
       setIsRedirecting(true);
       router.push("/citizen/dashboard/leases");
     }
@@ -44,6 +44,7 @@ export default function LeaseReviewPage() {
         }
 
         const data = await getLeaseRequestById(session.token, requestCode);
+        console.log("LeaseReviewPage: Received data:", data);
         setLeaseRequest(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load lease request");
@@ -56,7 +57,7 @@ export default function LeaseReviewPage() {
   }, [requestCode]);
 
   // Show access denied for non-landlord users
-  if (isRedirecting || (userRole === "tenant" || userRole === "citizen")) {
+  if (isRedirecting || (userRole === "tenant")) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
         <p className="text-red-800 text-sm font-medium">Access Denied: This page is for landlords only</p>
@@ -88,36 +89,12 @@ export default function LeaseReviewPage() {
     );
   }
 
-  // Convert LeaseRequestResponse to LeaseRequest format expected by LandlordReviewDetailsView
+  // Convert LeaseRequestResponse to format expected by LandlordReviewDetailsView
   const convertedRequest = {
-    id: leaseRequest.id,
-    requestCode: leaseRequest.requestCode,
-    propertyTitle: leaseRequest.propertyTitle,
-    propertyLocation: leaseRequest.propertyLocation,
-    propertyImage: leaseRequest.propertyImage,
-    propertyType: leaseRequest.propertyType,
+    ...leaseRequest,
+    propertyLocation: `${leaseRequest.propertySubCity || ""}, ${leaseRequest.propertyWoreda || ""}`,
     unitNumber: leaseRequest.unitNumber || leaseRequest.unitCode || "N/A",
-    area: leaseRequest.area || 0,
-    counterpartyName: leaseRequest.applicantName,
-    counterpartyInitials: leaseRequest.applicantName
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase(),
-    tenantNationalId: leaseRequest.applicantNationalId || "N/A",
-    tenantPhone: leaseRequest.applicantPhone || "N/A",
-    tenantEmail: leaseRequest.applicantEmail,
-    tenantEmployment: leaseRequest.applicantEmployment || "N/A",
-    proposedRent: leaseRequest.proposedRent,
-    securityDeposit: leaseRequest.securityDeposit,
     leaseDuration: `${leaseRequest.leaseDurationMonths} Months`,
-    startDate: leaseRequest.startDate,
-    endDate: leaseRequest.endDate,
-    dateSubmitted: new Date(leaseRequest.createdAt).toLocaleDateString(),
-    status: leaseRequest.status,
-    notes: leaseRequest.applicantNotes,
-    landlordRemarks: leaseRequest.landlordRemarks,
   };
 
   return (

@@ -245,15 +245,14 @@ export const PropertiesPage: React.FC = () => {
 
     const landlordUserId = s.user.email;
     console.log("Connecting to SSE with userId:", landlordUserId);
-    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${landlordUserId}`);
+    
+    // Use global SSE manager
+    const { sseManager } = require('@/lib/sseManager');
+    sseManager.connect(landlordUserId);
 
-    eventSource.addEventListener('connected', (event) => {
-      console.log("SSE connected:", event.data);
-    });
-
-    eventSource.addEventListener('notification', (event) => {
-      console.log("Received SSE notification:", event.data);
-      const notification = JSON.parse(event.data);
+    // Listen for notifications
+    const unsubscribe = sseManager.onNotification((notification: any) => {
+      console.log("Received SSE notification:", notification);
       
       // If notification is about property status change, reload properties
       if (notification.type === 'PROPERTY_VERIFIED' || notification.type === 'PROPERTY_APPROVED' || notification.type === 'PROPERTY_REJECTED') {
@@ -272,19 +271,9 @@ export const PropertiesPage: React.FC = () => {
       }
     });
 
-    eventSource.addEventListener('unreadCount', (event) => {
-      console.log("Received unread count update:", event.data);
-    });
-
-    eventSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      console.error("EventSource readyState:", eventSource.readyState);
-      eventSource.close();
-    };
-
     return () => {
-      console.log("Closing SSE connection");
-      eventSource.close();
+      console.log("Cleaning up SSE listener");
+      unsubscribe();
     };
   }, []);
 
@@ -645,12 +634,6 @@ export const PropertiesPage: React.FC = () => {
                       )}
                     </button>
 
-                    {isApproved && (
-                      <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
-                        <ShieldCheck className="w-3 h-3" />
-                        Approved
-                      </span>
-                    )}
                   </div>
 
                   {/* Top Right: Status Badge */}
@@ -734,18 +717,6 @@ export const PropertiesPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Verification Status Banner */}
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                      <span className="flex items-center gap-1 text-slate-600 font-medium">
-                        {statusInfo.icon}
-                        <span>{statusInfo.description}</span>
-                      </span>
-                      {p.ownershipDocuments && p.ownershipDocuments.length > 0 && (
-                        <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                          {p.ownershipDocuments.length} Deeds
-                        </span>
-                      )}
-                    </div>
                   </div>
 
                   {/* Actions Row */}

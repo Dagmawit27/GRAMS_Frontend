@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LeaseRequest } from "@/types";
+import { LeaseRequestResponse } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Check,
   X,
@@ -22,19 +23,14 @@ import {
   FileText,
   Printer
 } from "lucide-react";
-import { useCitizenData } from "@/hooks/useCitizenData";
 import { acceptLeaseRequest, declineLeaseRequest, getSession } from "@/lib/api";
 
 interface LandlordReviewDetailsViewProps {
-  request: LeaseRequest;
+  request: LeaseRequestResponse | any;
 }
 
 export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps> = ({ request }) => {
   const router = useRouter();
-  const {
-    setActiveAgreementView,
-    setSelectedLeaseRequest,
-  } = useCitizenData();
 
   const [isDeclining, setIsDeclining] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
@@ -43,7 +39,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
   const [isAcceptDialogOpen, setIsAcceptDialogOpen] = useState(false);
 
   const handleBack = () => {
-    router.push('/citizen/dashboard/agreements');
+    router.push('/citizen/dashboard/agreements/new');
   };
 
   const handleConfirmDecline = async () => {
@@ -59,8 +55,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
       setCurrentStatus("REJECTED");
       setIsDeclining(false);
       setDeclineReason("");
-      alert("Lease request declined successfully");
-      router.push('/citizen/dashboard/agreements');
+      router.push('/citizen/dashboard/agreements/new');
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to decline lease request");
     } finally {
@@ -82,9 +77,8 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
     setIsSubmitting(true);
     try {
       await acceptLeaseRequest(session.token, request.requestCode);
-      setCurrentStatus("APPROVED");
+      setCurrentStatus("LANDLORD_APPROVED");
       setIsAcceptDialogOpen(false);
-      alert("Lease request accepted successfully");
       router.push(`/citizen/dashboard/agreements/pending/${request.requestCode}`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to accept lease request");
@@ -95,15 +89,24 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Breadcrumb & Navigation */}
-      <div>
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors mb-2 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span>Back to Agreements</span>
-        </button>
+      {/* Back Navigation Bar */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>AGREEMENTS</span>
+            </button>
+            <ChevronRight className="w-3 h-3 text-slate-400" />
+            <span className="font-mono font-bold text-slate-800">
+              {request.requestCode}
+            </span>
+          </div>
+        </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 pb-4 border-b border-slate-200/70">
           <div>
@@ -112,14 +115,14 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
                 Agreement {request.requestCode}
               </h2>
               <Badge
-                variant={currentStatus === "APPROVED" ? "verified" : currentStatus === "REJECTED" ? "rejected" : "pending"}
+                variant={currentStatus === "LANDLORD_APPROVED" ? "verified" : currentStatus === "REJECTED" ? "rejected" : "pending"}
                 className="text-xs px-2.5 py-0.5 uppercase tracking-wider font-semibold"
               >
-                {currentStatus === "APPROVED" ? "Approved" : currentStatus === "REJECTED" ? "Rejected" : "Pending Review"}
+                {currentStatus === "LANDLORD_APPROVED" ? "Approved" : currentStatus === "REJECTED" ? "Rejected" : "Pending Review"}
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-              <span>Submitted on {request.dateSubmitted}</span>
+              <span>Submitted on {new Date(request.createdAt).toLocaleDateString()}</span>
             </p>
           </div>
 
@@ -144,7 +147,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
           <div className="relative h-44 w-full overflow-hidden bg-slate-100">
             <img
               src={
-                request.propertyImage ||
+                request.propertyImages?.[0] || request.propertyImage ||
                 "https://lh3.googleusercontent.com/aida-public/AB6AXuArZM8eccqrTxsJgQGwrJ9QdADLY41kgOvV3jzwXGn16dj5ogp9Z4MXSSZi-vq4D1_T1QkfKp9Ds7ueGwa3pSV7KomN4uiFrhUl2SHywD6J6oIvRLsmWNXwZngHiVFOTxbAAj31SuxMaN27rZD65OyNS5KSgJCXepQqV3TiMmcCwBODUSyNOIBG_DRAZDJDeOA9zSw0COPkh474PN-PSeniepcpIHYXDZUtnPrcDrBuSbOaztsZ3PQ-Ww"
               }
               alt={request.propertyTitle}
@@ -171,13 +174,13 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Unit Number</span>
                 <span className="font-semibold text-slate-900 text-xs mt-0.5 block">
-                  {request.unitNumber || "Apt 402, 4th Floor"}
+                  {request.unitCode || request.unitNumber || "N/A"}
                 </span>
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Area</span>
                 <span className="font-semibold text-slate-900 text-xs mt-0.5 block">
-                  {request.area || 145} Sq Meters
+                  {request.area || 0} Sq Meters
                 </span>
               </div>
             </div>
@@ -198,15 +201,15 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
           <CardContent className="p-4 space-y-4 flex-1 flex flex-col justify-between">
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-full bg-[#00450d] text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
-                {request.counterpartyInitials || "AG"}
+                {request.applicantName?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "AG"}
               </div>
               <div>
                 <h4 className="font-bold text-base text-slate-900">
-                  {request.counterpartyName}
+                  {request.applicantName}
                 </h4>
                 <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
                   <span className="font-mono font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
-                    Fayda ID: {request.tenantNationalId || "ETH-992-811-002"}
+                    Fayda ID: {request.applicantNationalId || "N/A"}
                   </span>
                 </p>
               </div>
@@ -217,14 +220,14 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
                 <span className="text-slate-500 flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone
                 </span>
-                <span className="font-semibold text-slate-900">{request.tenantPhone || "+251 911 234 567"}</span>
+                <span className="font-semibold text-slate-900">{request.applicantPhone || "N/A"}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500 flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-slate-400" /> Email
                 </span>
-                <span className="font-medium text-slate-900">{request.tenantEmail || "abebech.g@example.com"}</span>
+                <span className="font-medium text-slate-900">{request.applicantEmail || "N/A"}</span>
               </div>
 
               <div className="flex items-center justify-between py-1">
@@ -232,7 +235,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
                   <Briefcase className="w-3.5 h-3.5 text-slate-400" /> Employment / Organization
                 </span>
                 <span className="font-medium text-slate-900 text-right">
-                  {request.tenantEmployment || "Commercial Bank of Ethiopia (Senior Analyst)"}
+                  {request.applicantEmployment || "N/A"}
                 </span>
               </div>
             </div>
@@ -269,7 +272,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
                 Security Deposit
               </span>
               <p className="text-xl font-bold text-slate-900 mt-1">
-                {(request.securityDeposit || request.proposedRent * 2).toLocaleString()} ETB
+                {request.securityDeposit.toLocaleString()} ETB
               </p>
               <p className="text-[11px] text-slate-500 mt-1">Equivalent to 2 Months Rent in escrow</p>
             </div>
@@ -279,10 +282,10 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
                 Lease Duration
               </span>
               <p className="text-xl font-bold text-slate-900 mt-1">
-                {request.leaseDuration || "12 Months"}
+                {request.leaseDuration || `${request.leaseDurationMonths} Months`}
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
-                Starting {request.startDate || "01 Sep, 2023"} – Ending {request.endDate || "31 Aug, 2024"}
+                Starting {new Date(request.startDate).toLocaleDateString()} – Ending {new Date(request.endDate).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -359,7 +362,7 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
                 <span>Accept Agreement</span>
               </Button>
             </>
-          ) : currentStatus === "APPROVED" ? (
+          ) : currentStatus === "LANDLORD_APPROVED" ? (
             <Button
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 px-5 font-semibold gap-1.5 shadow-xs"
             >

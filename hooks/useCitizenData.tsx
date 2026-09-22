@@ -23,6 +23,7 @@ export interface CitizenContextType {
   // Role & Navigation
   userRole: UserRole;
   setUserRole: (role: UserRole) => void;
+  userEmail: string;
   currentPage: NavPage;
   setCurrentPage: (page: NavPage) => void;
   selectedProperty: Property | null;
@@ -111,6 +112,7 @@ const VALID_ROLES: UserRole[] = [
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Role & Navigation State — always start with a stable SSR default, then sync from localStorage on mount
   const [userRole, setUserRoleState] = useState<UserRole>("citizen");
+  const [userEmail, setUserEmail] = useState<string>("");
 
   useEffect(() => {
     const saved = localStorage.getItem("userRole");
@@ -173,6 +175,11 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     const session = getSession();
+    // Set user email from session
+    if (session && session.user?.email) {
+      setUserEmail(session.user.email);
+    }
+    
     // Load properties for landlord users
     if (session && session.user.userType !== "GOVERNMENT_EMPLOYEE") {
       const userRole = session.user.roles?.[0]?.toLowerCase();
@@ -587,6 +594,7 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
       value={{
         userRole,
         setUserRole,
+        userEmail,
         currentPage,
         setCurrentPage,
         selectedProperty,

@@ -30,6 +30,10 @@ import {
   History,
   ChevronDown,
   ChevronRight,
+  BookOpen,
+  AlertTriangle,
+  Building,
+  Landmark,
 } from "lucide-react";
 
 interface SideNavBarProps {
@@ -63,6 +67,7 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
 
   const [isOfficer, setIsOfficer] = useState(false);
   const [isSupervisor, setIsSupervisor] = useState(false);
+  const [isTaxOfficer, setIsTaxOfficer] = useState(false);
   const [isTenant, setIsTenant] = useState(false);
   const [isLandlord, setIsLandlord] = useState(false);
   const [userName, setUserName] = useState("");
@@ -74,21 +79,51 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
     if (href === "/citizen/dashboard") {
       return pathname === "/citizen/dashboard" || pathname === "/citizen/dashboard/";
     }
-    return pathname.startsWith(href);
+    if (href.includes("/ledger")) {
+      return pathname.includes("/ledger") || pathname.includes("/ladger");
+    }
+    if (href.endsWith("/dashboard")) {
+      return (
+        pathname === href ||
+        pathname === href + "/" ||
+        pathname === href.replace("/taxOfficer/", "/taxOffice/") ||
+        pathname === href.replace("/taxOfficer/", "/taxOffice/") + "/"
+      );
+    }
+    return (
+      pathname === href ||
+      pathname.startsWith(href) ||
+      pathname.startsWith(href.replace("/taxOfficer/", "/taxOffice/"))
+    );
   };
 
   useEffect(() => {
     const role = displayRole;
     const sessionRoles = (session?.user?.roles ?? []).map((r) => r.toLowerCase());
 
+    const taxRole =
+      role === "tax_officer" ||
+      role === "taxofficer" ||
+      (role as string) === "taxOfficer" ||
+      sessionRoles.includes("tax_officer") ||
+      sessionRoles.includes("taxofficer") ||
+      (typeof window !== "undefined" &&
+        (localStorage.getItem("userRole") === "tax_officer" ||
+          localStorage.getItem("userRole") === "taxofficer"));
+
+    setIsTaxOfficer(Boolean(taxRole));
+
     setIsOfficer(
-      role === "woreda_officer" ||
-      role === "woreda_supervisor" ||
-      session?.user?.userType === "GOVERNMENT_EMPLOYEE"
+      !taxRole &&
+        (role === "woreda_officer" ||
+          role === "woreda_supervisor" ||
+          session?.user?.userType === "GOVERNMENT_EMPLOYEE")
     );
     setIsSupervisor(
       role === "woreda_supervisor" ||
-      session?.user?.roles?.some((r) => r.toLowerCase() === "supervisor" || r.toLowerCase() === "woreda_supervisor") === true
+        session?.user?.roles?.some(
+          (r) => r.toLowerCase() === "supervisor" || r.toLowerCase() === "woreda_supervisor"
+        ) === true
     );
 
     // isTenant: role is tenant, citizen, or both (can search & request leases)
@@ -150,6 +185,13 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       href: `${officerBase}/agreements`,
       category: "Management",
     },
+    {
+      id: "officer-agreements-active" as NavPage,
+      label: "Active Agreements",
+      icon: CheckCircle2,
+      href: `${officerBase}/agreements/active`,
+      category: "Management",
+    },
     isSupervisor
       ? {
           id: "officer-reports" as NavPage,
@@ -174,6 +216,59 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
     },
   ];
 
+  const taxOfficerNavItems: Array<{
+    id: NavPage;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    category?: string;
+    badge?: number;
+    href: string;
+  }> = [
+    {
+      id: "tax-dashboard",
+      label: "Tax Dashboard",
+      icon: LayoutDashboard,
+      href: "/officer/taxOfficer/dashboard",
+      category: "Overview",
+    },
+    {
+      id: "tax-landlord-ledger",
+      label: "Landlord Tax Ledger",
+      icon: BookOpen,
+      href: "/officer/taxOfficer/dashboard/ledger",
+      category: "Operational Ledgers",
+    },
+    {
+      id: "tax-assessments",
+      label: "Tax Assessments",
+      icon: FileCheck2,
+      href: "/officer/taxOfficer/dashboard/assessments",
+      category: "Operational Ledgers",
+    },
+    {
+      id: "tax-discrepancies",
+      label: "Audit & Discrepancies",
+      icon: AlertTriangle,
+      badge: 642,
+      href: "/officer/taxOfficer/dashboard/audit",
+      category: "Audits & Compliance",
+    },
+    {
+      id: "tax-reports",
+      label: "Reports & Analytics",
+      icon: BarChart3,
+      href: "/officer/taxOfficer/dashboard/reports",
+      category: "Reports",
+    },
+    {
+      id: "officer-settings",
+      label: "Settings",
+      icon: Settings,
+      href: "/officer/office/settings",
+      category: "Account",
+    },
+  ];
+
   const citizenNavItems: Array<{
     id: NavPage;
     label: string;
@@ -193,6 +288,7 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       ? [
           { id: "search" as NavPage, label: "Search House", icon: Search, category: "Rentals", href: "/citizen/dashboard/search" },
           { id: "agreements-t" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/leases" },
+          { id: "agreements-active" as NavPage, label: "Active Agreements", icon: ShieldCheck, category: "Rentals", href: "/citizen/dashboard/agreements/active" },
         ]
       : []),
     ...(isLandlord
@@ -205,7 +301,7 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
             icon: FileText,
             category: "Management",
             badge: pendingAgreementsCount,
-            href: "/citizen/dashboard/agreements",
+            href: "/citizen/dashboard/agreements/new",
             hasDropdown: true,
             dropdownItems: [
               { id: "agreements-new" as NavPage, label: "New Requests", href: "/citizen/dashboard/agreements/new" },
@@ -217,10 +313,15 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       : []),
     { id: "payments", label: "Payments", icon: CreditCard, category: "Finance", href: "/citizen/dashboard/payments" },
     { id: "bills", label: "Bills & Invoices", icon: Receipt, category: "Finance", href: "/citizen/dashboard/bills" },
+    ...(isLandlord
+      ? [
+          { id: "tax-records" as NavPage, label: "Tax Records", icon: Landmark, category: "Finance", href: "/citizen/dashboard/tax" },
+        ]
+      : []),
     { id: "profile", label: "My Profile", icon: User, category: "Account", href: "/citizen/dashboard/profile" },
   ];
 
-  const currentNavItems = isOfficer ? officerNavItems : citizenNavItems;
+  const currentNavItems = isTaxOfficer ? taxOfficerNavItems : isOfficer ? officerNavItems : citizenNavItems;
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white border-r border-slate-200/90 text-slate-900">
@@ -229,12 +330,12 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => {
-              onNavigate(isOfficer ? "officer-dashboard" : "dashboard");
+              onNavigate(isTaxOfficer ? "tax-dashboard" : isOfficer ? "officer-dashboard" : "dashboard");
               onCloseMobile?.();
             }}
           >
-            {isOfficer ? (
-              /* Woreda Admin Official Header (Matching Images 1-4) */
+            {isTaxOfficer || isOfficer ? (
+              /* Government Official Header (Unified across Woreda Officer, Supervisor & Tax Officer) */
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs shrink-0 overflow-hidden">
                   {/* Government Seal Emblem */}
@@ -245,10 +346,10 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
                 {!collapsed && (
                   <div>
                     <h1 className="text-[17px] font-extrabold text-[#00450d] tracking-tight leading-tight">
-                      Woreda Admin
+                      {isTaxOfficer ? "Tax Admin" : isSupervisor ? "Woreda Supervisor" : "Woreda Admin"}
                     </h1>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">
-                      Official Portal
+                      {isTaxOfficer ? "Federal Tax Portal" : "Official Portal"}
                     </p>
                   </div>
                 )}

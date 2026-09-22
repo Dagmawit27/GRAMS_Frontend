@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useCitizenData } from "@/hooks/useCitizenData";
-import { ArrowLeft, ShieldCheck, CheckCircle2, Building, User, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldCheck, CheckCircle2, Building, User, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -17,22 +17,32 @@ export const OfficerSettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+      {/* Back Navigation Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs">
           <button
+            type="button"
             onClick={() => handleNavigate("officer-dashboard")}
-            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
+            <span>OFFICER DASHBOARD</span>
           </button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Desk & Officer Settings
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Configure your municipal branch credentials, signature key, and notification preferences.
-            </p>
-          </div>
+          <ChevronRight className="w-3 h-3 text-slate-400" />
+          <span className="font-mono font-bold text-slate-800">
+            SETTINGS
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Desk & Officer Settings
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Configure your municipal branch credentials, signature key, and notification preferences.
+          </p>
         </div>
       </div>
 

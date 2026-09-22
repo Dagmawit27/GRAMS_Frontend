@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck,
   CheckCircle2,
   FileCheck,
@@ -55,15 +56,24 @@ export const TenantDigitalSigningView: React.FC<TenantDigitalSigningViewProps> =
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Breadcrumbs & Header (Matching Screenshot 4) */}
-      <div>
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors mb-2 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span>Back to My Lease Requests</span>
-        </button>
+      {/* Back Navigation Bar */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>LEASE REQUESTS</span>
+            </button>
+            <ChevronRight className="w-3 h-3 text-slate-400" />
+            <span className="font-mono font-bold text-slate-800">
+              {request.requestCode}
+            </span>
+          </div>
+        </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 pb-4 border-b border-slate-200/70">
           <div>

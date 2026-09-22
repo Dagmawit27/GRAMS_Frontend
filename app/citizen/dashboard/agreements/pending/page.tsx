@@ -13,7 +13,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { Building, FileText, CheckCircle2, Clock } from "lucide-react";
+import { Building, FileText, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
 
 /**
  * /citizen/dashboard/agreements/pending
@@ -53,19 +53,27 @@ export default function PendingAgreementsPage() {
 
     const landlordUserId = session.user.email;
     console.log("Connecting to SSE with userId:", landlordUserId);
-    const eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?userId=${landlordUserId}`);
+    
+    // Use global SSE manager
+    const { sseManager } = require('@/lib/sseManager');
+    sseManager.connect(landlordUserId);
 
-    eventSource.addEventListener('connected', (event) => {
-      console.log("SSE connected:", event.data);
-    });
-
-    eventSource.addEventListener('notification', (event) => {
-      console.log("Received SSE notification:", event.data);
-      const notification = JSON.parse(event.data);
+    // Listen for notifications
+    const unsubscribe = sseManager.onNotification((notification: any) => {
+      console.log("Received SSE notification:", notification);
       
-      // If notification is about new lease request, reload
-      if (notification.type === 'AGREEMENT_REQUESTED') {
-        console.log("New lease request received, reloading...");
+      const nType = (notification.type || "").toUpperCase();
+      if (
+        notification.module === 'LEASE' ||
+        nType === 'AGREEMENT_REQUESTED' ||
+        nType === 'LEASE_REQUEST_SIGNED' ||
+        nType === 'LEASE_REQUEST_VERIFIED' ||
+        nType === 'LEASE_REQUEST_APPROVED' ||
+        nType === 'AGREEMENT_APPROVED' ||
+        nType === 'AGREEMENT_SIGNED' ||
+        nType === 'LEASE_REQUEST_STATUS_CHANGED'
+      ) {
+        console.log("Lease event received, reloading pending agreements...");
         setTimeout(() => {
           const session = getSession();
           if (session?.token) {
@@ -81,19 +89,9 @@ export default function PendingAgreementsPage() {
       }
     });
 
-    eventSource.addEventListener('unreadCount', (event) => {
-      console.log("Received unread count update:", event.data);
-    });
-
-    eventSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      console.error("EventSource readyState:", eventSource.readyState);
-      eventSource.close();
-    };
-
     return () => {
-      console.log("Closing SSE connection");
-      eventSource.close();
+      console.log("Cleaning up SSE listener");
+      unsubscribe();
     };
   }, []);
 
@@ -104,9 +102,65 @@ export default function PendingAgreementsPage() {
     }
   }, [userRole, router]);
 
-  // Filter approved agreements waiting for woreda verification
+  // Helper to render appropriate status badge based on user requirements:
+  // - If both parties signed -> Under Verification
+  // - If officer verified -> Verified
+  // - If supervisor approved -> Approved
+  const getStatusBadge = (req: LeaseRequestResponse) => {
+    if (req.status === "SUPERVISOR_APPROVED" || req.status === "APPROVED") {
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+          <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+          Approved
+        </Badge>
+      );
+    }
+    if (req.status === "PENDING_SUPERVISOR_APPROVAL") {
+      return (
+        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border border-blue-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+          <ShieldCheck className="w-3 h-3 mr-1 text-blue-600" />
+          Verified
+        </Badge>
+      );
+    }
+    if (req.status === "UNDER_VERIFICATION" || (req.landlordSigned && req.tenantSigned)) {
+      return (
+        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+          <Clock className="w-3 h-3 mr-1 text-amber-600" />
+          Under Verification
+        </Badge>
+      );
+    }
+    if (req.landlordSigned && !req.tenantSigned) {
+      return (
+        <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 border border-purple-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+          <Clock className="w-3 h-3 mr-1 text-purple-600" />
+          Awaiting Tenant Signature
+        </Badge>
+      );
+    }
+    if (!req.landlordSigned && req.tenantSigned) {
+      return (
+        <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100 border border-orange-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+          <Clock className="w-3 h-3 mr-1 text-orange-600" />
+          Awaiting Landlord Signature
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+        <Clock className="w-3 h-3 mr-1 text-amber-600" />
+        Pending Signature
+      </Badge>
+    );
+  };
+
+  // Filter approved agreements waiting for woreda verification or approval (approved agreements move to Active Agreements)
   const pendingAgreements = leaseRequests.filter(
-    (r) => r.status === "APPROVED"
+    (r) =>
+      r.status === "LANDLORD_APPROVED" ||
+      r.status === "UNDER_VERIFICATION" ||
+      r.status === "PENDING_SUPERVISOR_APPROVAL"
   );
 
   // Show access denied for non-landlord users
@@ -136,28 +190,7 @@ export default function PendingAgreementsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-1 border-b border-slate-200/70">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Pending Agreements
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Agreements approved by landlord, awaiting woreda officer verification and supervisor approval.
-          </p>
-        </div>
-      </div>
-
       <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
-        <CardHeader className="p-4 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <CardTitle className="text-base font-semibold text-slate-900">
-              Awaiting Woreda Verification
-            </CardTitle>
-            <span className="bg-amber-50 text-amber-700 border border-amber-200/80 text-[11px] font-semibold px-2 py-0.5 rounded-full">
-              {pendingAgreements.length} Pending
-            </span>
-          </div>
-        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -173,7 +206,7 @@ export default function PendingAgreementsPage() {
               {pendingAgreements.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-xs text-slate-400">
-                    No pending agreements awaiting woreda verification.
+                    No pending agreements.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -210,10 +243,7 @@ export default function PendingAgreementsPage() {
 
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Awaiting Verification
-                        </Badge>
+                        {getStatusBadge(req)}
                       </div>
                     </TableCell>
                   </TableRow>

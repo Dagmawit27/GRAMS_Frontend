@@ -37,23 +37,33 @@ export const LandlordAgreementsView: React.FC = () => {
 
   useEffect(() => {
     const fetchLeaseRequests = async () => {
+      console.log("LandlordAgreementsView: Fetching lease requests...");
       try {
         const session = getSession();
         if (!session?.token) {
-          setError("No authentication token found");
+          console.error("LandlordAgreementsView: No authentication token found, redirecting to login");
+          router.push("/citizen/login");
           return;
         }
+        console.log("LandlordAgreementsView: Calling getLandlordLeaseRequests with token");
         const data = await getLandlordLeaseRequests(session.token);
+        console.log("LandlordAgreementsView: Received data:", data);
+        console.log("LandlordAgreementsView: Data length:", data.length);
+        if (data.length > 0) {
+          console.log("LandlordAgreementsView: First item:", data[0]);
+        }
         setLeaseRequests(data);
       } catch (err) {
+        console.error("LandlordAgreementsView: Error fetching lease requests:", err);
         setError(err instanceof Error ? err.message : "Failed to load lease requests");
       } finally {
+        console.log("LandlordAgreementsView: Setting isLoading to false");
         setIsLoading(false);
       }
     };
 
     fetchLeaseRequests();
-  }, []);
+  }, [router]);
 
   // SSE connection for real-time lease request notifications
   useEffect(() => {
@@ -76,9 +86,9 @@ export const LandlordAgreementsView: React.FC = () => {
     const unsubscribe = sseManager.onNotification((notification: any) => {
       console.log("LandlordAgreementsView: Received SSE notification:", notification);
       
-      // If notification is about new lease request or cancellation, reload
+      // If notification is about new lease request, status change, or cancellation, reload
       const notificationType = notification.type?.toUpperCase();
-      if (notificationType === 'AGREEMENT_REQUESTED' || notificationType === 'LEASE_REQUEST_CANCELLED') {
+      if (notificationType === 'AGREEMENT_REQUESTED' || notificationType === 'LEASE_REQUEST_CANCELLED' || notificationType === 'LEASE_REQUEST_STATUS_CHANGED' || notificationType === 'LEASE_REQUEST_SIGNED') {
         console.log("LandlordAgreementsView: Lease request update received, reloading...");
         setTimeout(() => {
           const session = getSession();
@@ -106,9 +116,9 @@ export const LandlordAgreementsView: React.FC = () => {
     (r) => r.status === "PENDING"
   );
 
-  // Filter history (accepted/declined requests)
+  // Filter history (accepted/declined/cancelled requests)
   const historyRequests = leaseRequests.filter(
-    (r) => r.status === "APPROVED" || r.status === "REJECTED"
+    (r) => r.status === "LANDLORD_APPROVED" || r.status === "REJECTED" || r.status === "CANCELLED"
   );
 
   // Pagination for pending requests
@@ -250,7 +260,7 @@ export const LandlordAgreementsView: React.FC = () => {
         </div>
       )}
 
-      {/* Section 2: History Card (Accepted/Declined Requests) */}
+      {/* Section 2: History Card (Accepted/Declined Requests) 
       <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
         <CardHeader className="p-4 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -310,10 +320,10 @@ export const LandlordAgreementsView: React.FC = () => {
 
                     <TableCell>
                       <Badge
-                        variant={req.status === "APPROVED" ? "verified" : "rejected"}
+                        variant={req.status === "LANDLORD_APPROVED" ? "verified" : "rejected"}
                         className="text-[11px] font-semibold px-2.5 py-0.5 uppercase tracking-wider"
                       >
-                        {req.status === "APPROVED" ? "Accepted" : "Declined"}
+                        {req.status === "LANDLORD_APPROVED" ? "Accepted" : "Declined"}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -322,7 +332,7 @@ export const LandlordAgreementsView: React.FC = () => {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+      </Card>*/}
 
     </div>
   );

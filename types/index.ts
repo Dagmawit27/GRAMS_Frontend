@@ -2,21 +2,43 @@ export type NavPage =
   | 'landing'
   | 'dashboard' 
   | 'search' 
-  | 'agreements' 
+  | 'agreements'
+  | 'agreements-new'
+  | 'agreements-pending'
+  | 'agreements-active'
+  | 'agreements-t'
   | 'properties' 
   | 'register-property'
   | 'payments' 
   | 'bills' 
+  | 'tax'
+  | 'tax-records'
+  | 'notification'
   | 'profile'
+  | 'settings'
   | 'citizen'
   | 'officer-dashboard'
   | 'officer-property-verifications'
   | 'officer-agreement-verifications'
+  | 'officer-agreements-active'
   | 'officer-history'
   | 'officer-reports'
-  | 'officer-settings';
+  | 'officer-settings'
+  | 'tax-dashboard'
+  | 'tax-landlord-ledger'
+  | 'tax-assessments'
+  | 'tax-discrepancies'
+  | 'tax-reports';
 
-export type UserRole = 'landlord' | 'tenant' | 'citizen' | 'woreda_officer' | 'woreda_supervisor';
+export type UserRole =
+  | 'landlord'
+  | 'tenant'
+  | 'citizen'
+  | 'woreda_officer'
+  | 'woreda_supervisor'
+  | 'tax_officer'
+  | 'taxofficer'
+  | 'taxOfficer';
 
 export interface Property {
   id: string;
@@ -54,7 +76,7 @@ export interface PropertyUnit {
   unitName?: string;
   unitType?: string;
   areaSqMeter?: number;
-  status: 'Rented' | 'Available' | 'Reserved';
+  status: 'Rented' | 'Available' | 'Reserved' | string;
   rentAmount?: number;
   tenantName?: string;
   floorLevel?: string;
@@ -64,6 +86,10 @@ export interface PropertyUnit {
   waterSupply?: boolean;
   frontage?: string;
   description?: string;
+  name?: string;
+  type?: string;
+  area?: number;
+  tenant?: string;
 }
 
 export interface LeaseRequest {
@@ -84,7 +110,20 @@ export interface LeaseRequest {
   leaseDuration?: string;
   startDate?: string;
   endDate?: string;
-  status: 'Pending Review' | 'Accepted' | 'Declined' | 'Ready to Sign' | 'Awaiting Approval';
+  status:
+    | 'PENDING'
+    | 'LANDLORD_APPROVED'
+    | 'UNDER_VERIFICATION'
+    | 'PENDING_SUPERVISOR_APPROVAL'
+    | 'SUPERVISOR_APPROVED'
+    | 'REJECTED'
+    | 'CANCELLED'
+    | 'EXPIRED'
+    | 'Pending Review'
+    | 'Accepted'
+    | 'Declined'
+    | 'Ready to Sign'
+    | 'Awaiting Approval';
   dateSubmitted: string;
   notes?: string;
   statusNote?: string;
@@ -144,6 +183,19 @@ export interface Invoice {
   totalAmount: number;
   status: 'Overdue' | 'Pending' | 'Future' | 'Paid';
   period: string;
+  landlordName?: string;
+  landlordPreferredPaymentMethod?: string;
+  landlordBankName?: string;
+  landlordAccountNumber?: string;
+  landlordAccountHolderName?: string;
+  landlordBankName2?: string;
+  landlordAccountNumber2?: string;
+  landlordAccountHolderName2?: string;
+  landlordBankName3?: string;
+  landlordAccountNumber3?: string;
+  landlordAccountHolderName3?: string;
+  advancePaymentMonths?: number;
+  requestCode?: string;
 }
 
 export interface Receipt {

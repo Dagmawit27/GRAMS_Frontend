@@ -29,8 +29,8 @@ export const SidebarWrapper: React.FC = () => {
       onLogoutClick={() => setIsLogoutModalOpen(true)}
       pendingAgreementsCount={
         userRole === "landlord"
-          ? leaseRequests.filter((r) => r.status === "Pending Review").length
-          : leaseRequests.filter((r) => r.status === "Ready to Sign").length
+          ? leaseRequests.filter((r) => r.status === "PENDING" || r.status === "Pending Review").length
+          : leaseRequests.filter((r) => r.status === "LANDLORD_APPROVED" || r.status === "Ready to Sign").length
       }
       userRole={userRole}
       onToggleRole={(role) => setUserRole(role)}

@@ -112,6 +112,7 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
           onClearNotifications={handleClearNotifications}
           onAddNotification={handleAddNotification}
           isDarkMode={isDarkMode}
+          onLogoutClick={() => setIsLogoutModalOpen(true)}
           onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
         />
 
