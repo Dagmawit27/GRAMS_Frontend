@@ -292,7 +292,7 @@ export default function LeaseRequestDetailPage() {
             <div className="flex items-center gap-2 text-sm">
               <DollarSign className="w-4 h-4 text-slate-400" />
               <span className="text-slate-600">
-                Security Deposit: {(leaseRequest.securityDeposit || leaseRequest.proposedRent * 2).toLocaleString()} ETB
+                Advance Rent: {(leaseRequest.securityDeposit || leaseRequest.proposedRent * 2).toLocaleString()} ETB
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm">

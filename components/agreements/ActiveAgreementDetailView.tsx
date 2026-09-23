@@ -293,9 +293,9 @@ export const ActiveAgreementDetailView: React.FC<ActiveAgreementDetailViewProps>
                 </span>
               </div>
               <div className="p-3 bg-amber-50/60 rounded-lg border border-amber-200">
-                <span className="text-amber-700 block font-medium">የዋስትና ገንዘብ (Security Deposit):</span>
+                <span className="text-amber-700 block font-medium">ጠቅላላ የቅድመ ክፍያ (Total Advance Rent):</span>
                 <span className="text-base font-black text-amber-950 mt-1 block">
-                  {agreement.securityDeposit ? agreement.securityDeposit.toLocaleString() + " ETB" : "የለም (None)"}
+                  {advancePaymentBirr} ETB
                 </span>
               </div>
             </div>

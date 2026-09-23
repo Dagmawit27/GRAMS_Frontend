@@ -707,9 +707,9 @@ function SearchDetailPageContent() {
                 </div>
 
                 <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg">
-                  <span className="text-slate-500 font-medium">Security Deposit</span>
+                  <span className="text-slate-500 font-medium">Advance Rent</span>
                   <span className="font-bold text-slate-900">
-                    {property.securityDepositMonths || 3} Months Rent
+                    {property.securityDepositMonths || 2} Months Rent
                   </span>
                 </div>
 

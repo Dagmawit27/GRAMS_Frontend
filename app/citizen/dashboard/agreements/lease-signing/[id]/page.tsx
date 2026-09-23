@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { LeaseRequestResponse, getLeaseRequestById, getSession, signAgreementWithOtp, signAgreementWithPassword } from "@/lib/api";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { sseManager } from "@/lib/sseManager";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -172,34 +173,49 @@ export default function TenantSigningPage() {
     }
   }, [requestCode]);
 
-  // SSE listener for real-time updates when agreement is signed
+  // SSE listener for real-time updates when agreement is signed, verified, or approved
   useEffect(() => {
     const session = getSession();
-    if (!session?.token || !userEmail) return;
+    if (!session?.token || (!userEmail && !requestCode)) return;
 
-    const userId = userEmail;
-    console.log("Lease-signing page: Using global SSE manager for userId:", userId);
-
-    // Use global SSE manager
-    const { sseManager } = require('@/lib/sseManager');
-    sseManager.connect(userId);
+    if (userEmail) {
+      console.log("Lease-signing page: Connecting to SSE for userEmail:", userEmail);
+      sseManager.connect(userEmail.trim());
+      sseManager.connect(userEmail.trim().toLowerCase());
+    }
+    if (session.user?.id) {
+      sseManager.connect(session.user.id.trim());
+    }
+    if (requestCode) {
+      console.log("Lease-signing page: Connecting to SSE for requestCode:", requestCode);
+      sseManager.connect(requestCode.trim());
+      sseManager.connect(requestCode.trim().toLowerCase());
+    }
 
     // Listen for notifications
     const unsubscribe = sseManager.onNotification((notification: any) => {
       console.log("Lease-signing page: Received SSE notification:", notification);
-      console.log("Lease-signing page: Notification type:", notification.type);
       
-      // If notification is about lease signing, reload
-      if (notification.type === 'LEASE_REQUEST_SIGNED' || notification.type === 'AGREEMENT_SIGNED') {
-        console.log("Lease-signing page: Agreement signed, reloading lease request...");
+      const nType = (notification.type || "").toUpperCase();
+      const isLeaseEvent =
+        notification.module === 'LEASE' ||
+        nType === 'LEASE_REQUEST_SIGNED' ||
+        nType === 'AGREEMENT_SIGNED' ||
+        nType === 'LEASE_REQUEST_VERIFIED' ||
+        nType === 'LEASE_REQUEST_APPROVED' ||
+        nType === 'LEASE_REQUEST_STATUS_CHANGED' ||
+        nType === 'AGREEMENT_APPROVED' ||
+        nType === 'AGREEMENT_REQUESTED' ||
+        (notification.entityId && leaseRequest?.id && notification.entityId === leaseRequest.id.toString());
+
+      if (isLeaseEvent) {
+        console.log("Lease-signing page: Lease event received, reloading lease request...");
         setTimeout(() => {
-          const session = getSession();
-          if (session?.token) {
-            getLeaseRequestById(session.token, requestCode)
+          const currentSession = getSession();
+          if (currentSession?.token && requestCode) {
+            getLeaseRequestById(currentSession.token, requestCode)
               .then((data) => {
                 console.log("Lease-signing page: Reloaded lease request data:", data);
-                console.log("Lease-signing page: Landlord signed:", data.landlordSigned);
-                console.log("Lease-signing page: Tenant signed:", data.tenantSigned);
                 setLeaseRequest(data);
                 // Update form data with new signing status
                 const today = new Date().toLocaleDateString("en-GB");
@@ -222,7 +238,7 @@ export default function TenantSigningPage() {
                 console.error("Failed to reload lease request:", err);
               });
           }
-        }, 500);
+        }, 300);
       }
     });
 
@@ -230,7 +246,7 @@ export default function TenantSigningPage() {
       console.log("Lease-signing page: Cleaning up SSE listener");
       unsubscribe();
     };
-  }, [requestCode, userEmail]);
+  }, [requestCode, userEmail, leaseRequest?.id]);
 
   
   const showToast = (type: 'success' | 'error', msg: string) => {

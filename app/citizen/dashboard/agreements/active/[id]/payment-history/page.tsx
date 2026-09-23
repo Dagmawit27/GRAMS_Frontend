@@ -56,7 +56,7 @@ interface PaymentRecordDisplay {
   amount: number;
   status: string;
   paymentMethod: string;
-  type: "rent" | "deposit";
+  type: "advance" | "monthly";
   seal: string;
   sealType: "kebele" | "vault";
   channelType: "mobile" | "bank" | "escrow";
@@ -73,7 +73,7 @@ export default function AgreementPaymentHistoryPage() {
   const [leaseRequest, setLeaseRequest] = useState<LeaseRequestResponse | null>(null);
   const [payments, setPayments] = useState<PaymentRecordDisplay[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "rent" | "deposit">("all");
+  const [filterType, setFilterType] = useState<"all" | "advance" | "monthly">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReceipt, setSelectedReceipt] = useState<PaymentRecordDisplay | null>(null);
   const itemsPerPage = 8;
@@ -147,13 +147,12 @@ export default function AgreementPaymentHistoryPage() {
               rec.id?.includes(requestCode);
 
             if (matchesReq) {
-              const isDeposit = rec.period?.toLowerCase().includes("deposit") || false;
               localRecords.push({
                 id: rec.id || `loc-${idx}`,
                 date: rec.date || new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
                 txRef: rec.transactionRef || `TX-${requestCode}`,
                 chapaRef: rec.transactionRef,
-                period: rec.period || "First 2 Months Advance Rent",
+                period: rec.period || `Initial Advance Rent (${agr?.advancePaymentMonths || 2} Mo.)`,
                 payerName: rec.payerName || agr?.tenantName || lr?.applicantName || "Tenant",
                 payerAccount: `${rec.paymentMethod || "Telebirr"} • ${agr?.tenantPhone || lr?.applicantPhone || "0911234567"}`,
                 landlordName: agr?.landlordName || lr?.landlordName || "Landlord",
@@ -162,11 +161,11 @@ export default function AgreementPaymentHistoryPage() {
                 amount: rec.amount || (agr?.monthlyRent ? agr.monthlyRent * (agr.advancePaymentMonths || 2) : 15000),
                 status: "Paid",
                 paymentMethod: rec.paymentMethod || "Telebirr",
-                type: isDeposit ? "deposit" : "rent",
-                seal: isDeposit ? "Escrow Vault" : "Kebele Sealed",
-                sealType: isDeposit ? "vault" : "kebele",
-                channelType: isDeposit ? "escrow" : rec.paymentMethod?.toLowerCase().includes("bank") ? "bank" : "mobile",
-                actionText: isDeposit ? "Bond Certificate" : "Receipt",
+                type: "advance",
+                seal: "Kebele Sealed",
+                sealType: "kebele",
+                channelType: rec.paymentMethod?.toLowerCase().includes("bank") ? "bank" : "mobile",
+                actionText: "Receipt",
               });
             }
           });
@@ -175,17 +174,19 @@ export default function AgreementPaymentHistoryPage() {
         console.warn("Could not read local receipts:", err);
       }
 
-      // 5. Convert backend payments into display records
-      const mappedBackend: PaymentRecordDisplay[] = backendPayments.map((p, idx) => {
+      // 5. Convert backend payments into display records (only completed)
+      const validBackend = backendPayments.filter(
+        (p) => p.status === "COMPLETED"
+      );
+      const mappedBackend: PaymentRecordDisplay[] = validBackend.map((p, idx) => {
         const advMonths = agr?.advancePaymentMonths || 2;
-        const isDeposit = (agr?.securityDeposit && p.amount === agr.securityDeposit) || false;
         const isMobile =
           p.paymentMethod?.toLowerCase().includes("telebirr") ||
           p.paymentMethod?.toLowerCase().includes("cbebirr") ||
           p.paymentMethod?.toLowerCase().includes("mobile");
 
         return {
-          id: p.id || `pay-${idx}`,
+          id: p.id ? String(p.id) : `pay-${idx}`,
           date: p.paymentDate
             ? new Date(p.paymentDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
             : p.createdAt
@@ -193,7 +194,7 @@ export default function AgreementPaymentHistoryPage() {
             : "Settled",
           txRef: p.txRef || `TX-00${idx + 1}`,
           chapaRef: p.chapaReference,
-          period: isDeposit ? "Security Deposit (Escrow Vault)" : `First ${advMonths} Months Advance Rent`,
+          period: idx === 0 ? `Initial Advance Rent (${advMonths} Mo.)` : `Monthly Rent Settlement #${idx + 1}`,
           payerName: p.tenantName || agr?.tenantName || "Tenant",
           payerAccount: `${p.paymentMethod || "Telebirr"} • ${agr?.tenantPhone || "0911234567"}`,
           landlordName: p.landlordName || agr?.landlordName || "Landlord",
@@ -202,16 +203,18 @@ export default function AgreementPaymentHistoryPage() {
           amount: p.amount,
           status: p.status === "COMPLETED" ? "Paid" : p.status,
           paymentMethod: p.paymentMethod || "Telebirr",
-          type: isDeposit ? "deposit" : "rent",
-          seal: isDeposit ? "Escrow Vault" : "Kebele Sealed",
-          sealType: isDeposit ? "vault" : "kebele",
-          channelType: isDeposit ? "escrow" : isMobile ? "mobile" : "bank",
-          actionText: isDeposit ? "Bond Certificate" : "Receipt",
+          type: idx === 0 ? "advance" : "monthly",
+          seal: "Kebele Sealed",
+          sealType: "kebele",
+          channelType: isMobile ? "mobile" : "bank",
+          actionText: "Receipt",
         };
       });
 
-      // Merge and deduplicate records by txRef
-      const combined = [...mappedBackend, ...localRecords];
+      // Merge and deduplicate records by txRef (only genuine receipts)
+      const backendTxRefs = new Set(validBackend.map((p) => p.txRef).filter(Boolean));
+      const filteredLocal = localRecords.filter((r) => r.txRef && !backendTxRefs.has(r.txRef));
+      const combined = [...mappedBackend, ...filteredLocal];
       const seen = new Set<string>();
       const finalRecords: PaymentRecordDisplay[] = [];
 
@@ -221,39 +224,6 @@ export default function AgreementPaymentHistoryPage() {
           finalRecords.push(c);
         }
       });
-
-      // If no payments recorded yet, synthesize cleared advance settlement if agreement is active
-      if (finalRecords.length === 0) {
-        const storedPaidIds = localStorage.getItem("grams_paid_invoice_ids");
-        const isLocallyPaid =
-          storedPaidIds &&
-          (storedPaidIds.includes(requestCode) || (agr && storedPaidIds.includes(String(agr.id))));
-
-        if (isLocallyPaid || agr?.status === "ACTIVE" || agr?.status === "PAID" || lr?.status === "APPROVED") {
-          const advMonths = agr?.advancePaymentMonths || 2;
-          const monthlyRent = agr?.monthlyRent || lr?.proposedRent || 15000;
-          finalRecords.push({
-            id: `rec-advance-${requestCode}`,
-            date: formatDate(agr?.startDate || agr?.contractDate) !== "N/A" ? formatDate(agr?.startDate || agr?.contractDate) : "Settled",
-            txRef: `CHAPA-${requestCode.slice(-6).toUpperCase()}-9901`,
-            chapaRef: `CHAPA-${requestCode.slice(-6).toUpperCase()}`,
-            period: `First ${advMonths} Months Advance Rent`,
-            payerName: agr?.tenantName || lr?.applicantName || "Dagmawit Mesfin Haile",
-            payerAccount: `Telebirr • ${agr?.tenantPhone || lr?.applicantPhone || "0928841920"}`,
-            landlordName: agr?.landlordName || lr?.landlordName || "Kibrom Tadesse Woldemariam",
-            landlordBank: agr?.landlordBankName || "Commercial Bank of Ethiopia (CBE)",
-            landlordAccount: agr?.landlordAccountNumber || "****-****-4910",
-            amount: monthlyRent * advMonths,
-            status: "Paid",
-            paymentMethod: "Telebirr",
-            type: "rent",
-            seal: "Kebele Sealed",
-            sealType: "kebele",
-            channelType: "mobile",
-            actionText: "Receipt",
-          });
-        }
-      }
 
       setPayments(finalRecords);
     } catch (err) {
@@ -270,8 +240,8 @@ export default function AgreementPaymentHistoryPage() {
   // Filtering & Search
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
-      if (filterType === "rent" && p.type !== "rent") return false;
-      if (filterType === "deposit" && p.type !== "deposit") return false;
+      if (filterType === "advance" && p.type !== "advance") return false;
+      if (filterType === "monthly" && p.type !== "monthly") return false;
 
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
@@ -331,7 +301,24 @@ export default function AgreementPaymentHistoryPage() {
 
       {/* FULL-WIDTH PAYMENT HISTORY LIST / LEDGER */}
       <div className="bg-white border border-slate-200 rounded p-5 shadow-2xs space-y-4">
-        
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <h1 className="text-lg font-extrabold text-slate-900 tracking-tight">
+              Verified Completed Payments Ledger (የተጠናቀቁ የኪራይ ክፍያዎች)
+            </h1>
+            <p className="text-xs text-slate-500">
+              {propertyTitle} • {agreement?.agreementNumber || requestCode}
+            </p>
+          </div>
+          <div className="px-3 py-1.5 bg-slate-100 border border-slate-200 rounded text-right">
+            <span className="text-[10px] text-slate-500 uppercase font-bold block">
+              Total Settled
+            </span>
+            <span className="text-sm font-mono font-black text-slate-900">
+              {totalCollected.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB
+            </span>
+          </div>
+        </div>
 
         {/* Filter Tabs & Search Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -351,29 +338,29 @@ export default function AgreementPaymentHistoryPage() {
             </button>
             <button
               onClick={() => {
-                setFilterType("rent");
+                setFilterType("advance");
                 setCurrentPage(1);
               }}
               className={`px-3 py-1.5 rounded uppercase tracking-wider transition-colors ${
-                filterType === "rent"
+                filterType === "advance"
                   ? "bg-[#00450d] text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              MONTHLY RENT ({payments.filter((t) => t.type === "rent").length})
+              ADVANCE RENT ({payments.filter((t) => t.type === "advance").length})
             </button>
             <button
               onClick={() => {
-                setFilterType("deposit");
+                setFilterType("monthly");
                 setCurrentPage(1);
               }}
               className={`px-3 py-1.5 rounded uppercase tracking-wider transition-colors ${
-                filterType === "deposit"
+                filterType === "monthly"
                   ? "bg-[#00450d] text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              SECURITY DEPOSIT ({payments.filter((t) => t.type === "deposit").length})
+              MONTHLY RENT ({payments.filter((t) => t.type === "monthly").length})
             </button>
           </div>
 
@@ -417,9 +404,17 @@ export default function AgreementPaymentHistoryPage() {
                 </tr>
               ) : paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-xs text-slate-400 space-y-1">
+                  <td colSpan={8} className="py-12 text-center text-xs text-slate-400 space-y-2">
                     <p className="font-semibold text-slate-700 text-sm">No payment records found</p>
-                    <p>No transactions match your search filter for agreement {requestCode}.</p>
+                    <p>No completed transactions were found for agreement {requestCode}.</p>
+                    <div className="pt-2">
+                      <Link
+                        href="/citizen/dashboard/bills"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#00450d] text-white text-xs font-semibold hover:bg-[#00340a] transition-colors"
+                      >
+                        View Bills & Make Payment
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ) : (

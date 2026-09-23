@@ -5,6 +5,7 @@ import { Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, B
 import { ActivityNotification, NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/api";
+import { sseManager } from "@/lib/sseManager";
 
 interface TopAppBarProps {
   onOpenMobileMenu: () => void;
@@ -58,14 +59,18 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   // SSE connection for real-time notification updates
   useEffect(() => {
     const session = getSession();
-    if (!session?.user?.email) return;
+    const userEmail = session?.user?.email;
+    const userId = session?.user?.id;
+    if (!userEmail && !userId) return;
 
-    const userId = session.user.email;
-    console.log("TopAppBar: Connecting to SSE with userId:", userId);
-
-    // Use global SSE manager
-    const { sseManager } = require('@/lib/sseManager');
-    sseManager.connect(userId);
+    if (userEmail) {
+      console.log("TopAppBar: Connecting to SSE with email:", userEmail);
+      sseManager.connect(userEmail.trim());
+      sseManager.connect(userEmail.trim().toLowerCase());
+    }
+    if (userId) {
+      sseManager.connect(userId.trim());
+    }
 
     // Listen for unread count updates
     const unsubscribeUnreadCount = sseManager.onUnreadCount((count: number) => {

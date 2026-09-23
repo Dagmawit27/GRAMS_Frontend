@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { LeaseRequestResponse, getLeaseRequestById, getSession, signAgreementWithPassword, signAgreementWithOtp } from "@/lib/api";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { sseManager } from "@/lib/sseManager";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ import {
   X,
   DollarSign,
   Calendar,
+  Clock,
+  ShieldCheck,
 } from "lucide-react";
 
 
@@ -178,32 +181,49 @@ export default function CitizenModelContractFormPage() {
     }
   }, [requestCode, userRole, userEmail]);
 
-  // SSE listener for real-time updates when agreement is signed
+  // SSE listener for real-time updates when agreement is signed, verified, or approved
   useEffect(() => {
     const session = getSession();
-    if (!session?.token || !userEmail) return;
+    if (!session?.token || (!userEmail && !requestCode)) return;
 
-    const userId = userEmail;
-    console.log("Pending page: Using global SSE manager for userId:", userId);
-
-    // Use global SSE manager
-    const { sseManager } = require('@/lib/sseManager');
-    sseManager.connect(userId);
+    if (userEmail) {
+      console.log("Pending detail page: Connecting to SSE for userEmail:", userEmail);
+      sseManager.connect(userEmail.trim());
+      sseManager.connect(userEmail.trim().toLowerCase());
+    }
+    if (session.user?.id) {
+      sseManager.connect(session.user.id.trim());
+    }
+    if (requestCode) {
+      console.log("Pending detail page: Connecting to SSE for requestCode:", requestCode);
+      sseManager.connect(requestCode.trim());
+      sseManager.connect(requestCode.trim().toLowerCase());
+    }
 
     // Listen for notifications
     const unsubscribe = sseManager.onNotification((notification: any) => {
-      console.log("Pending page: Received SSE notification:", notification);
-      console.log("Pending page: Notification type:", notification.type);
+      console.log("Pending detail page: Received SSE notification:", notification);
       
-      // If notification is about lease signing, reload
-      if (notification.type === 'LEASE_REQUEST_SIGNED' || notification.type === 'AGREEMENT_SIGNED') {
-        console.log("Pending page: Agreement signed, reloading lease request...");
+      const nType = (notification.type || "").toUpperCase();
+      const isLeaseEvent =
+        notification.module === 'LEASE' ||
+        nType === 'LEASE_REQUEST_SIGNED' ||
+        nType === 'AGREEMENT_SIGNED' ||
+        nType === 'LEASE_REQUEST_VERIFIED' ||
+        nType === 'LEASE_REQUEST_APPROVED' ||
+        nType === 'LEASE_REQUEST_STATUS_CHANGED' ||
+        nType === 'AGREEMENT_APPROVED' ||
+        nType === 'AGREEMENT_REQUESTED' ||
+        (notification.entityId && leaseRequest?.id && notification.entityId === leaseRequest.id.toString());
+
+      if (isLeaseEvent) {
+        console.log("Pending detail page: Lease event received, reloading lease request...");
         setTimeout(() => {
-          const session = getSession();
-          if (session?.token) {
-            getLeaseRequestById(session.token, requestCode)
+          const currentSession = getSession();
+          if (currentSession?.token && requestCode) {
+            getLeaseRequestById(currentSession.token, requestCode)
               .then((data) => {
-                console.log("Pending page: Reloaded lease request data:", data);
+                console.log("Pending detail page: Reloaded lease request data:", data);
                 setLeaseRequest(data);
                 // Update form data with new signing status
                 const today = new Date().toLocaleDateString("en-GB");
@@ -220,21 +240,21 @@ export default function CitizenModelContractFormPage() {
                 const currentUserIsLandlord = userRole === "landlord" || (userRole === "citizen" && userEmail === data.landlordEmail);
                 const currentUserIsTenant = userRole === "tenant" || (userRole === "citizen" && userEmail === data.applicantEmail);
                 setHasSigned(currentUserIsLandlord ? data.landlordSigned || false : currentUserIsTenant ? data.tenantSigned || false : false);
-                console.log("Pending page: Updated hasSigned:", currentUserIsLandlord ? data.landlordSigned : data.tenantSigned);
+                console.log("Pending detail page: Updated hasSigned:", currentUserIsLandlord ? data.landlordSigned : data.tenantSigned);
               })
               .catch((err) => {
-                console.error("Failed to reload lease request:", err);
+                console.error("Pending detail page: Failed to reload lease request:", err);
               });
           }
-        }, 500);
+        }, 300);
       }
     });
 
     return () => {
-      console.log("Pending page: Cleaning up SSE listener");
+      console.log("Pending detail page: Cleaning up SSE listener");
       unsubscribe();
     };
-  }, [requestCode, userRole, userEmail]);
+  }, [requestCode, userRole, userEmail, leaseRequest?.id]);
 
   
   const showToast = (type: 'success' | 'error', msg: string) => {
@@ -307,7 +327,8 @@ export default function CitizenModelContractFormPage() {
     leaseRequest.status === "LANDLORD_APPROVED" ||
     leaseRequest.status === "UNDER_VERIFICATION" ||
     leaseRequest.status === "PENDING_SUPERVISOR_APPROVAL" ||
-    leaseRequest.status === "SUPERVISOR_APPROVED";
+    leaseRequest.status === "SUPERVISOR_APPROVED" ||
+    leaseRequest.status === "APPROVED";
 
   if (!canViewAgreement) {
     return (
@@ -364,12 +385,29 @@ export default function CitizenModelContractFormPage() {
             <CardTitle className="text-sm font-bold text-slate-900 uppercase tracking-wider">
               Digital Signature Required
             </CardTitle>
+            {leaseRequest.status === "SUPERVISOR_APPROVED" || leaseRequest.status === "APPROVED" ? (
+              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                Approved
+              </Badge>
+            ) : leaseRequest.status === "PENDING_SUPERVISOR_APPROVAL" ? (
+              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border border-blue-200 text-xs font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+                <ShieldCheck className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                Verified
+              </Badge>
+            ) : leaseRequest.status === "UNDER_VERIFICATION" || (leaseRequest.landlordSigned && leaseRequest.tenantSigned) ? (
+              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold px-2.5 py-0.5 uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                Under Verification
+              </Badge>
+            ) : (
               <Badge
                 variant={hasSigned ? "verified" : "pending"}
                 className="text-xs px-2.5 py-0.5 uppercase tracking-wider font-semibold"
               >
                 {hasSigned ? "Agreement Signed" : "Pending Signature"}
               </Badge>
+            )}
           </div>
           <Button
             variant="outline"

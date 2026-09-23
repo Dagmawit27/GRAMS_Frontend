@@ -79,7 +79,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           await verifyPayment(session.token, initRes.txRef);
         }
       } catch (err: any) {
-        console.warn("Chapa gateway notice (continuing with local sandbox fallback):", err?.message || err);
+        console.error("Payment settlement error:", err?.message || err);
+        setChapaError(err?.message || "Failed to settle payment on the server. Please try again.");
+        setIsProcessing(false);
+        return;
       }
     }
 

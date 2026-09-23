@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LeaseRequestResponse, getLandlordLeaseRequests, getSession } from "@/lib/api";
+import { sseManager } from "@/lib/sseManager";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,17 +71,21 @@ export const LandlordAgreementsView: React.FC = () => {
     console.log("LandlordAgreementsView: SSE useEffect triggered");
     const session = getSession();
     console.log("LandlordAgreementsView: Session:", session);
-    if (!session?.user?.email) {
+    const landlordEmail = session?.user?.email;
+    const userId = session?.user?.id;
+    if (!landlordEmail && !userId) {
       console.log("LandlordAgreementsView: No session or email, skipping SSE");
       return;
     }
 
-    const landlordUserId = session.user.email;
-    console.log("LandlordAgreementsView: Using global SSE manager for userId:", landlordUserId);
-
-    // Use global SSE manager
-    const { sseManager } = require('@/lib/sseManager');
-    sseManager.connect(landlordUserId);
+    if (landlordEmail) {
+      console.log("LandlordAgreementsView: Using global SSE manager for email:", landlordEmail);
+      sseManager.connect(landlordEmail.trim());
+      sseManager.connect(landlordEmail.trim().toLowerCase());
+    }
+    if (userId) {
+      sseManager.connect(userId.trim());
+    }
 
     // Listen for notifications
     const unsubscribe = sseManager.onNotification((notification: any) => {
@@ -88,12 +93,21 @@ export const LandlordAgreementsView: React.FC = () => {
       
       // If notification is about new lease request, status change, or cancellation, reload
       const notificationType = notification.type?.toUpperCase();
-      if (notificationType === 'AGREEMENT_REQUESTED' || notificationType === 'LEASE_REQUEST_CANCELLED' || notificationType === 'LEASE_REQUEST_STATUS_CHANGED' || notificationType === 'LEASE_REQUEST_SIGNED') {
+      if (
+        notification.module === 'LEASE' ||
+        notificationType === 'AGREEMENT_REQUESTED' || 
+        notificationType === 'LEASE_REQUEST_CANCELLED' || 
+        notificationType === 'LEASE_REQUEST_STATUS_CHANGED' || 
+        notificationType === 'LEASE_REQUEST_SIGNED' ||
+        notificationType === 'LEASE_REQUEST_VERIFIED' ||
+        notificationType === 'LEASE_REQUEST_APPROVED' ||
+        notificationType === 'AGREEMENT_APPROVED'
+      ) {
         console.log("LandlordAgreementsView: Lease request update received, reloading...");
         setTimeout(() => {
-          const session = getSession();
-          if (session?.token) {
-            getLandlordLeaseRequests(session.token)
+          const currentSession = getSession();
+          if (currentSession?.token) {
+            getLandlordLeaseRequests(currentSession.token)
               .then((data) => {
                 setLeaseRequests(data);
               })
@@ -101,7 +115,7 @@ export const LandlordAgreementsView: React.FC = () => {
                 console.error("Failed to reload lease requests:", err);
               });
           }
-        }, 500);
+        }, 300);
       }
     });
 

@@ -131,7 +131,7 @@ export const OfficerAgreementVerificationsPage: React.FC = () => {
                 <span className="text-base font-extrabold text-slate-900">12 Months</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Security Deposit</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Advance Rent</span>
                 <span className="text-base font-extrabold text-slate-900">25,000 ETB</span>
               </div>
               <div>

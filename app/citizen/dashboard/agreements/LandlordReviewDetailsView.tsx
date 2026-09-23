@@ -269,12 +269,12 @@ export const LandlordReviewDetailsView: React.FC<LandlordReviewDetailsViewProps>
 
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                Security Deposit
+                Advance Rent
               </span>
               <p className="text-xl font-bold text-slate-900 mt-1">
-                {request.securityDeposit.toLocaleString()} ETB
+                {(request.securityDeposit || request.proposedRent * 2).toLocaleString()} ETB
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Equivalent to 2 Months Rent in escrow</p>
+              <p className="text-[11px] text-slate-500 mt-1">Initial Advance Payment</p>
             </div>
 
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">

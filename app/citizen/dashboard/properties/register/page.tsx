@@ -124,9 +124,7 @@ export const RegisterPropertyPage: React.FC = () => {
   }, []);
   const [monthlyRent, setMonthlyRent] = useState("45000");
   const [securityDepositMonths, setSecurityDepositMonths] = useState("2");
-  const [minLeasePeriod, setMinLeasePeriod] = useState("1 Year");
-  const [availableFrom, setAvailableFrom] = useState("Immediate");
-
+  const [minLeasePeriod, setMinLeasePeriod] = useState("2 Year");
   // Step 2: Property Details
   const [propertyType, setPropertyType] = useState<MainPropertyType>("Villa");
   const [title, setTitle] = useState("Luxury Villa in Bole");
@@ -780,8 +778,7 @@ export const RegisterPropertyPage: React.FC = () => {
       cadastralParcelId: cadastralParcelId?.trim() || undefined,
       titleDeedNumber: titleDeedNumber?.trim() || undefined,
       securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
-      minLeasePeriod: minLeasePeriod || "1 Year",
-      availableFrom: availableFrom || "Immediate",
+      minLeasePeriod: minLeasePeriod || "2 Year",
       units: propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
         ? mallUnits.map((unit) => ({
             unitCode: unit.shopNumber,
@@ -839,7 +836,6 @@ export const RegisterPropertyPage: React.FC = () => {
         securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
         minLeasePeriod,
         utilitiesIncluded: false,
-        availableFrom,
         landlordName: landlordName || "Landlord",
       };
 
@@ -1127,7 +1123,7 @@ export const RegisterPropertyPage: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Security Deposit
+                      Advance Rent
                     </label>
                     <select
                       value={securityDepositMonths}

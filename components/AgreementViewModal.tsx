@@ -61,7 +61,7 @@ export const AgreementViewModal: React.FC<AgreementViewModalProps> = ({
                 <span className="font-medium text-slate-900">{agreement.startDate} – {agreement.endDate}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Security Deposit</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Advance Rent</span>
                 <span className="font-medium text-slate-900">ETB {agreement.depositAmount.toLocaleString()}</span>
               </div>
             </div>

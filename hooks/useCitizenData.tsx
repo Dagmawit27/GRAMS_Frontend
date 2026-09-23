@@ -15,7 +15,6 @@ import {
   INITIAL_LEASE_REQUESTS,
   INITIAL_AGREEMENTS,
   INITIAL_INVOICES,
-  INITIAL_RECEIPTS,
 } from "@/data/mockData";
 import { getMyProperties, registerProperty as apiRegisterProperty, getSession, clearSession, getNotifications, getUnreadNotificationCount, markAllNotificationsAsRead } from "@/lib/api";
 
@@ -170,7 +169,7 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [leaseRequests, setLeaseRequests] = useState<LeaseRequest[]>(INITIAL_LEASE_REQUESTS);
   const [agreements, setAgreements] = useState<RentalAgreement[]>(INITIAL_AGREEMENTS);
   const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
-  const [receipts, setReceipts] = useState<Receipt[]>(INITIAL_RECEIPTS);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [notifications, setNotifications] = useState<ActivityNotification[]>([]);
 
   useEffect(() => {

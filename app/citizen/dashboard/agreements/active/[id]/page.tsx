@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -25,6 +25,7 @@ import {
   Headphones,
   Fingerprint,
   BarChart3,
+  Receipt,
 } from "lucide-react";
 import {
   getSession,
@@ -32,6 +33,10 @@ import {
   getAgreementByRequestCode,
   getMyAgreements,
   getPaymentsForAgreement,
+  renewAgreement,
+  requestAgreementCancellation,
+  acceptAgreementCancellation,
+  tenantCancelAgreement,
   AgreementResponse,
   PaymentResponseDto,
 } from "@/lib/api";
@@ -61,12 +66,105 @@ export default function ActiveAgreementDetailPage() {
   const [localReceipts, setLocalReceipts] = useState<any[]>([]);
 
   // State management
-  const [filterLedger, setFilterLedger] = useState<"all" | "rent" | "deposit">("all");
+  const [filterLedger, setFilterLedger] = useState<"all" | "advance" | "monthly">("all");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isVerifyingModalOpen, setIsVerifyingModalOpen] = useState(false);
   const [isAmendmentModalOpen, setIsAmendmentModalOpen] = useState(false);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isTenantCancelModalOpen, setIsTenantCancelModalOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isDownloadToastOpen, setIsDownloadToastOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+
+  const currentSession = getSession();
+  const userEmail = (currentSession?.user?.email || "").toLowerCase().trim();
+  const isLandlord = Boolean(agreement?.landlordEmail && agreement.landlordEmail.toLowerCase().trim() === userEmail);
+  const isTenant = Boolean(agreement?.tenantEmail && agreement.tenantEmail.toLowerCase().trim() === userEmail);
+
+  const handleRenew = async () => {
+    if (!agreement?.agreementNumber) return;
+    const session = getSession();
+    if (!session?.token) return;
+
+    setActionLoading(true);
+    setActionMessage(null);
+    try {
+      const res = await renewAgreement(session.token, agreement.agreementNumber);
+      setActionMessage(res.message || "Agreement renewed successfully for an additional 2 years!");
+      setIsRenewModalOpen(false);
+      const updated = await getAgreementByNumber(session.token, agreement.agreementNumber);
+      setAgreement(updated);
+    } catch (err: any) {
+      alert(err.message || "Failed to renew agreement.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRequestCancellation = async () => {
+    if (!agreement?.agreementNumber) return;
+    const session = getSession();
+    if (!session?.token) return;
+
+    setActionLoading(true);
+    setActionMessage(null);
+    try {
+      const res = await requestAgreementCancellation(session.token, agreement.agreementNumber);
+      setActionMessage(res.message || "Cancellation requested. Tenant has 60 days to accept.");
+      setIsCancelModalOpen(false);
+      const updated = await getAgreementByNumber(session.token, agreement.agreementNumber);
+      setAgreement(updated);
+    } catch (err: any) {
+      alert(err.message || "Failed to request cancellation.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAcceptCancellation = async () => {
+    if (!agreement?.agreementNumber) return;
+    const session = getSession();
+    if (!session?.token) return;
+
+    if (!confirm("Are you sure you want to accept cancellation? This will cancel the agreement immediately and make the property available for lease.")) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionMessage(null);
+    try {
+      const res = await acceptAgreementCancellation(session.token, agreement.agreementNumber);
+      setActionMessage(res.message || "Cancellation accepted. Agreement is now cancelled.");
+      const updated = await getAgreementByNumber(session.token, agreement.agreementNumber);
+      setAgreement(updated);
+    } catch (err: any) {
+      alert(err.message || "Failed to accept cancellation.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTenantCancel = async () => {
+    if (!agreement?.agreementNumber) return;
+    const session = getSession();
+    if (!session?.token) return;
+
+    setActionLoading(true);
+    setActionMessage(null);
+    try {
+      const res = await tenantCancelAgreement(session.token, agreement.agreementNumber);
+      setActionMessage(res.message || "Agreement cancelled successfully by tenant. Property is now released.");
+      setIsTenantCancelModalOpen(false);
+      const updated = await getAgreementByNumber(session.token, agreement.agreementNumber);
+      setAgreement(updated);
+    } catch (err: any) {
+      alert(err.message || "Failed to cancel agreement.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Fetch agreement details from backend
   useEffect(() => {
@@ -110,9 +208,7 @@ export default function ActiveAgreementDetailPage() {
             session.token,
             fetchedAgr.requestCode || fetchedAgr.agreementNumber || agreementId
           );
-          if (Array.isArray(payments) && payments.length > 0) {
-            setBackendPayments(payments);
-          }
+          setBackendPayments(Array.isArray(payments) ? payments : []);
         } catch (pErr) {
           console.warn("Could not load payments:", pErr);
         }
@@ -145,183 +241,72 @@ export default function ActiveAgreementDetailPage() {
     } catch {}
   }, [agreementId, agreement]);
 
-  // All completed transactions matching the image
-  const allLedgerTransactions = [
-    {
-      id: "tx-1",
-      cycle: "Nov 2023 Rent",
-      invoiceRef: "INV-2023-1102",
-      amount: "15,000.00",
-      channel: "Telebirr: TL-991204128",
-      channelType: "mobile",
-      settledDate: "Nov 02, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-2",
-      cycle: "Oct 2023 Rent",
-      invoiceRef: "INV-2023-1002",
-      amount: "15,000.00",
-      channel: "Telebirr: TL-8891047291",
-      channelType: "mobile",
-      settledDate: "Oct 04, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-3",
-      cycle: "Sep 2023 Rent",
-      invoiceRef: "INV-2023-0901",
-      amount: "15,000.00",
-      channel: "CBE Birr: CBE-44019201",
-      channelType: "bank",
-      settledDate: "Sep 03, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-4",
-      cycle: "Aug 2023 Rent",
-      invoiceRef: "INV-2023-0801",
-      amount: "15,000.00",
-      channel: "Awash Bank: AWB-77182910",
-      channelType: "bank",
-      settledDate: "Aug 02, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-5",
-      cycle: "Jul 2023 Rent",
-      invoiceRef: "INV-2023-0701",
-      amount: "15,000.00",
-      channel: "Telebirr: TL-661029410",
-      channelType: "mobile",
-      settledDate: "Jul 03, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-6",
-      cycle: "Security Deposit (2 Mo.)",
-      invoiceRef: "INV-2023-SEC01",
-      amount: "30,000.00",
-      channel: "CBE Escrow: CBE-1092831",
-      channelType: "escrow",
-      settledDate: "Jun 28, 2023",
-      seal: "Escrow Vault",
-      sealType: "vault",
-      actionText: "Bond Certificate",
-      type: "deposit",
-    },
-    {
-      id: "tx-7",
-      cycle: "Jun 2023 Rent",
-      invoiceRef: "INV-2023-0601",
-      amount: "15,000.00",
-      channel: "Telebirr: TL-559102481",
-      channelType: "mobile",
-      settledDate: "Jun 02, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-8",
-      cycle: "May 2023 Rent",
-      invoiceRef: "INV-2023-0501",
-      amount: "15,000.00",
-      channel: "CBE Birr: CBE-33019482",
-      channelType: "bank",
-      settledDate: "May 03, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-9",
-      cycle: "Apr 2023 Rent",
-      invoiceRef: "INV-2023-0401",
-      amount: "15,000.00",
-      channel: "Telebirr: TL-441829104",
-      channelType: "mobile",
-      settledDate: "Apr 02, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-    {
-      id: "tx-10",
-      cycle: "Mar 2023 Rent",
-      invoiceRef: "INV-2023-0301",
-      amount: "15,000.00",
-      channel: "Awash Bank: AWB-22918402",
-      channelType: "bank",
-      settledDate: "Mar 02, 2023",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    },
-  ];
+  // Dynamic mapped transactions strictly from real database payments and genuine completed receipts
+  const dynamicTransactions = useMemo(() => {
+    // 1. Only include COMPLETED payments
+    const validBackend = backendPayments.filter(
+      (p) => p.status === "COMPLETED"
+    );
 
-  // Dynamic mapped transactions from backend payments and local storage receipts
-  const dynamicTransactions = [
-    ...backendPayments.map((p, idx) => {
-      const isMobile = p.paymentMethod?.toLowerCase().includes("telebirr") || p.paymentMethod?.toLowerCase().includes("cbebirr") || p.paymentMethod?.toLowerCase().includes("mobile");
-      const isDeposit = (agreement?.securityDeposit && p.amount === agreement.securityDeposit) || false;
+    const mappedBackend = validBackend.map((p, idx) => {
+      const isMobile =
+        p.paymentMethod?.toLowerCase().includes("telebirr") ||
+        p.paymentMethod?.toLowerCase().includes("cbebirr") ||
+        p.paymentMethod?.toLowerCase().includes("mobile");
+      const advMonths = agreement?.advancePaymentMonths || 2;
+
       return {
-        id: p.id || `bp-${idx}`,
-        cycle: isDeposit ? "Security Deposit (Escrow)" : `Rental Settlement Cycle ${idx + 1}`,
-        invoiceRef: p.txRef ? `INV-${p.txRef.slice(-6).toUpperCase()}` : `INV-2024-00${idx + 1}`,
+        id: p.id ? String(p.id) : `bp-${idx}`,
+        cycle: idx === 0
+          ? `Initial Advance Rent (${advMonths} Mo.)`
+          : `Monthly Rent Settlement #${idx + 1}`,
+        invoiceRef: p.txRef ? `INV-${p.txRef.slice(-8).toUpperCase()}` : `INV-2024-00${idx + 1}`,
         amount: Number(p.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 }),
         channel: `${p.paymentMethod || "Telebirr"}: ${p.txRef || "TX-00" + idx}`,
-        channelType: isDeposit ? "escrow" : isMobile ? "mobile" : "bank",
+        channelType: isMobile ? "mobile" : "bank",
         settledDate: p.paymentDate
-          ? new Date(p.paymentDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+          ? formatDate(p.paymentDate)
+          : p.createdAt
+          ? formatDate(p.createdAt)
           : "Settled",
-        seal: isDeposit ? "Escrow Vault" : "Kebele Sealed",
-        sealType: isDeposit ? "vault" : "kebele",
-        actionText: isDeposit ? "Bond Certificate" : "Receipt",
-        type: isDeposit ? "deposit" : "rent",
+        seal: "Kebele Sealed",
+        sealType: "kebele",
+        actionText: "Receipt",
+        type: idx === 0 ? "advance" : "monthly",
+        raw: p,
       };
-    }),
-    ...localReceipts.map((r, idx) => ({
-      id: r.id || `lr-${idx}`,
-      cycle: r.period || "Advance Rent Settlement",
-      invoiceRef: r.txRef ? `INV-${r.txRef.slice(-6).toUpperCase()}` : `INV-2024-L0${idx + 1}`,
-      amount: Number(r.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 }),
-      channel: `${r.paymentMethod || "Telebirr"}: ${r.txRef || "TX-LOCAL"}`,
-      channelType: "mobile",
-      settledDate: r.date || "Settled",
-      seal: "Kebele Sealed",
-      sealType: "kebele",
-      actionText: "Receipt",
-      type: "rent",
-    })),
-  ];
+    });
 
-  const activeLedgerTransactions =
-    dynamicTransactions.length > 0 ? dynamicTransactions : allLedgerTransactions;
+    // 2. Also map any locally stored completed receipts that match this agreement and aren't already represented
+    const backendTxRefs = new Set(validBackend.map((p) => p.txRef).filter(Boolean));
+    const mappedLocal = localReceipts
+      .filter((r) => r.transactionRef && !backendTxRefs.has(r.transactionRef))
+      .map((r, idx) => {
+        return {
+          id: r.id || `lr-${idx}`,
+          cycle: r.period || "Advance Rent Settlement",
+          invoiceRef: r.transactionRef ? `INV-${r.transactionRef.slice(-8).toUpperCase()}` : `INV-LOCAL-${idx + 1}`,
+          amount: Number(r.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 }),
+          channel: `${r.paymentMethod || "Telebirr"}: ${r.transactionRef || "TX-LOCAL"}`,
+          channelType: "mobile",
+          settledDate: r.date || "Settled",
+          seal: "Kebele Sealed",
+          sealType: "kebele",
+          actionText: "Receipt",
+          type: "advance",
+          raw: r,
+        };
+      });
+
+    return [...mappedBackend, ...mappedLocal];
+  }, [backendPayments, localReceipts, agreement]);
+
+  const activeLedgerTransactions = dynamicTransactions;
 
   // Filter transactions based on selection
   const filteredTransactions = activeLedgerTransactions.filter((tx) => {
-    if (filterLedger === "rent") return tx.type === "rent";
-    if (filterLedger === "deposit") return tx.type === "deposit";
+    if (filterLedger === "advance") return tx.type === "advance";
+    if (filterLedger === "monthly") return tx.type === "monthly";
     return true;
   });
 
@@ -362,69 +347,214 @@ export default function ActiveAgreementDetailPage() {
       </div>
 
       {/* Top Title & Actions Bar */}
-      <div className="bg-white border border-slate-200 rounded p-5 shadow-2xs">
-        
-
-            {/* 4 Summary Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-5 border-t border-slate-100">
-              {/* Card 1: Monthly Rent */}
-              <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  MONTHLY RENT
+      <div className="bg-white border border-slate-200 rounded p-5 shadow-2xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                Residential Tenancy Agreement (የመኖሪያ ቤት ኪራይ ውል)
+              </h1>
+              {agreement?.status === "ACTIVE" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                  ACTIVE / የጸደቀ ውል
                 </span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-slate-900 tracking-tight">
-                    {(agreement?.monthlyRent ?? 15000).toLocaleString()} ETB
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">/ month</span>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-0.5">
-                  <Lock className="w-3 h-3 text-slate-400" />
-                  <span>Government Cap Indexed</span>
-                </div>
-              </div>
-
-              {/* Card 2: Lease Duration */}
-              <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  LEASE DURATION
+              )}
+              {agreement?.status === "CANCELLATION_REQUESTED" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold animate-pulse">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                  CANCELLATION PENDING / ስረዛ በመጠባበቅ ላይ
                 </span>
-                <div className="text-xl font-black text-slate-900 tracking-tight">
-                  {agreement?.leaseDurationMonths ?? 12} Months
-                </div>
-                <div className="text-[11px] text-slate-500 pt-0.5">
-                  {formatDate(agreement?.startDate || agreement?.contractDate || "2023-11-01")} – {formatDate(agreement?.endDate || "2024-10-31")}
-                </div>
-              </div>
-
-              {/* Card 3: Security Deposit */}
-              <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  SECURITY DEPOSIT
+              )}
+              {agreement?.status === "EXPIRED" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold">
+                  EXPIRED / ጊዜው ያለፈበት
                 </span>
-                <div className="text-xl font-black text-slate-900 tracking-tight">
-                  {(agreement?.securityDeposit ?? ((agreement?.monthlyRent ?? 15000) * (agreement?.advancePaymentMonths || 2))).toLocaleString()} ETB
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-0.5">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  <span>Escrowed ({agreement?.securityDeposit && agreement?.monthlyRent ? Math.round(agreement.securityDeposit / agreement.monthlyRent) : 2} Mo.)</span>
-                </div>
-              </div>
-
-              {/* Card 4: Payment Health */}
-              <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  PAYMENT HEALTH
+              )}
+              {agreement?.status === "CANCELLED" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
+                  CANCELLED / የተሰረዘ
                 </span>
-                <div className="text-xl font-black text-emerald-700 tracking-tight">
-                  100% Up to Date
-                </div>
-                <div className="text-[11px] text-slate-500 pt-0.5">
-                  0 Overdue • {activeLedgerTransactions.length} Cycles Settled
-                </div>
-              </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+              <span className="font-semibold text-slate-800">
+                {agreement?.propertyTitle || "Urban Residential Unit"}
+              </span>
+              <span>•</span>
+              <span className="font-mono">
+                No: {agreement?.agreementNumber || agreement?.requestCode || agreementId}
+              </span>
+              <span>•</span>
+              <span className="font-mono text-slate-400">
+                SHA-256: {agreement?.id ? `${agreement.id.replace(/-/g, "").slice(0, 8)}...` : "d4e5f6..."}
+              </span>
             </div>
           </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            {agreement?.status === "ACTIVE" && (
+              <>
+                <button
+                  onClick={() => setIsRenewModalOpen(true)}
+                  className="px-3.5 py-2 bg-[#00450d] hover:bg-[#00340a] text-white font-bold text-xs uppercase tracking-wider rounded inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>ማደስ (RENEW +2 YRS)</span>
+                </button>
+
+                {isLandlord && (
+                  <button
+                    onClick={() => setIsCancelModalOpen(true)}
+                    className="px-3.5 py-2 bg-white border border-rose-300 hover:bg-rose-50 text-rose-700 font-bold text-xs uppercase tracking-wider rounded inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>ውል ማቋረጥ (CANCEL NOTICE)</span>
+                  </button>
+                )}
+
+                {isTenant && (
+                  <button
+                    onClick={() => setIsTenantCancelModalOpen(true)}
+                    className="px-3.5 py-2 bg-white border border-rose-400 hover:bg-rose-50 text-rose-700 font-bold text-xs uppercase tracking-wider rounded inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>ውል አቋርጥ (CANCEL LEASE)</span>
+                  </button>
+                )}
+              </>
+            )}
+
+            {agreement?.status === "CANCELLATION_REQUESTED" && isTenant && (
+              <button
+                onClick={handleAcceptCancellation}
+                disabled={actionLoading}
+                className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs uppercase tracking-wider rounded inline-flex items-center gap-1.5 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{actionLoading ? "Processing..." : "ስረዛን ተቀበል (ACCEPT CANCELLATION)"}</span>
+              </button>
+            )}
+
+            <button
+              onClick={handlePrint}
+              className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-wider rounded inline-flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <span>PRINT</span>
+            </button>
+
+            <button
+              onClick={handleDownload}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded inline-flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-300" />
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Action feedback message */}
+        {actionMessage && (
+          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded text-emerald-900 text-xs font-semibold flex items-center justify-between">
+            <span>{actionMessage}</span>
+            <button onClick={() => setActionMessage(null)} className="text-emerald-700 hover:text-emerald-900">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Notice for Cancellation Pending */}
+        {agreement?.status === "CANCELLATION_REQUESTED" && (
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">የውል ማቋረጥ ጥያቄ ቀርቧል (60-Day Cancellation Active):</span>
+                <span className="ml-1 text-amber-800">
+                  ተከራይ በ60 ቀናት ውስጥ ካልተቀበለ ስርዓቱ በራሱ 60 ቀናት ሲሞላ ውሉን ይሰርዛል እና ቤቱ ለሌላ ኪራይ ክፍት ይሆናል።
+                  (Tenant has 60 days to accept. After 60 days, system will automatically cancel the agreement.)
+                </span>
+              </div>
+            </div>
+            {isTenant && (
+              <button
+                onClick={handleAcceptCancellation}
+                disabled={actionLoading}
+                className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded transition-colors shrink-0 cursor-pointer"
+              >
+                {actionLoading ? "Processing..." : "ስረዛን ተቀበል (Accept)"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* 4 Summary Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+          {/* Card 1: Monthly Rent */}
+          <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              MONTHLY RENT
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black text-slate-900 tracking-tight">
+                {(agreement?.monthlyRent ?? 15000).toLocaleString()} ETB
+              </span>
+              <span className="text-xs text-slate-500 font-medium">/ month</span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-0.5">
+              <Lock className="w-3 h-3 text-slate-400" />
+              <span>Government Cap Indexed</span>
+            </div>
+          </div>
+
+          {/* Card 2: Lease Duration */}
+          <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              LEASE DURATION
+            </span>
+            <div className="text-xl font-black text-slate-900 tracking-tight">
+              {agreement?.leaseDurationMonths ?? 12} Months
+            </div>
+            <div className="text-[11px] text-slate-500 pt-0.5">
+              {formatDate(agreement?.startDate || agreement?.contractDate || "2023-11-01")} – {formatDate(agreement?.endDate || "2024-10-31")}
+            </div>
+          </div>
+
+          {/* Card 3: Advance Rent */}
+          <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              ADVANCE RENT
+            </span>
+            <div className="text-xl font-black text-slate-900 tracking-tight">
+              {((agreement?.monthlyRent ?? 15000) * (agreement?.advancePaymentMonths || 2)).toLocaleString()} ETB
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-slate-500 pt-0.5">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+              <span>{agreement?.advancePaymentMonths || 2} Months Advance Paid</span>
+            </div>
+          </div>
+
+          {/* Card 4: Payment Health */}
+          <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded space-y-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              PAYMENT HEALTH
+            </span>
+            <div className={`text-xl font-black tracking-tight ${
+              activeLedgerTransactions.length > 0 ? "text-emerald-700" : "text-amber-600"
+            }`}>
+              {activeLedgerTransactions.length > 0 ? "100% Up to Date" : "Pending Payment"}
+            </div>
+            <div className="text-[11px] text-slate-500 pt-0.5">
+              {activeLedgerTransactions.length > 0
+                ? `0 Overdue • ${activeLedgerTransactions.length} Cycles Settled`
+                : "No transactions settled yet"}
+            </div>
+          </div>
+        </div>
+      </div>
 
           {/* ===================================================================== */}
           {/* 4. MAIN TWO-COLUMN SECTION                                            */}
@@ -676,29 +806,29 @@ export default function ActiveAgreementDetailPage() {
                     </button>
                     <button
                       onClick={() => {
-                        setFilterLedger("rent");
+                        setFilterLedger("advance");
                         setCurrentPage(1);
                       }}
                       className={`px-3 py-1.5 rounded uppercase tracking-wider transition-colors ${
-                        filterLedger === "rent"
+                        filterLedger === "advance"
                           ? "bg-[#00450d] text-white shadow-xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      MONTHLY RENT ({activeLedgerTransactions.filter((t) => t.type === "rent").length})
+                      ADVANCE RENT ({activeLedgerTransactions.filter((t) => t.type === "advance").length})
                     </button>
                     <button
                       onClick={() => {
-                        setFilterLedger("deposit");
+                        setFilterLedger("monthly");
                         setCurrentPage(1);
                       }}
                       className={`px-3 py-1.5 rounded uppercase tracking-wider transition-colors ${
-                        filterLedger === "deposit"
+                        filterLedger === "monthly"
                           ? "bg-[#00450d] text-white shadow-xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      SECURITY DEPOSIT ({activeLedgerTransactions.filter((t) => t.type === "deposit").length})
+                      MONTHLY RENT ({activeLedgerTransactions.filter((t) => t.type === "monthly").length})
                     </button>
                   </div>
 
@@ -706,10 +836,17 @@ export default function ActiveAgreementDetailPage() {
                     <span className="text-[11px] uppercase font-bold text-slate-400">
                       CLEARANCE STATUS:
                     </span>
-                    <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      MOR CLEARED
-                    </span>
+                    {activeLedgerTransactions.length > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        MOR CLEARED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-amber-600 font-bold">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        AWAITING SETTLEMENT
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -727,45 +864,65 @@ export default function ActiveAgreementDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {displayedTransactions.map((tx) => (
-                        <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2.5 px-3 font-semibold text-slate-900">
-                            {tx.cycle}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-slate-500 text-[11px]">
-                            {tx.invoiceRef}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                            {tx.amount}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">
-                            <div className="flex items-center gap-1.5">
-                              {tx.channelType === "mobile" && (
-                                <Smartphone className="w-3.5 h-3.5 text-blue-500" />
-                              )}
-                              {tx.channelType === "bank" && (
-                                <Landmark className="w-3.5 h-3.5 text-amber-600" />
-                              )}
-                              {tx.channelType === "escrow" && (
-                                <Shield className="w-3.5 h-3.5 text-[#00450d]" />
-                              )}
-                              <span>{tx.channel}</span>
+                      {displayedTransactions.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                              <Receipt className="w-8 h-8 text-slate-300 stroke-[1.5]" />
+                              <p className="text-sm font-semibold text-slate-700">No payment history recorded yet</p>
+                              <p className="text-xs text-slate-500">
+                                No completed payment records were found for this lease agreement in the database.
+                              </p>
+                              <Link
+                                href="/citizen/dashboard/bills"
+                                className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded bg-[#00450d] text-white text-xs font-semibold hover:bg-[#00340a] transition-colors"
+                              >
+                                View Bills & Pay Initial Advance
+                              </Link>
                             </div>
                           </td>
-                          <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                            {tx.settledDate}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <button
-                              onClick={() => setSelectedReceipt(tx)}
-                              className="text-xs font-semibold text-slate-700 hover:text-[#00450d] inline-flex items-center gap-1"
-                            >
-                              <span>{tx.actionText}</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </button>
-                          </td>
                         </tr>
-                      ))}
+                      ) : (
+                        displayedTransactions.map((tx) => (
+                          <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 font-semibold text-slate-900">
+                              {tx.cycle}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-slate-500 text-[11px]">
+                              {tx.invoiceRef}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                              {tx.amount}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+                              <div className="flex items-center gap-1.5">
+                                {tx.channelType === "mobile" && (
+                                  <Smartphone className="w-3.5 h-3.5 text-blue-500" />
+                                )}
+                                {tx.channelType === "bank" && (
+                                  <Landmark className="w-3.5 h-3.5 text-amber-600" />
+                                )}
+                                {tx.channelType === "escrow" && (
+                                  <Shield className="w-3.5 h-3.5 text-[#00450d]" />
+                                )}
+                                <span>{tx.channel}</span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                              {tx.settledDate}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                onClick={() => setSelectedReceipt(tx)}
+                                className="text-xs font-semibold text-slate-700 hover:text-[#00450d] inline-flex items-center gap-1"
+                              >
+                                <span>{tx.actionText}</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -773,38 +930,41 @@ export default function ActiveAgreementDetailPage() {
                 {/* Table Footer & Pagination */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 text-xs text-slate-500">
                   <span>
-                    Showing {displayedTransactions.length} of {filteredTransactions.length} cleared transactions • Next scheduled debit: {formatDate(agreement?.endDate || "2024-12-01")}
+                    Showing {displayedTransactions.length} of {filteredTransactions.length} cleared transactions
+                    {agreement?.endDate ? ` • Next scheduled debit: ${formatDate(agreement.endDate)}` : ""}
                   </span>
 
-                  <div className="inline-flex items-center gap-1">
-                    <button
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-medium"
-                    >
-                      Previous
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                  {totalPages > 1 && (
+                    <div className="inline-flex items-center gap-1">
                       <button
-                        key={pg}
-                        onClick={() => setCurrentPage(pg)}
-                        className={`w-7 h-7 rounded text-xs font-bold ${
-                          currentPage === pg
-                            ? "bg-[#00450d] text-white"
-                            : "border border-slate-200 hover:bg-slate-50 text-slate-700"
-                        }`}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-medium"
                       >
-                        {pg}
+                        Previous
                       </button>
-                    ))}
-                    <button
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage >= totalPages}
-                      className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-medium"
-                    >
-                      Next
-                    </button>
-                  </div>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                        <button
+                          key={pg}
+                          onClick={() => setCurrentPage(pg)}
+                          className={`w-7 h-7 rounded text-xs font-bold ${
+                            currentPage === pg
+                              ? "bg-[#00450d] text-white"
+                              : "border border-slate-200 hover:bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          {pg}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage >= totalPages}
+                        className="px-2.5 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-medium"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1075,6 +1235,214 @@ export default function ActiveAgreementDetailPage() {
                 className="px-4 py-2 bg-[#00450d] hover:bg-[#07390e] text-white text-xs font-bold rounded"
               >
                 Verify On Chain
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Agreement Renewal Modal (+2 Years) */}
+      {isRenewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-[#00450d]" />
+                <h3 className="text-base font-bold text-slate-900">
+                  ውል ማደስ (Renew Agreement +2 Years)
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsRenewModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  የ2 ዓመት ውል እድሳት (Statutory 2-Year Extension)
+                </div>
+                <p className="text-[11px] text-emerald-800">
+                  በተጠቃሚዎች ስምምነት መሠረት ውሉ ለተጨማሪ 2 ዓመታት (24 ወራት) የሚራዘም ይሆናል።
+                  (Under national tenancy guidelines, this extends the active agreement end date by an additional 24 months with identical terms.)
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Agreement No:</span>
+                  <span className="font-mono font-bold text-slate-900">{agreement?.agreementNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Current End Date:</span>
+                  <span className="font-bold text-slate-800">{formatDate(agreement?.endDate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">New End Date:</span>
+                  <span className="font-bold text-[#00450d]">
+                    {agreement?.endDate
+                      ? formatDate(
+                          new Date(new Date(agreement.endDate).setFullYear(new Date(agreement.endDate).getFullYear() + 2)).toISOString()
+                        )
+                      : "Extended by 24 Months"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsRenewModalOpen(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRenew}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-[#00450d] hover:bg-[#07390e] text-white text-xs font-bold rounded inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {actionLoading && <span className="animate-spin mr-1">⏳</span>}
+                <span>ማደስ አረጋግጥ (Confirm +2 Yrs)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 60-Day Cancellation Request Modal */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  ውል ማቋረጥ (Request 60-Day Cancellation)
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsCancelModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-amber-950 space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                  የ60 ቀናት የማሳሰቢያ ጊዜ (60-Day Notice Period)
+                </div>
+                <p className="text-[11px] text-amber-800">
+                  ውሉን የማቋረጥ ጥያቄ ለተከራዩ ይላካል፤ ተከራይ በ60 ቀናት ውስጥ ስረዛውን ካልተቀበለ ስርዓቱ በራሱ 60 ቀናት ሲሞላ ውሉን ይሰርዛል እና ንብረቱ ለኪራይ ክፍት ይሆናል።
+                  (A formal 60-day cancellation request will be lodged. The tenant can accept immediately; otherwise after 60 days, the system will automatically terminate the lease and restore unit availability.)
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Agreement No:</span>
+                  <span className="font-mono font-bold text-slate-900">{agreement?.agreementNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Current Status:</span>
+                  <span className="font-bold text-emerald-700">{agreement?.status}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestCancellation}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {actionLoading && <span className="animate-spin mr-1">⏳</span>}
+                <span>ጥያቄውን አቅርብ (Submit 60-Day Notice)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tenant Immediate Cancellation Modal */}
+      {isTenantCancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  ውል ማቋረጥ (Cancel Lease Agreement)
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsTenantCancelModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600">
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded text-rose-950 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-rose-900">
+                  <AlertTriangle className="w-4 h-4 text-rose-700" />
+                  የተከራይ ፈጣን ውል ስረዛ (Immediate Cancellation)
+                </div>
+                <p className="text-[11px] text-rose-800">
+                  ይህንን ውል ማቋረጥ ይፈልጋሉ? ውሉ ወዲያውኑ ይሰረዛል እንዲሁም ንብረቱ ለሌሎች ተከራዮች ክፍት ይሆናል።
+                  (Are you sure you want to cancel your lease agreement? The agreement will be cancelled immediately, and the property will be restored to available status.)
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Agreement No:</span>
+                  <span className="font-mono font-bold text-slate-900">{agreement?.agreementNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Property:</span>
+                  <span className="font-semibold text-slate-800">{agreement?.propertyTitle || "Urban Unit"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsTenantCancelModalOpen(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTenantCancel}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {actionLoading && <span className="animate-spin mr-1">⏳</span>}
+                <span>አዎ፣ ውሉን አቋርጥ (Confirm Cancel)</span>
               </button>
             </div>
           </div>

@@ -3,7 +3,6 @@ import {
   INITIAL_PROPERTIES,
   INITIAL_AGREEMENTS,
   INITIAL_INVOICES,
-  INITIAL_RECEIPTS,
   INITIAL_LEASE_REQUESTS,
 } from "@/data/mockData";
 
@@ -21,7 +20,7 @@ export const CitizenService = {
   },
 
   getReceipts: async (): Promise<Receipt[]> => {
-    return Promise.resolve(INITIAL_RECEIPTS);
+    return Promise.resolve([]);
   },
 
   getLeaseRequests: async (): Promise<LeaseRequest[]> => {

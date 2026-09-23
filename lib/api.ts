@@ -907,8 +907,13 @@ export interface AgreementResponse {
   monthlyPaymentDueDay: number;
   utilitiesPaidBy: string;
   propertyCondition: string;
-  propertyOwnershipType: string;
+  propertyOwnershipType?: string;
   status: string;
+  totalMonthsPaid?: number;
+  paidThroughDate?: string;
+  nextPaymentDueDate?: string;
+  cancellationRequestedAt?: string;
+  cancellationRequestedByLandlord?: boolean;
 
   landlordSigned: boolean;
   landlordSignedAt?: string;
@@ -978,6 +983,46 @@ export async function getAllActiveAgreements(token: string): Promise<AgreementRe
   });
   const json = await parseResponse(res);
   if (!res.ok) throw new Error(json.message || "Failed to load active agreements.");
+  return json;
+}
+
+export async function renewAgreement(token: string, agreementNumber: string): Promise<{ message: string }> {
+  const res = await apiFetch(`${BASE_URL}/agreements/${encodeURIComponent(agreementNumber)}/renew`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to renew agreement.");
+  return json;
+}
+
+export async function requestAgreementCancellation(token: string, agreementNumber: string): Promise<{ message: string }> {
+  const res = await apiFetch(`${BASE_URL}/agreements/${encodeURIComponent(agreementNumber)}/request-cancellation`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to request agreement cancellation.");
+  return json;
+}
+
+export async function acceptAgreementCancellation(token: string, agreementNumber: string): Promise<{ message: string }> {
+  const res = await apiFetch(`${BASE_URL}/agreements/${encodeURIComponent(agreementNumber)}/accept-cancellation`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to accept cancellation.");
+  return json;
+}
+
+export async function tenantCancelAgreement(token: string, agreementNumber: string): Promise<{ message: string }> {
+  const res = await apiFetch(`${BASE_URL}/agreements/${encodeURIComponent(agreementNumber)}/tenant-cancel`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to cancel agreement.");
   return json;
 }
 

@@ -1,8 +1,9 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useCitizenData } from "@/hooks/useCitizenData";
-import { LeaseRequestResponse, getLandlordLeaseRequests, getSession } from "@/lib/api";
+import { LeaseRequestResponse, getLandlordLeaseRequests, getMyLeaseRequests, getSession } from "@/lib/api";
+import { sseManager } from "@/lib/sseManager";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,41 +27,68 @@ export default function PendingAgreementsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchLeaseRequests = async () => {
-      try {
-        const session = getSession();
-        if (!session?.token) {
-          setError("No authentication token found");
-          return;
-        }
-        const data = await getLandlordLeaseRequests(session.token);
-        setLeaseRequests(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load lease requests");
-      } finally {
+  const fetchLeaseRequests = useCallback(async () => {
+    try {
+      const session = getSession();
+      if (!session?.token) {
+        setError("No authentication token found");
         setIsLoading(false);
+        return;
       }
-    };
 
-    fetchLeaseRequests();
+      let landlordData: LeaseRequestResponse[] = [];
+      try {
+        landlordData = await getLandlordLeaseRequests(session.token);
+      } catch (err) {
+        console.warn("Could not fetch landlord lease requests:", err);
+      }
+
+      let myData: LeaseRequestResponse[] = [];
+      try {
+        myData = await getMyLeaseRequests(session.token);
+      } catch (err) {
+        console.warn("Could not fetch applicant lease requests:", err);
+      }
+
+      const mergedMap = new Map<string, LeaseRequestResponse>();
+      landlordData.forEach((r) => mergedMap.set(r.requestCode, r));
+      myData.forEach((r) => {
+        if (!mergedMap.has(r.requestCode)) {
+          mergedMap.set(r.requestCode, r);
+        }
+      });
+
+      setLeaseRequests(Array.from(mergedMap.values()));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load lease requests");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchLeaseRequests();
+  }, [fetchLeaseRequests]);
 
   // SSE connection for real-time lease request notifications
   useEffect(() => {
     const session = getSession();
-    if (!session?.user?.email) return;
+    const userEmail = session?.user?.email;
+    const userId = session?.user?.id;
+    if (!userEmail && !userId) return;
 
-    const landlordUserId = session.user.email;
-    console.log("Connecting to SSE with userId:", landlordUserId);
-    
-    // Use global SSE manager
-    const { sseManager } = require('@/lib/sseManager');
-    sseManager.connect(landlordUserId);
+    if (userEmail) {
+      console.log("Pending agreements page: Connecting to SSE with email:", userEmail);
+      sseManager.connect(userEmail.trim());
+      sseManager.connect(userEmail.trim().toLowerCase());
+    }
+    if (userId) {
+      sseManager.connect(userId.trim());
+    }
 
     // Listen for notifications
     const unsubscribe = sseManager.onNotification((notification: any) => {
-      console.log("Received SSE notification:", notification);
+      console.log("Pending agreements page: Received SSE notification:", notification);
       
       const nType = (notification.type || "").toUpperCase();
       if (
@@ -75,25 +103,16 @@ export default function PendingAgreementsPage() {
       ) {
         console.log("Lease event received, reloading pending agreements...");
         setTimeout(() => {
-          const session = getSession();
-          if (session?.token) {
-            getLandlordLeaseRequests(session.token)
-              .then((data) => {
-                setLeaseRequests(data);
-              })
-              .catch((err) => {
-                console.error("Failed to reload lease requests:", err);
-              });
-          }
-        }, 500);
+          fetchLeaseRequests();
+        }, 300);
       }
     });
 
     return () => {
-      console.log("Cleaning up SSE listener");
+      console.log("Cleaning up SSE listener in pending agreements");
       unsubscribe();
     };
-  }, []);
+  }, [fetchLeaseRequests]);
 
   // Redirect tenants to their lease page
   useEffect(() => {
@@ -160,7 +179,9 @@ export default function PendingAgreementsPage() {
     (r) =>
       r.status === "LANDLORD_APPROVED" ||
       r.status === "UNDER_VERIFICATION" ||
-      r.status === "PENDING_SUPERVISOR_APPROVAL"
+      r.status === "PENDING_SUPERVISOR_APPROVAL" ||
+      r.status === "SUPERVISOR_APPROVED" ||
+      r.status === "APPROVED"
   );
 
   // Show access denied for non-landlord users

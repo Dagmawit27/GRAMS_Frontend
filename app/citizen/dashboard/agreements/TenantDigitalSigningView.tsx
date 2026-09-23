@@ -214,8 +214,8 @@ export const TenantDigitalSigningView: React.FC<TenantDigitalSigningViewProps> =
                 <span className="font-bold text-slate-900 text-sm">{request.proposedRent.toLocaleString()} ETB</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-semibold text-slate-400 block">Security Deposit</span>
-                <span className="font-bold text-slate-900 text-sm">{(request.securityDeposit || request.proposedRent * 2).toLocaleString()} ETB</span>
+                <span className="text-[10px] uppercase font-semibold text-slate-400 block">Advance Rent</span>
+                <span className="font-bold text-slate-900 text-sm">{(request.securityDeposit || request.proposedRent * (request.advancePaymentMonths || 2)).toLocaleString()} ETB</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-semibold text-slate-400 block">Term</span>
@@ -236,7 +236,7 @@ export const TenantDigitalSigningView: React.FC<TenantDigitalSigningViewProps> =
                 <strong>2. PAYMENT TERMS:</strong> Monthly rent of <strong>ETB {request.proposedRent.toLocaleString()}</strong> is due and payable on or before the 5th day of each calendar month. Payments must be processed through certified national electronic settlement rails (Telebirr, CBE Birr, or Commercial Bank Electronic Clearing).
               </p>
               <p>
-                <strong>3. DEPOSIT ESCROW:</strong> The security deposit of <strong>ETB {(request.securityDeposit || request.proposedRent * 2).toLocaleString()}</strong> shall be retained in municipal escrow under Proclamation No. 1204/2020 and refunded upon conclusive exit inspection.
+                <strong>3. ADVANCE RENT:</strong> The initial advance rent payment of <strong>ETB {(request.securityDeposit || request.proposedRent * (request.advancePaymentMonths || 2)).toLocaleString()}</strong> ({request.advancePaymentMonths || 2} months) shall be paid upon agreement approval through official electronic settlement rails.
               </p>
               <p>
                 <strong>4. STATUTORY JURISDICTION:</strong> Both parties agree to abide by Addis Ababa City Administration Housing Bureau arbitration protocols in the event of dispute resolution.
@@ -336,7 +336,7 @@ export const TenantDigitalSigningView: React.FC<TenantDigitalSigningViewProps> =
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
                 <p className="font-medium text-slate-900">Contract Reference: {request.requestCode}</p>
                 <p>Monthly Rent: <strong>{request.proposedRent.toLocaleString()} ETB</strong></p>
-                <p>Security Deposit: <strong>{(request.securityDeposit || request.proposedRent * 2).toLocaleString()} ETB</strong></p>
+                <p>Advance Rent: <strong>{(request.securityDeposit || request.proposedRent * (request.advancePaymentMonths || 2)).toLocaleString()} ETB</strong></p>
               </div>
 
               <div>

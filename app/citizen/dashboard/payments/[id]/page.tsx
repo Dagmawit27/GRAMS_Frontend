@@ -71,12 +71,23 @@ export default function PaymentDetailPage() {
   const [completedReceipt, setCompletedReceipt] = useState<Receipt | null>(null);
 
   // Check if invoice is already marked as paid
-  const checkIsPaid = useCallback((invId: string, reqCode?: string, agrId?: string | number) => {
+  const checkIsPaid = useCallback((invId: string, reqCode?: string, agrId?: string | number, agr?: AgreementResponse | null, cycleNum?: number | null) => {
+    if (agr && agr.totalMonthsPaid !== undefined && agr.totalMonthsPaid !== null) {
+      const advMonths = agr.advancePaymentMonths && agr.advancePaymentMonths > 0 ? agr.advancePaymentMonths : 2;
+      if (cycleNum && cycleNum > 1) {
+        return agr.totalMonthsPaid >= cycleNum;
+      }
+      return agr.totalMonthsPaid >= advMonths;
+    }
     if (typeof window === "undefined") return false;
     try {
       const stored = localStorage.getItem("grams_paid_invoice_ids");
       if (!stored) return false;
       const set = new Set<string>(JSON.parse(stored));
+      const isCycle = /-m\d+/i.test(invId) || /-m\d+/i.test(idParam);
+      if (isCycle) {
+        return set.has(invId) || set.has(idParam);
+      }
       if (set.has(invId)) return true;
       if (reqCode && set.has(`agr-inv-${reqCode}`)) return true;
       if (agrId && set.has(`agr-inv-${agrId}`)) return true;
@@ -103,9 +114,16 @@ export default function PaymentDetailPage() {
     try {
       const agreements: AgreementResponse[] = await getMyAgreements(session.token);
       if (agreements && Array.isArray(agreements)) {
-        // Find matching agreement
-        const cleanId = idParam.replace("agr-inv-", "").replace("INV-", "").toLowerCase();
-        
+        // Parse recurring cycle if present
+        const cycleMatch = idParam.match(/-m(\d+)/i);
+        const cycleNum = cycleMatch ? parseInt(cycleMatch[1], 10) : null;
+        const cleanId = idParam
+          .replace(/-m\d+/i, "")
+          .replace("agr-inv-", "")
+          .replace("INV-", "")
+          .replace("inv-", "")
+          .toLowerCase();
+
         const matched = agreements.find((a) => {
           const aId = String(a.id || "").toLowerCase();
           const reqCode = String(a.requestCode || "").toLowerCase();
@@ -114,42 +132,71 @@ export default function PaymentDetailPage() {
             aId === cleanId ||
             reqCode === cleanId ||
             agrNum === cleanId ||
-            `agr-inv-${aId}` === idParam.toLowerCase() ||
-            `agr-inv-${reqCode}` === idParam.toLowerCase() ||
-            `inv-${agrNum}` === idParam.toLowerCase()
+            `agr-inv-${aId}` === cleanId ||
+            `agr-inv-${reqCode}` === cleanId ||
+            `inv-${agrNum}` === cleanId ||
+            idParam.toLowerCase().includes(aId) ||
+            idParam.toLowerCase().includes(reqCode) ||
+            idParam.toLowerCase().includes(agrNum)
           );
         });
 
         if (matched) {
           setAgreement(matched);
 
-          const advanceMonths = matched.advancePaymentMonths && matched.advancePaymentMonths > 0
+          const monthlyRent = matched.monthlyRent || 0;
+          let advanceMonths = matched.advancePaymentMonths && matched.advancePaymentMonths > 0
             ? matched.advancePaymentMonths
             : 2;
-          const monthlyRent = matched.monthlyRent || 0;
-          const totalAdvance = monthlyRent * advanceMonths;
-          const invId = `agr-inv-${matched.id || matched.requestCode}`;
+          let totalAmount = monthlyRent * advanceMonths;
+          let periodText = `First ${advanceMonths} Months Advance Rent`;
+          let invId = `agr-inv-${matched.id || matched.requestCode}`;
+          let dueDateText = matched.startDate
+            ? new Date(matched.startDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "2-digit",
+                year: "numeric",
+              })
+            : "Upon Approval";
 
-          const alreadyPaid = checkIsPaid(invId, matched.requestCode, matched.id) || matched.status === "PAID";
+          if (cycleNum && cycleNum > 1) {
+            advanceMonths = 1;
+            totalAmount = monthlyRent;
+            let cycleDueDate: Date;
+            if (matched.nextPaymentDueDate) {
+              const parts = matched.nextPaymentDueDate.split(/[-T ]/);
+              cycleDueDate = parts.length >= 3
+                ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+                : new Date(matched.nextPaymentDueDate);
+            } else {
+              const baseDate = matched.startDate ? new Date(matched.startDate) : new Date();
+              cycleDueDate = new Date(baseDate);
+              cycleDueDate.setMonth(cycleDueDate.getMonth() + (cycleNum - 1));
+              if (matched.monthlyPaymentDueDay) {
+                cycleDueDate.setDate(matched.monthlyPaymentDueDay);
+              }
+            }
+            periodText = `Month ${cycleNum} Rent (${cycleDueDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })})`;
+            dueDateText = cycleDueDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+            invId = idParam;
+          }
+
+          const alreadyPaid = checkIsPaid(invId, matched.requestCode, matched.id, matched, cycleNum) || (cycleNum ? false : matched.status === "PAID");
 
           const inv: Invoice = {
             id: invId,
-            invoiceCode: `INV-${matched.agreementNumber || matched.requestCode || "LR-001"}`,
+            invoiceCode: cycleNum
+              ? `INV-${matched.agreementNumber || matched.requestCode}-M${cycleNum}`
+              : `INV-${matched.agreementNumber || matched.requestCode || "LR-001"}`,
             propertyTitle: matched.propertyTitle || `Property ${matched.propertyCode || ""}`,
-            dueDate: matched.startDate
-              ? new Date(matched.startDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "2-digit",
-                  year: "numeric",
-                })
-              : "Upon Approval",
-            period: `First ${advanceMonths} Months Advance Rent`,
+            dueDate: dueDateText,
+            period: periodText,
             advancePaymentMonths: advanceMonths,
-            baseRent: totalAdvance,
+            baseRent: totalAmount,
             waterUtility: 0,
             electricityMaintenance: 0,
             latePenalty: 0,
-            totalAmount: totalAdvance,
+            totalAmount: totalAmount,
             status: alreadyPaid ? "Paid" : "Pending",
             landlordName: matched.landlordName || "Landlord",
             landlordPreferredPaymentMethod: matched.landlordPreferredPaymentMethod || matched.landlordBankName,
@@ -316,18 +363,25 @@ export default function PaymentDetailPage() {
       try {
         verifyRes = await verifyPayment(session.token, txRef);
         console.log("Payment verified:", verifyRes);
-      } catch (verifyErr) {
-        console.warn("Backend verify note (proceeding with verified completion):", verifyErr);
+      } catch (verifyErr: any) {
+        console.error("Backend payment verification failed:", verifyErr);
+        setIsConfirmOpen(false);
+        setIsProcessing(false);
+        alert(verifyErr?.message || "Payment verification failed on the server. Please try again.");
+        return;
       }
 
       // 4. Update local persistence
       try {
         const stored = localStorage.getItem("grams_paid_invoice_ids");
         const set = new Set<string>(stored ? JSON.parse(stored) : []);
+        const isCycle = /-m\d+/i.test(invoice.id) || /-m\d+/i.test(idParam);
         set.add(invoice.id);
-        if (invoice.requestCode) set.add(`agr-inv-${invoice.requestCode}`);
-        if (agreement?.id) set.add(`agr-inv-${agreement.id}`);
         set.add(idParam);
+        if (!isCycle) {
+          if (invoice.requestCode) set.add(`agr-inv-${invoice.requestCode}`);
+          if (agreement?.id) set.add(`agr-inv-${agreement.id}`);
+        }
         localStorage.setItem("grams_paid_invoice_ids", JSON.stringify(Array.from(set)));
       } catch (err) {
         console.warn("Could not save paid state:", err);

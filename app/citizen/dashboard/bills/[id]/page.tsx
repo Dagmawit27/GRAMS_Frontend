@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Receipt } from "@/types";
-import { useCitizenData } from "@/hooks/useCitizenData";
-import { getSession } from "@/lib/api";
+import { getSession, getMyPayments, getMyAgreements } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,63 +29,208 @@ export default function BillDetailPage() {
   const router = useRouter();
   const params = useParams();
   const idParam = (params?.id as string) || "";
-  const context = useCitizenData();
 
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     if (!idParam) {
       setLoading(false);
       return;
     }
 
-    // 1. Check localStorage for dynamically generated paid receipts
-    let found: Receipt | null = null;
-    try {
-      const stored = localStorage.getItem("grams_completed_receipts");
-      if (stored) {
-        const list: Receipt[] = JSON.parse(stored);
-        found =
-          list.find(
-            (r) =>
-              r.id === idParam ||
-              r.receiptCode?.toLowerCase() === idParam.toLowerCase() ||
-              r.transactionRef?.toLowerCase() === idParam.toLowerCase() ||
-              idParam.includes(r.id)
-          ) || null;
-      }
-    } catch (err) {
-      console.warn("Could not read stored receipts:", err);
-    }
+    async function resolveReceipt() {
+      const paramLower = idParam.toLowerCase();
 
-    // 2. Check context receipts if not found in localStorage
-    if (!found) {
-      found =
-        context.receipts.find(
-          (r) =>
-            r.id === idParam ||
-            r.receiptCode?.toLowerCase() === idParam.toLowerCase() ||
-            r.transactionRef?.toLowerCase() === idParam.toLowerCase()
-        ) || null;
-    }
+      const matchesReceipt = (r: Receipt) => {
+        return (
+          r.id?.toLowerCase() === paramLower ||
+          r.receiptCode?.toLowerCase() === paramLower ||
+          r.transactionRef?.toLowerCase() === paramLower ||
+          idParam.includes(r.id) ||
+          (r.id && paramLower.includes(r.id.toLowerCase()))
+        );
+      };
 
-    // 3. Fallback: Check if idParam matches an invoice id (e.g. from payment redirect)
-    if (!found) {
+      // 1. Check localStorage for dynamically generated paid receipts
       try {
         const stored = localStorage.getItem("grams_completed_receipts");
         if (stored) {
           const list: Receipt[] = JSON.parse(stored);
-          if (list.length > 0) {
-            found = list[0]; // Most recent receipt
+          if (Array.isArray(list)) {
+            const found = list.find(matchesReceipt);
+            if (found) {
+              if (isMounted) {
+                setReceipt(found);
+                setLoading(false);
+              }
+              return;
+            }
           }
         }
-      } catch {}
+      } catch (err) {
+        console.warn("Could not read stored receipts:", err);
+      }
+
+      // 2. Query backend payments if session exists
+      const session = getSession();
+      const token = session?.token;
+      if (token) {
+        try {
+          const payments = await getMyPayments(token);
+          if (Array.isArray(payments)) {
+            for (const p of payments) {
+              if (p.status === "COMPLETED") {
+                const recId = `rec-${p.txRef || p.id}`;
+                const receiptCode = `REC-${p.agreementNumber || p.requestCode || (p.txRef ? p.txRef.slice(-6) : "PAID")}`;
+                const txRef = p.txRef || "";
+
+                if (
+                  recId.toLowerCase() === paramLower ||
+                  receiptCode.toLowerCase() === paramLower ||
+                  txRef.toLowerCase() === paramLower ||
+                  String(p.id).toLowerCase() === paramLower ||
+                  (p.requestCode && p.requestCode.toLowerCase() === paramLower) ||
+                  (p.agreementNumber && p.agreementNumber.toLowerCase() === paramLower)
+                ) {
+                  const formattedDate = p.paymentDate
+                    ? new Date(p.paymentDate).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      })
+                    : p.createdAt
+                    ? new Date(p.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      })
+                    : new Date().toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      });
+
+                  const defaultPayerName = session?.user
+                    ? `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() || session.user.email
+                    : "Citizen Tenant";
+
+                  const mappedReceipt: Receipt = {
+                    id: recId,
+                    receiptCode: receiptCode,
+                    date: formattedDate,
+                    propertyName: p.propertyTitle || `Leased Property ${p.requestCode || ""}`,
+                    paymentMethod: (p.paymentMethod || "Telebirr") as any,
+                    amount: p.amount || 0,
+                    status: "Paid",
+                    transactionRef: txRef,
+                    payerName: p.tenantName || defaultPayerName,
+                    taxRegistrationNumber:
+                      session?.user?.taxIdentificationNumber || session?.user?.tinNumber || "",
+                  };
+
+                  if (isMounted) {
+                    setReceipt(mappedReceipt);
+                    setLoading(false);
+                  }
+                  return;
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Could not query backend payments for bill detail:", err);
+        }
+
+        // 3. Query backend agreements if not found in payments
+        try {
+          const agrs = await getMyAgreements(token);
+          if (Array.isArray(agrs)) {
+            let paidIdsSet = new Set<string>();
+            try {
+              const storedPaid = localStorage.getItem("grams_paid_invoice_ids");
+              if (storedPaid) paidIdsSet = new Set(JSON.parse(storedPaid));
+            } catch {}
+
+            for (const a of agrs) {
+              const isSettled =
+                a.status === "PAID" ||
+                paidIdsSet.has(a.id) ||
+                paidIdsSet.has(`agr-inv-${a.id}`) ||
+                paidIdsSet.has(a.requestCode) ||
+                paidIdsSet.has(`agr-inv-${a.requestCode}`);
+
+              if (isSettled) {
+                const recId = `rec-${a.requestCode || a.id}`;
+                const receiptCode = `REC-${a.agreementNumber || a.requestCode}`;
+                const txRef = `ET-RENT-${a.requestCode}`;
+
+                if (
+                  recId.toLowerCase() === paramLower ||
+                  receiptCode.toLowerCase() === paramLower ||
+                  txRef.toLowerCase() === paramLower ||
+                  String(a.id).toLowerCase() === paramLower ||
+                  (a.requestCode && a.requestCode.toLowerCase() === paramLower) ||
+                  (a.agreementNumber && a.agreementNumber.toLowerCase() === paramLower)
+                ) {
+                  const advMonths = a.advancePaymentMonths && a.advancePaymentMonths > 0 ? a.advancePaymentMonths : 2;
+                  const totalAmount = (a.monthlyRent || 0) * advMonths;
+
+                  const formattedDate = a.startDate
+                    ? new Date(a.startDate).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      })
+                    : new Date().toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                      });
+
+                  const mappedReceipt: Receipt = {
+                    id: recId,
+                    receiptCode: receiptCode,
+                    date: formattedDate,
+                    propertyName: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+                    paymentMethod: (a.landlordPreferredPaymentMethod || "Telebirr") as any,
+                    amount: totalAmount,
+                    status: "Paid",
+                    transactionRef: txRef,
+                    payerName:
+                      a.tenantName ||
+                      (session?.user ? `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim() : "Citizen Tenant"),
+                    taxRegistrationNumber:
+                      session?.user?.taxIdentificationNumber || session?.user?.tinNumber || "",
+                  };
+
+                  if (isMounted) {
+                    setReceipt(mappedReceipt);
+                    setLoading(false);
+                  }
+                  return;
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Could not query backend agreements for bill detail:", err);
+        }
+      }
+
+      if (isMounted) {
+        setReceipt(null);
+        setLoading(false);
+      }
     }
 
-    setReceipt(found);
-    setLoading(false);
-  }, [idParam, context.receipts]);
+    resolveReceipt();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [idParam]);
 
   const handlePrint = () => {
     window.print();

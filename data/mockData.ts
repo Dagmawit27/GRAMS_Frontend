@@ -325,7 +325,7 @@ export const INITIAL_AGREEMENTS: RentalAgreement[] = [
     monthlyRent: 9500,
     status: 'Expired',
     depositAmount: 19000,
-    termsSummary: 'Contract concluded upon expiration. All security deposits reconciled and closed in GRAMS ledger.',
+    termsSummary: 'Contract concluded upon expiration. All advance rent settlements reconciled and closed in GRAMS ledger.',
     landlordSigned: true,
     tenantSigned: true,
   },

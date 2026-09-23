@@ -63,7 +63,7 @@ export interface Property {
   securityDepositMonths: number;
   minLeasePeriod: string;
   utilitiesIncluded: boolean;
-  availableFrom: string;
+  availableFrom?: string;
   landlordName?: string;
   tenantName?: string;
   unitsCount?: number;
@@ -107,6 +107,7 @@ export interface LeaseRequest {
   counterpartyRole?: 'Tenant' | 'Landlord';
   proposedRent: number;
   securityDeposit?: number;
+  advancePaymentMonths?: number;
   leaseDuration?: string;
   startDate?: string;
   endDate?: string;

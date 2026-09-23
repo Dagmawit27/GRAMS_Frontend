@@ -38,6 +38,7 @@ import {
   Mail,
   ArrowUpRight,
   FileText,
+  Clock,
 } from "lucide-react";
 
 import { useCitizenData } from "@/hooks/useCitizenData";
@@ -69,7 +70,8 @@ export interface LandlordCollectionItem {
   monthlyRent: number;
   totalAmount: number;
   dueDate: string;
-  status: "Cleared" | "Pending";
+  status: "Cleared" | "Pending" | "Overdue";
+  periodLabel?: string;
   landlordBankName?: string;
   landlordAccountNumber?: string;
   landlordAccountHolderName?: string;
@@ -280,12 +282,32 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
         }
       }
 
-      const activeList = allAgreements.filter(
-        (a) => a.status === "ACTIVE" || a.status === "APPROVED" || a.supervisorApproved
+      const combinedAgreementsMap = new Map<string, AgreementResponse>();
+      const addAgreements = (list: AgreementResponse[]) => {
+        if (Array.isArray(list)) {
+          list.forEach((a) => {
+            if (a && (a.id || a.requestCode)) {
+              const key = a.id || a.requestCode;
+              combinedAgreementsMap.set(key, a);
+            }
+          });
+        }
+      };
+
+      addAgreements(allAgreements);
+      addAgreements(backendLandlordAgreements);
+      addAgreements(backendTenantAgreements);
+
+      const activeList = Array.from(combinedAgreementsMap.values()).filter(
+        (a) => !a.status || a.status === "ACTIVE" || a.status === "APPROVED" || a.supervisorApproved
       );
 
-      const landlordIds = new Set(backendLandlordAgreements.map((a) => a.id));
-      const tenantIds = new Set(backendTenantAgreements.map((a) => a.id));
+      const landlordIds = new Set(
+        (Array.isArray(backendLandlordAgreements) ? backendLandlordAgreements : []).map((a) => a.id)
+      );
+      const tenantIds = new Set(
+        (Array.isArray(backendTenantAgreements) ? backendTenantAgreements : []).map((a) => a.id)
+      );
 
       const tenantInvs: Invoice[] = [];
       const landlordCols: LandlordCollectionItem[] = [];
@@ -304,63 +326,221 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
           (userName && a.tenantName && a.tenantName.toLowerCase().trim() === userName);
 
         const advanceMonths = a.advancePaymentMonths && a.advancePaymentMonths > 0 ? a.advancePaymentMonths : 2;
+        const totalMonthsPaid = a.totalMonthsPaid ?? 0;
         const monthlyRent = a.monthlyRent || 0;
         const totalAdvance = monthlyRent * advanceMonths;
         const invId = `agr-inv-${a.id}`;
-        const isPaid = checkIsSettled(a, settledFromBackend);
         const hasPayout = Boolean(a.landlordAccountNumber && a.landlordAccountNumber.trim().length > 0);
 
-        // 1. If user is Landlord for this agreement -> Add to Landlord Collections
-        if (isLandlord) {
-          landlordCols.push({
-            id: `col-${a.id}`,
-            agreementId: a.id,
-            agreementNumber: a.agreementNumber || a.requestCode,
-            requestCode: a.requestCode,
-            propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
-            propertySubCity: a.propertySubCity,
-            propertyWoreda: a.propertyWoreda,
-            tenantName: a.tenantName || "Tenant",
-            tenantPhone: a.tenantPhone || "",
-            tenantEmail: a.tenantEmail || "",
-            advancePaymentMonths: advanceMonths,
-            monthlyRent: monthlyRent,
-            totalAmount: totalAdvance,
-            dueDate: a.startDate
-              ? new Date(a.startDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
-              : "Upon Approval",
-            status: isPaid ? "Cleared" : "Pending",
-            landlordBankName: a.landlordBankName,
-            landlordAccountNumber: a.landlordAccountNumber,
-            landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
-            hasPayoutConfigured: hasPayout,
-          });
-        }
+        // Check if initial advance payment is paid
+        const isAdvancePaid = totalMonthsPaid >= advanceMonths || checkIsSettled(a, settledFromBackend);
 
-        // 2. If user is Tenant for this agreement -> Add to Tenant Bills
-        if (isTenant || (!isLandlord && !isTenant)) {
-          tenantInvs.push({
-            id: invId,
-            invoiceCode: `INV-${a.agreementNumber || a.requestCode}`,
-            propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
-            dueDate: a.startDate
-              ? new Date(a.startDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
-              : "Upon Approval",
-            period: `First ${advanceMonths} Months Advance Rent`,
-            advancePaymentMonths: advanceMonths,
-            baseRent: totalAdvance,
-            waterUtility: 0,
-            electricityMaintenance: 0,
-            latePenalty: 0,
-            totalAmount: totalAdvance,
-            status: isPaid ? "Paid" : "Pending",
-            landlordName: a.landlordName || "Landlord",
-            landlordPreferredPaymentMethod: a.landlordPreferredPaymentMethod || a.landlordBankName,
-            landlordBankName: a.landlordBankName,
-            landlordAccountNumber: a.landlordAccountNumber,
-            landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
-            requestCode: a.requestCode,
-          });
+        if (!isAdvancePaid) {
+          // --- Case 1: Initial Advance Payment pending ---
+          const startDateObj = a.startDate ? new Date(a.startDate) : new Date();
+          const todayMid = new Date();
+          todayMid.setHours(0, 0, 0, 0);
+          const startMid = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+          const diffDays = Math.round((startMid.getTime() - todayMid.getTime()) / (1000 * 60 * 60 * 24));
+          const advStatus: "Pending" | "Overdue" = diffDays < 0 ? "Overdue" : "Pending";
+
+          if (isLandlord || (effectiveRole === "landlord" && !isTenant)) {
+            landlordCols.push({
+              id: `col-${a.id}`,
+              agreementId: a.id,
+              agreementNumber: a.agreementNumber || a.requestCode,
+              requestCode: a.requestCode,
+              propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+              propertySubCity: a.propertySubCity,
+              propertyWoreda: a.propertyWoreda,
+              tenantName: a.tenantName || "Tenant",
+              tenantPhone: a.tenantPhone || "",
+              tenantEmail: a.tenantEmail || "",
+              advancePaymentMonths: advanceMonths,
+              monthlyRent: monthlyRent,
+              totalAmount: totalAdvance,
+              dueDate: a.startDate
+                ? new Date(a.startDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+                : "Upon Approval",
+              status: advStatus,
+              periodLabel: `First ${advanceMonths} Months Advance Rent`,
+              landlordBankName: a.landlordBankName,
+              landlordAccountNumber: a.landlordAccountNumber,
+              landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
+              hasPayoutConfigured: hasPayout,
+            });
+          }
+
+          if (isTenant || (!isLandlord && !isTenant && effectiveRole !== "landlord")) {
+            tenantInvs.push({
+              id: invId,
+              invoiceCode: `INV-${a.agreementNumber || a.requestCode}`,
+              propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+              dueDate: a.startDate
+                ? new Date(a.startDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+                : "Upon Approval",
+              period: `First ${advanceMonths} Months Advance Rent`,
+              advancePaymentMonths: advanceMonths,
+              baseRent: totalAdvance,
+              waterUtility: 0,
+              electricityMaintenance: 0,
+              latePenalty: 0,
+              totalAmount: totalAdvance,
+              status: advStatus,
+              landlordName: a.landlordName || "Landlord",
+              landlordPreferredPaymentMethod: a.landlordPreferredPaymentMethod || a.landlordBankName,
+              landlordBankName: a.landlordBankName,
+              landlordAccountNumber: a.landlordAccountNumber,
+              landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
+              requestCode: a.requestCode,
+            });
+          }
+        } else {
+          // --- Case 2: Initial Advance Payment has been paid! ---
+          // 1. Landlord: Show the cleared advance payment
+          if (isLandlord || (effectiveRole === "landlord" && !isTenant)) {
+            landlordCols.push({
+              id: `col-${a.id}`,
+              agreementId: a.id,
+              agreementNumber: a.agreementNumber || a.requestCode,
+              requestCode: a.requestCode,
+              propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+              propertySubCity: a.propertySubCity,
+              propertyWoreda: a.propertyWoreda,
+              tenantName: a.tenantName || "Tenant",
+              tenantPhone: a.tenantPhone || "",
+              tenantEmail: a.tenantEmail || "",
+              advancePaymentMonths: advanceMonths,
+              monthlyRent: monthlyRent,
+              totalAmount: totalAdvance,
+              dueDate: a.startDate
+                ? new Date(a.startDate).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+                : "Upon Approval",
+              status: "Cleared",
+              periodLabel: `First ${advanceMonths} Months Advance Rent`,
+              landlordBankName: a.landlordBankName,
+              landlordAccountNumber: a.landlordAccountNumber,
+              landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
+              hasPayoutConfigured: hasPayout,
+            });
+
+            // Also push all cleared recurring monthly cycles (e.g. Month 3 up to totalMonthsPaid)
+            for (let m = advanceMonths + 1; m <= totalMonthsPaid; m++) {
+              const baseDate = a.startDate ? new Date(a.startDate) : new Date();
+              const cycleDueDate = new Date(baseDate);
+              cycleDueDate.setMonth(cycleDueDate.getMonth() + (m - 1));
+              if (a.monthlyPaymentDueDay) {
+                cycleDueDate.setDate(a.monthlyPaymentDueDay);
+              }
+              landlordCols.push({
+                id: `col-${a.id}-m${m}`,
+                agreementId: a.id,
+                agreementNumber: a.agreementNumber || a.requestCode,
+                requestCode: a.requestCode,
+                propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+                propertySubCity: a.propertySubCity,
+                propertyWoreda: a.propertyWoreda,
+                tenantName: a.tenantName || "Tenant",
+                tenantPhone: a.tenantPhone || "",
+                tenantEmail: a.tenantEmail || "",
+                advancePaymentMonths: 1,
+                monthlyRent: monthlyRent,
+                totalAmount: monthlyRent,
+                dueDate: cycleDueDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+                status: "Cleared",
+                periodLabel: `Month ${m} Rent`,
+                landlordBankName: a.landlordBankName,
+                landlordAccountNumber: a.landlordAccountNumber,
+                landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
+                hasPayoutConfigured: hasPayout,
+              });
+            }
+          }
+
+          // 2. Determine next recurring monthly cycle from server state
+          const nextCycleNum = totalMonthsPaid + 1; // e.g. Month 3 if advance of 2 months paid
+          let nextCycleDueDate: Date;
+          if (a.nextPaymentDueDate) {
+            const parts = a.nextPaymentDueDate.split(/[-T ]/);
+            nextCycleDueDate = parts.length >= 3
+              ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+              : new Date(a.nextPaymentDueDate);
+          } else {
+            const baseDate = a.startDate ? new Date(a.startDate) : new Date();
+            nextCycleDueDate = new Date(baseDate);
+            nextCycleDueDate.setMonth(nextCycleDueDate.getMonth() + (nextCycleNum - 1));
+            if (a.monthlyPaymentDueDay) {
+              nextCycleDueDate.setDate(a.monthlyPaymentDueDay);
+            }
+          }
+
+          const now = new Date();
+          const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const dueMid = new Date(nextCycleDueDate.getFullYear(), nextCycleDueDate.getMonth(), nextCycleDueDate.getDate());
+          const daysUntilDue = Math.round((dueMid.getTime() - todayMid.getTime()) / (1000 * 60 * 60 * 24));
+          const isCycleDueOrOverdue = daysUntilDue <= 5;
+
+          const cycleInvId = `agr-inv-${a.id}-m${nextCycleNum}`;
+          const isCyclePaid = totalMonthsPaid >= nextCycleNum || paidIds.has(cycleInvId) || paidIds.has(`${a.requestCode}-m${nextCycleNum}`);
+
+          // If recurring cycle is approaching (<= 5 days) or overdue
+          if (isCycleDueOrOverdue) {
+            const cycleStatus: "Cleared" | "Pending" | "Overdue" = isCyclePaid
+              ? "Cleared"
+              : daysUntilDue < 0
+              ? "Overdue"
+              : "Pending";
+
+            // Show collection on landlord side
+            if (isLandlord || (effectiveRole === "landlord" && !isTenant)) {
+              landlordCols.push({
+                id: `col-${a.id}-m${nextCycleNum}`,
+                agreementId: a.id,
+                agreementNumber: a.agreementNumber || a.requestCode,
+                requestCode: a.requestCode,
+                propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+                propertySubCity: a.propertySubCity,
+                propertyWoreda: a.propertyWoreda,
+                tenantName: a.tenantName || "Tenant",
+                tenantPhone: a.tenantPhone || "",
+                tenantEmail: a.tenantEmail || "",
+                advancePaymentMonths: 1,
+                monthlyRent: monthlyRent,
+                totalAmount: monthlyRent,
+                dueDate: nextCycleDueDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+                status: cycleStatus,
+                periodLabel: `Month ${nextCycleNum} Rent`,
+                landlordBankName: a.landlordBankName,
+                landlordAccountNumber: a.landlordAccountNumber,
+                landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
+                hasPayoutConfigured: hasPayout,
+              });
+            }
+
+            // Show bill on tenant side if not yet paid
+            if ((isTenant || (!isLandlord && !isTenant && effectiveRole !== "landlord")) && !isCyclePaid) {
+              tenantInvs.push({
+                id: cycleInvId,
+                invoiceCode: `INV-${a.agreementNumber || a.requestCode}-M${nextCycleNum}`,
+                propertyTitle: a.propertyTitle || `Property ${a.propertyCode || ""}`,
+                dueDate: nextCycleDueDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
+                period: `Month ${nextCycleNum} Rent (${nextCycleDueDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })})`,
+                advancePaymentMonths: 1,
+                baseRent: monthlyRent,
+                waterUtility: 0,
+                electricityMaintenance: 0,
+                latePenalty: 0,
+                totalAmount: monthlyRent,
+                status: daysUntilDue < 0 ? "Overdue" : "Pending",
+                landlordName: a.landlordName || "Landlord",
+                landlordPreferredPaymentMethod: a.landlordPreferredPaymentMethod || a.landlordBankName,
+                landlordBankName: a.landlordBankName,
+                landlordAccountNumber: a.landlordAccountNumber,
+                landlordAccountHolderName: a.landlordAccountHolderName || a.landlordName,
+                requestCode: a.requestCode,
+              });
+            }
+          }
         }
       });
 
@@ -513,44 +693,65 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
 
     // 1. Add real agreement invoices
     rawAgreementInvoices.forEach((inv) => {
-      const isPaid =
-        inv.status === "Paid" ||
-        paidIds.has(inv.id) ||
-        (inv.requestCode && paidIds.has(inv.requestCode)) ||
-        (inv.requestCode && paidIds.has(`agr-inv-${inv.requestCode}`));
+      const isCycle = /-m\d+/i.test(inv.id);
+      const isPaid = isCycle
+        ? inv.status === "Paid" ||
+          paidIds.has(inv.id) ||
+          Boolean(inv.requestCode && paidIds.has(`${inv.requestCode}-m${inv.id.match(/-m(\d+)/i)?.[1]}`))
+        : inv.status === "Paid" ||
+          paidIds.has(inv.id) ||
+          (inv.requestCode && paidIds.has(inv.requestCode)) ||
+          (inv.requestCode && paidIds.has(`agr-inv-${inv.requestCode}`));
 
-      // Only include if NOT paid (Pending only)
+      // Only include if NOT paid (Pending / Overdue)
       if (!isPaid) {
-        map.set(inv.id, { ...inv, status: "Pending" });
+        map.set(inv.id, inv);
       }
     });
 
     return Array.from(map.values());
   }, [rawAgreementInvoices, paidIds]);
 
-  // Landlord: Only display PENDING settlements awaiting tenant payment (exclude Cleared/Paid)
-  const pendingLandlordCollections = useMemo(() => {
-    return rawLandlordCollections.filter((col) => {
-      const isCleared =
-        col.status === "Cleared" ||
-        paidIds.has(col.id) ||
-        paidIds.has(col.agreementId) ||
-        paidIds.has(`agr-inv-${col.agreementId}`) ||
-        paidIds.has(col.requestCode) ||
-        paidIds.has(`agr-inv-${col.requestCode}`);
+  // Landlord: Maintain all collections with reactive status (Cleared vs Pending vs Overdue)
+  const resolvedLandlordCollections = useMemo(() => {
+    return rawLandlordCollections.map((col) => {
+      const cycleMatch = col.id.match(/-m(\d+)/i);
+      const isCycle = Boolean(cycleMatch);
+      const cycleNum = cycleMatch ? cycleMatch[1] : null;
 
-      return !isCleared;
+      const isCleared = isCycle
+        ? col.status === "Cleared" ||
+          paidIds.has(col.id) ||
+          (col.agreementId && paidIds.has(`agr-inv-${col.agreementId}-m${cycleNum}`)) ||
+          (col.requestCode && paidIds.has(`${col.requestCode}-m${cycleNum}`))
+        : col.status === "Cleared" ||
+          paidIds.has(col.id);
+
+      return {
+        ...col,
+        status: (isCleared ? "Cleared" : col.status) as "Cleared" | "Pending" | "Overdue",
+      };
     });
   }, [rawLandlordCollections, paidIds]);
 
-  // Auto-select tab on load for citizen role with pending items
+  const pendingLandlordCollections = useMemo(() => {
+    return resolvedLandlordCollections.filter((col) => col.status === "Pending" || col.status === "Overdue");
+  }, [resolvedLandlordCollections]);
+
+  const clearedLandlordCollections = useMemo(() => {
+    return resolvedLandlordCollections.filter((col) => col.status === "Cleared");
+  }, [resolvedLandlordCollections]);
+
+  const [landlordStatusFilter, setLandlordStatusFilter] = useState<"all" | "pending" | "cleared">("all");
+
+  // Auto-select tab on load for citizen role with collections
   useEffect(() => {
     if (isBoth) {
-      if (pendingTenantInvoices.length === 0 && pendingLandlordCollections.length > 0) {
+      if (pendingTenantInvoices.length === 0 && resolvedLandlordCollections.length > 0) {
         setActiveTab("landlord");
       }
     }
-  }, [isBoth, pendingTenantInvoices.length, pendingLandlordCollections.length]);
+  }, [isBoth, pendingTenantInvoices.length, resolvedLandlordCollections.length]);
 
   // Selected Tenant Invoice
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
@@ -583,37 +784,51 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
     return filteredPendingTenantInvoices.slice(start, start + itemsPerPage);
   }, [filteredPendingTenantInvoices, tenantPage, itemsPerPage]);
 
-  // Selected Landlord Collection Item
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
-  useEffect(() => {
-    if (pendingLandlordCollections.length > 0) {
-      if (!selectedCollectionId || !pendingLandlordCollections.some((c) => c.id === selectedCollectionId)) {
-        setSelectedCollectionId(pendingLandlordCollections[0].id);
-      }
-    } else {
-      setSelectedCollectionId("");
+  // Filtered Landlord Collections by status and search
+  const filteredByStatusLandlordCollections = useMemo(() => {
+    if (landlordStatusFilter === "pending") {
+      return pendingLandlordCollections;
     }
-  }, [pendingLandlordCollections, selectedCollectionId]);
+    if (landlordStatusFilter === "cleared") {
+      return clearedLandlordCollections;
+    }
+    return resolvedLandlordCollections;
+  }, [landlordStatusFilter, pendingLandlordCollections, clearedLandlordCollections, resolvedLandlordCollections]);
 
-  const selectedCollection =
-    pendingLandlordCollections.find((c) => c.id === selectedCollectionId) || pendingLandlordCollections[0];
-
-  // Filtered & Paginated Landlord Collections
-  const filteredPendingLandlordCollections = useMemo(() => {
-    return pendingLandlordCollections.filter(
+  const filteredLandlordCollections = useMemo(() => {
+    return filteredByStatusLandlordCollections.filter(
       (col) =>
         col.requestCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         col.agreementNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         col.propertyTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
         col.tenantName.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [pendingLandlordCollections, searchQuery]);
+  }, [filteredByStatusLandlordCollections, searchQuery]);
 
-  const totalLandlordPages = Math.ceil(filteredPendingLandlordCollections.length / itemsPerPage) || 1;
-  const paginatedPendingLandlordCollections = useMemo(() => {
+  const totalLandlordPages = Math.ceil(filteredLandlordCollections.length / itemsPerPage) || 1;
+  const paginatedLandlordCollections = useMemo(() => {
     const start = (landlordPage - 1) * itemsPerPage;
-    return filteredPendingLandlordCollections.slice(start, start + itemsPerPage);
-  }, [filteredPendingLandlordCollections, landlordPage, itemsPerPage]);
+    return filteredLandlordCollections.slice(start, start + itemsPerPage);
+  }, [filteredLandlordCollections, landlordPage, itemsPerPage]);
+
+  // Selected Landlord Collection Item
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
+  useEffect(() => {
+    if (filteredLandlordCollections.length > 0) {
+      if (!selectedCollectionId || !filteredLandlordCollections.some((c) => c.id === selectedCollectionId)) {
+        setSelectedCollectionId(filteredLandlordCollections[0].id);
+      }
+    } else if (resolvedLandlordCollections.length > 0) {
+      setSelectedCollectionId(resolvedLandlordCollections[0].id);
+    } else {
+      setSelectedCollectionId("");
+    }
+  }, [filteredLandlordCollections, resolvedLandlordCollections, selectedCollectionId]);
+
+  const selectedCollection =
+    resolvedLandlordCollections.find((c) => c.id === selectedCollectionId) ||
+    filteredLandlordCollections[0] ||
+    resolvedLandlordCollections[0];
 
   const handleOpenPay = (invoice: Invoice) => {
     router.push(`/citizen/dashboard/payments/${invoice.id}`);
@@ -673,7 +888,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                   activeTab === "landlord" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
                 }`}
               >
-                {pendingLandlordCollections.length} Pending
+                {resolvedLandlordCollections.length} Total{pendingLandlordCollections.length > 0 ? ` (${pendingLandlordCollections.length} Due)` : ""}
               </span>
             </button>
           </div>
@@ -692,7 +907,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
             <Landmark className="w-4 h-4 text-emerald-700" />
             <span className="text-xs font-bold text-emerald-900">Rental Collections (Landlord View)</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-200 text-emerald-900">
-              {pendingLandlordCollections.length} Pending
+              {resolvedLandlordCollections.length} Total{pendingLandlordCollections.length > 0 ? ` • ${pendingLandlordCollections.length} Due` : ""}
             </span>
           </div>
         )}
@@ -836,12 +1051,12 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                               key={inv.id}
                               onClick={() => setSelectedInvoiceId(inv.id)}
                               className={`cursor-pointer transition-colors ${
-                                isSelected ? "bg-slate-50 font-medium" : "hover:bg-slate-50/50"
+                                isSelected ? "bg-slate-50 font-small" : "hover:bg-slate-50/50"
                               }`}
                             >
-                              <TableCell className="font-mono font-semibold text-xs text-slate-900">
-                                <div>{inv.invoiceCode}</div>
-                                <span className="text-[10px] text-slate-400 font-normal">
+                              <TableCell className="font-mono text-xs text-slate-900">
+                                <div className="text-[9px]">{inv.invoiceCode}</div>
+                                <span className={`text-[10px] font-normal block ${inv.status === "Overdue" ? "text-rose-600 font-medium" : "text-slate-400"}`}>
                                   Due: {inv.dueDate}
                                 </span>
                               </TableCell>
@@ -857,11 +1072,11 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                                 </div>
                                 {hasPayout ? (
                                   <div className="flex items-center gap-1 text-[11px] text-emerald-800 transition-all duration-300">
-                                    <span className="font-mono font-medium">
+                                    <span className="font-mono font-medium text-[8px]">
                                       {inv.landlordBankName || inv.landlordPreferredPaymentMethod}
                                     </span>
                                     <span className="text-slate-400">•</span>
-                                    <span className="font-mono">{inv.landlordAccountNumber}</span>
+                                    <span className="font-mono text-[8px]">{inv.landlordAccountNumber}</span>
                                   </div>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
@@ -876,9 +1091,16 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                               </TableCell>
 
                               <TableCell>
-                                <Badge variant="pending" className="text-[10px]">
-                                  Pending
-                                </Badge>
+                                {inv.status === "Overdue" ? (
+                                  <Badge className="text-[10px] bg-rose-50 text-rose-800 border-rose-200 font-semibold gap-1">
+                                    <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                                    <span>Overdue</span>
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="pending" className="text-[10px]">
+                                    Pending
+                                  </Badge>
+                                )}
                               </TableCell>
 
                               <TableCell className="text-right">
@@ -1133,56 +1355,100 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
       )}
 
       {/* --------------------------------------------------------------------------------------- */}
-      {/* LANDLORD VIEW: Rental Collections & Settlements (Pending Only) */}
+      {/* LANDLORD VIEW: Rental Collections & Settlements */}
       {/* --------------------------------------------------------------------------------------- */}
       {(!isTenantOnly && activeTab === "landlord") && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Landlord Pending Collections Table */}
+          {/* Left Column: Landlord Collections Table */}
           <div className="lg:col-span-2 space-y-4">
-            {pendingLandlordCollections.length === 0 ? (
-              /* Empty State: All Collections Settled */
+            {resolvedLandlordCollections.length === 0 ? (
+              /* Empty State: No rental collections */
               <div className="p-8 text-center space-y-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
                 <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-slate-900">All Rental Collections Settled!</h4>
+                  <h4 className="text-base font-bold text-slate-900">No Rental Collections Yet</h4>
                   <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                    All tenant rental payments for your leased properties have been cleared and deposited. Completed records are archived in Bills &amp; Invoices.
+                    When tenants lease your properties and rental agreements are created, incoming rental collection settlements will appear here.
                   </p>
                 </div>
                 <div className="pt-2 flex items-center justify-center gap-2">
                   <Button
-                    onClick={() => router.push("/citizen/dashboard/bills")}
+                    onClick={() => router.push("/citizen/dashboard/agreements/active")}
                     className="bg-[#00450d] hover:bg-[#1b5e20] text-white text-xs h-8 px-4 font-bold cursor-pointer gap-1.5 shadow-xs"
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>View Paid Records in Bills &amp; Invoices</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/citizen/dashboard/agreements/active")}
-                    className="text-slate-700 text-xs h-8 px-3 font-semibold cursor-pointer border-slate-300"
-                  >
                     <span>View Active Agreements</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
             ) : (
               <Card className="bg-white border-slate-200 shadow-clean">
                 <CardHeader className="p-4 pb-3 border-b border-slate-100">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                       <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
                         <span>Incoming Rental Collections</span>
-                        <Badge className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
-                          Awaiting Tenant Payment
-                        </Badge>
+                        {pendingLandlordCollections.length > 0 ? (
+                          <Badge className="bg-amber-50 text-amber-800 border-amber-200 text-[10px]">
+                            {pendingLandlordCollections.length} Awaiting Payment
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px]">
+                            All Settled &amp; Deposited
+                          </Badge>
+                        )}
                       </CardTitle>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Advance rent settlements awaiting tenant transfer to your designated bank account.
+                        Advance rent settlements and clearance history for your leased properties.
                       </p>
+                    </div>
+
+                    {/* Filter Tabs: All, Pending, Cleared */}
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLandlordStatusFilter("all");
+                          setLandlordPage(1);
+                        }}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                          landlordStatusFilter === "all"
+                            ? "bg-white text-slate-900 shadow-2xs font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        All ({resolvedLandlordCollections.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLandlordStatusFilter("pending");
+                          setLandlordPage(1);
+                        }}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                          landlordStatusFilter === "pending"
+                            ? "bg-white text-slate-900 shadow-2xs font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Pending ({pendingLandlordCollections.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLandlordStatusFilter("cleared");
+                          setLandlordPage(1);
+                        }}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                          landlordStatusFilter === "cleared"
+                            ? "bg-white text-slate-900 shadow-2xs font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Cleared ({clearedLandlordCollections.length})
+                      </button>
                     </div>
                   </div>
                 </CardHeader>
@@ -1201,14 +1467,25 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPendingLandlordCollections.length === 0 ? (
+                      {filteredLandlordCollections.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-10 text-xs text-slate-400">
-                            No pending rental collections match your search.
+                            <div>No rental collections match the selected filter.</div>
+                            {landlordStatusFilter !== "all" && (
+                              <button
+                                onClick={() => {
+                                  setLandlordStatusFilter("all");
+                                  setLandlordPage(1);
+                                }}
+                                className="mt-2 text-emerald-800 font-semibold underline text-xs cursor-pointer block mx-auto"
+                              >
+                                View all {resolvedLandlordCollections.length} collections
+                              </button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        paginatedPendingLandlordCollections.map((col) => {
+                        paginatedLandlordCollections.map((col) => {
                           const isSelected = selectedCollection?.id === col.id;
 
                           return (
@@ -1229,7 +1506,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                               <TableCell className="text-xs">
                                 <div className="font-medium text-slate-900">{col.propertyTitle}</div>
                                 <div className="text-[11px] text-slate-500 font-normal">
-                                  First {col.advancePaymentMonths} Months Advance
+                                  {col.periodLabel || `First ${col.advancePaymentMonths} Months Advance`}
                                 </div>
                               </TableCell>
 
@@ -1261,9 +1538,22 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                               </TableCell>
 
                               <TableCell>
-                                <Badge variant="pending" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
-                                  Awaiting Tenant Settlement
-                                </Badge>
+                                {col.status === "Cleared" ? (
+                                  <Badge className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold gap-1">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>Cleared &amp; Deposited</span>
+                                  </Badge>
+                                ) : col.status === "Overdue" ? (
+                                  <Badge className="text-[10px] bg-rose-50 text-rose-800 border-rose-200 font-semibold gap-1">
+                                    <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                                    <span>Overdue</span>
+                                  </Badge>
+                                ) : (
+                                  <Badge className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 font-semibold gap-1">
+                                    <Clock className="w-2.5 h-2.5 text-amber-600" />
+                                    <span>Awaiting Payment</span>
+                                  </Badge>
+                                )}
                               </TableCell>
 
                               <TableCell className="text-right">
@@ -1292,12 +1582,12 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                   <div className="p-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                     <span>
                       Showing{" "}
-                      {filteredPendingLandlordCollections.length > 0
+                      {filteredLandlordCollections.length > 0
                         ? (landlordPage - 1) * itemsPerPage + 1
                         : 0}{" "}
                       to{" "}
-                      {Math.min(landlordPage * itemsPerPage, filteredPendingLandlordCollections.length)} of{" "}
-                      {filteredPendingLandlordCollections.length} pending collections
+                      {Math.min(landlordPage * itemsPerPage, filteredLandlordCollections.length)} of{" "}
+                      {filteredLandlordCollections.length} collections
                     </span>
 
                     <div className="flex items-center gap-1.5">
@@ -1337,15 +1627,32 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[10px] uppercase font-semibold text-slate-400 block">
-                        Pending Collection Details
+                        {selectedCollection.status === "Cleared"
+                          ? "Cleared Collection Details"
+                          : selectedCollection.status === "Overdue"
+                          ? "Overdue Collection Details"
+                          : "Pending Collection Details"}
                       </span>
                       <CardTitle className="text-base font-semibold text-slate-900 mt-0.5">
                         {selectedCollection.requestCode}
                       </CardTitle>
                     </div>
-                    <Badge className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
-                      Awaiting Settlement
-                    </Badge>
+                    {selectedCollection.status === "Cleared" ? (
+                      <Badge className="text-[10px] bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold gap-1">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                        <span>Cleared &amp; Deposited</span>
+                      </Badge>
+                    ) : selectedCollection.status === "Overdue" ? (
+                      <Badge className="text-[10px] bg-rose-50 text-rose-800 border-rose-200 font-semibold gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                        <span>Overdue</span>
+                      </Badge>
+                    ) : (
+                      <Badge className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 font-semibold gap-1">
+                        <Clock className="w-2.5 h-2.5 text-amber-600" />
+                        <span>Awaiting Payment</span>
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 mt-1">{selectedCollection.propertyTitle}</p>
                   <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
@@ -1403,7 +1710,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
 
                     <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
                       <span className="text-xs font-semibold uppercase text-slate-500">
-                        Total Payout Expected
+                        {selectedCollection.status === "Cleared" ? "Total Amount Deposited" : "Total Payout Expected"}
                       </span>
                       <span className="text-xl font-bold text-slate-900">
                         ETB {selectedCollection.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -1439,7 +1746,11 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                         )}
                         <div className="pt-1 flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
                           <Check className="w-3.5 h-3.5" />
-                          <span>Active Payout Account</span>
+                          <span>
+                            {selectedCollection.status === "Cleared"
+                              ? "Cleared & Deposited to Account"
+                              : "Active Payout Account"}
+                          </span>
                         </div>
                       </div>
                     ) : (

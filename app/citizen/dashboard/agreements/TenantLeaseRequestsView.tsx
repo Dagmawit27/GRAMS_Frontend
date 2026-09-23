@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LeaseRequestResponse, getMyLeaseRequests, cancelLeaseRequest, getSession, deleteLeaseRequest } from "@/lib/api";
+import { sseManager } from "@/lib/sseManager";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,14 +56,18 @@ export const TenantLeaseRequestsView: React.FC = () => {
   // SSE connection for real-time lease status updates
   useEffect(() => {
     const session = getSession();
-    if (!session?.user?.email) return;
+    const tenantUserId = session?.user?.email;
+    const userId = session?.user?.id;
+    if (!tenantUserId && !userId) return;
 
-    const tenantUserId = session.user.email;
-    console.log("TenantLeaseRequestsView: Using global SSE manager for userId:", tenantUserId);
-
-    // Use global SSE manager
-    const { sseManager } = require('@/lib/sseManager');
-    sseManager.connect(tenantUserId);
+    if (tenantUserId) {
+      console.log("TenantLeaseRequestsView: Using global SSE manager for email:", tenantUserId);
+      sseManager.connect(tenantUserId.trim());
+      sseManager.connect(tenantUserId.trim().toLowerCase());
+    }
+    if (userId) {
+      sseManager.connect(userId.trim());
+    }
 
     // Listen for notifications
     const unsubscribe = sseManager.onNotification((notification: any) => {
@@ -83,9 +88,9 @@ export const TenantLeaseRequestsView: React.FC = () => {
       ) {
         console.log("TenantLeaseRequestsView: Lease status changed, reloading...");
         setTimeout(() => {
-          const session = getSession();
-          if (session?.token) {
-            getMyLeaseRequests(session.token)
+          const currentSession = getSession();
+          if (currentSession?.token) {
+            getMyLeaseRequests(currentSession.token)
               .then((data) => {
                 setLeaseRequests(data);
               })
@@ -93,7 +98,7 @@ export const TenantLeaseRequestsView: React.FC = () => {
                 console.error("Failed to reload lease requests:", err);
               });
           }
-        }, 500);
+        }, 300);
       }
     });
 

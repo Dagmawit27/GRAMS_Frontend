@@ -164,7 +164,7 @@ export default function PropertyDetailPage() {
                   <div className="flex items-start gap-3">
                     <Shield className="w-5 h-5 text-slate-400 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Security Deposit</p>
+                      <p className="text-xs text-slate-500">Advance Rent</p>
                       <p className="font-medium text-slate-900">
                         {(leaseRequest.securityDeposit || leaseRequest.proposedRent * 2).toLocaleString()} ETB
                       </p>
