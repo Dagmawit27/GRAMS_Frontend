@@ -64,15 +64,14 @@ export default function TaxOfficerDashboardPage() {
     },
   ];
 
-  // Progressive Tax Bracket Data
+  // Progressive Tax Bracket Data (Amendment Proclamation No. 1395/2017 E.C.)
   const taxBrackets = [
-    { range: "0 - 7,200 ETB", rate: "EXEMPT (0%)", count: "1,410 landlords", color: "bg-slate-400" },
-    { range: "7,201 - 19,800 ETB", rate: "10% BRACKET", count: "2,320 landlords", color: "bg-emerald-400" },
-    { range: "19,801 - 38,400 ETB", rate: "15% BRACKET", count: "3,140 landlords", color: "bg-emerald-500" },
-    { range: "38,401 - 63,000 ETB", rate: "20% BRACKET", count: "2,890 landlords", color: "bg-emerald-600" },
-    { range: "63,001 - 93,600 ETB", rate: "25% BRACKET", count: "2,110 landlords", color: "bg-emerald-700" },
-    { range: "93,601 - 120,000 ETB", rate: "30% BRACKET", count: "1,470 landlords", color: "bg-emerald-800" },
-    { range: "> 120,000 ETB/yr", rate: "35% MAXIMUM", count: "1,480 landlords", color: "bg-[#00450d]" },
+    { range: "0 - 24,000 ETB", rate: "EXEMPT (0%)", count: "2,840 landlords", color: "bg-slate-400" },
+    { range: "24,001 - 48,000 ETB", rate: "15% BRACKET", count: "3,120 landlords", color: "bg-emerald-400" },
+    { range: "48,001 - 84,000 ETB", rate: "20% BRACKET", count: "3,890 landlords", color: "bg-emerald-500" },
+    { range: "84,001 - 120,000 ETB", rate: "25% BRACKET", count: "2,450 landlords", color: "bg-emerald-600" },
+    { range: "120,001 - 168,000 ETB", rate: "30% BRACKET", count: "1,670 landlords", color: "bg-emerald-700" },
+    { range: "> 168,000 ETB/yr", rate: "35% MAXIMUM", count: "1,280 landlords", color: "bg-[#00450d]" },
   ];
 
   // Discrepancy Queue Items (exact match to Image 1)

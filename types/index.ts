@@ -60,7 +60,7 @@ export interface Property {
   galleryImages: string[];
   description: string;
   amenities: string[];
-  securityDepositMonths: number;
+  advanceRent: number;
   minLeasePeriod: string;
   utilitiesIncluded: boolean;
   availableFrom?: string;
@@ -106,7 +106,7 @@ export interface LeaseRequest {
   counterpartyInitials?: string;
   counterpartyRole?: 'Tenant' | 'Landlord';
   proposedRent: number;
-  securityDeposit?: number;
+  advanceRent?: number;
   advancePaymentMonths?: number;
   leaseDuration?: string;
   startDate?: string;

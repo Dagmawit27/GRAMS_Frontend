@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Scale,
   Check,
+  Layers,
 } from "lucide-react";
 import {
   getSession,
@@ -101,50 +102,9 @@ export default function TaxRecordPage() {
       const data = await getRentalTaxSummary(session.token);
       setTaxSummary(data);
     } catch (err: any) {
-      console.warn("Could not load backend tax summary, using default layout:", err);
-      // Fallback display if backend is offline
-      setTaxSummary({
-        fiscalYear: "EFY 2018 (2025/2026 G.C.)",
-        taxpayerName: `${session.user?.firstName || "Landlord"} ${session.user?.lastName || "Taxpayer"}`.trim(),
-        tinNumber: "TIN: 0092817263",
-        totalGrossRentalIncome: 64000,
-        totalEstimatedAnnualTax: 5800,
-        effectiveTaxRate: 9.1,
-        filingStatus: "SUMMER_WINDOW_OPEN",
-        summerFilingDeadline: "Nehase 30, 2018 E.C. (September 5, 2026)",
-        isSummerWindowOpen: true,
-        agreements: [
-          {
-            agreementId: "agr-1",
-            agreementNumber: "AGR-2026-0891",
-            requestCode: "LR1788812633022570",
-            propertyCode: "PROP-BOLE-W03",
-            propertyTitle: "Luxury Bole Atlas Residential Apartment",
-            tenantName: "Dagmawit Mesfin",
-            tenantTin: "TIN: 0092817263",
-            monthlyRent: 32000,
-            monthsCounted: 2,
-            grossIncome: 64000,
-            accruedTaxContribution: 5800,
-            status: "ACTIVE",
-          },
-        ],
-        monthlyAccruals: [
-          { ethiopianMonth: "Meskerem", gregorianMonth: "Sept / Oct 2025", rentalIncome: 32000, accruedTax: 2900, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Tikimt", gregorianMonth: "Oct / Nov 2025", rentalIncome: 32000, accruedTax: 2900, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Hidar", gregorianMonth: "Nov / Dec 2025", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Tahsas", gregorianMonth: "Dec / Jan 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Tir", gregorianMonth: "Jan / Feb 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Yakatit", gregorianMonth: "Feb / Mar 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Megabit", gregorianMonth: "Mar / Apr 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Miazia", gregorianMonth: "Apr / May 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Ginbot", gregorianMonth: "May / Jun 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Sene", gregorianMonth: "Jun / Jul 2026", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: false, isSettled: false },
-          { ethiopianMonth: "Hamle", gregorianMonth: "Jul / Aug 2026 (Summer Settlement Window)", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: true, isSettled: false },
-          { ethiopianMonth: "Nehase", gregorianMonth: "Aug / Sept 2026 (Summer Deadline)", rentalIncome: 0, accruedTax: 0, isSummerSettlementMonth: true, isSettled: false },
-        ],
-        legalProclamationNotice: "በኢትዮጵያ ሕግ መሠረት የቤት ኪራይ ገቢ ግብር በ«ሸለቆ B» (Schedule B) ስር የሚመደብ ሲሆን፣ አከራዮች ከቤት ኪራይ ከሚያገኙት ዓመታዊ ገቢ ላይ ግብር የመክፈል ግዴታ አለባቸው።",
-      });
+      console.error("Failed to load tax summary:", err);
+      showToast("Failed to load tax data. Please try again.");
+      setTaxSummary(null);
     } finally {
       setLoading(false);
     }
@@ -299,6 +259,10 @@ export default function TaxRecordPage() {
             <span className="font-mono bg-white/10 px-2 py-0.5 rounded font-bold">
               {taxSummary?.tinNumber || "TIN: Pending"}
             </span>
+            <span className="text-emerald-400/50">•</span>
+            <span className="bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 rounded font-semibold text-white">
+              {taxSummary?.totalAgreementsCount || taxSummary?.agreements?.length || 0} Active Contract(s) ({(taxSummary?.totalContractedMonthlyRent || 0).toLocaleString()} ETB/mo)
+            </span>
             <button
               type="button"
               onClick={() => {
@@ -359,74 +323,129 @@ export default function TaxRecordPage() {
       )}
 
       {/* --------------------------------------------------------------------- */}
-      {/* 3. FOUR KPI SUMMARY CARDS                                             */}
+      {/* 3. SIX STATUTORY TAX LEDGER KPI CARDS                                */}
       {/* --------------------------------------------------------------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: Cumulative Rental Income */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+        {/* Card 1: All Active Agreements & Monthly Contracted Rent */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Cumulative Rental Income
+              All Active Contracts
             </span>
             <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center">
-              <Building className="w-4 h-4 text-emerald-700" />
+              <Layers className="w-4 h-4 text-emerald-700" />
             </div>
           </div>
           <div className="pt-1">
-            <div className="text-2xl font-black text-slate-900 font-mono leading-none">
-              {(taxSummary?.totalGrossRentalIncome || 0).toLocaleString()} <span className="text-xs font-bold text-slate-500">ETB</span>
+            <div className="text-xl font-black text-slate-900 font-mono leading-none">
+              {(taxSummary?.totalContractedMonthlyRent || 0).toLocaleString()} <span className="text-xs font-bold text-slate-500">ETB/mo</span>
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              Accrued from {taxSummary?.agreements?.length || 0} active lease agreement(s)
+              {taxSummary?.totalAgreementsCount || taxSummary?.agreements?.length || 0} active agreement(s)
             </p>
+            <div className="text-[10px] text-emerald-700 font-semibold mt-1">
+              Projected: {(taxSummary?.projectedAnnualGrossIncome || 0).toLocaleString()} ETB/yr
+            </div>
           </div>
         </div>
 
-        {/* Card 2: Accrued Schedule B Tax Liability */}
+        {/* Card 2: Cumulative Cash Rental Income (Collected) */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Accrued Schedule B Tax
+              Cash Collected
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 flex items-center justify-center">
+              <Building className="w-4 h-4 text-teal-700" />
+            </div>
+          </div>
+          <div className="pt-1">
+            <div className="text-xl font-black text-slate-900 font-mono leading-none">
+              {(taxSummary?.totalGrossRentalIncome || 0).toLocaleString()} <span className="text-xs font-bold text-slate-500">ETB</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              {taxSummary?.totalMonthsPaid || 0} month(s) paid
+            </p>
+            <div className="text-[10px] text-slate-400 mt-1">
+              Cash-basis declared
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: 50% Statutory Expense Allowance (Article 15) */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+              50% Statutory Relief
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+            </div>
+          </div>
+          <div className="pt-1">
+            <div className="text-xl font-black text-emerald-700 font-mono leading-none">
+              - {(((taxSummary?.totalGrossRentalIncome || 0) * 0.50)).toLocaleString()} <span className="text-xs font-bold text-slate-500">ETB</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Taxable: {(((taxSummary?.totalGrossRentalIncome || 0) * 0.50)).toLocaleString()} ETB
+            </p>
+            <div className="text-[10px] text-emerald-600 mt-1">
+              50% deduction (Art. 15)
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Accrued Schedule B Tax Liability */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+              Accrued Tax
             </span>
             <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 flex items-center justify-center">
               <Landmark className="w-4 h-4 text-amber-700" />
             </div>
           </div>
           <div className="pt-1">
-            <div className="text-2xl font-black text-[#00450d] font-mono leading-none">
+            <div className="text-xl font-black text-[#00450d] font-mono leading-none">
               {(taxSummary?.totalEstimatedAnnualTax || 0).toLocaleString()} <span className="text-xs font-bold text-slate-500">ETB</span>
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              Calculated via Proclamation No. 979/2016
+              {taxSummary?.taxBracketPercentage ?? 0}% Bracket Rate
             </p>
+            <div className="text-[10px] text-slate-400 mt-1">
+              Effective: {taxSummary?.effectiveTaxRate?.toFixed(1) || 0}%
+            </div>
           </div>
         </div>
 
-        {/* Card 3: Effective Tax Rate */}
+        {/* Card 5: Net Income After Tax */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Effective Tax Rate
+              Net After Tax
             </span>
             <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center justify-center">
-              <Receipt className="w-4 h-4 text-blue-700" />
+              <CreditCard className="w-4 h-4 text-blue-700" />
             </div>
           </div>
           <div className="pt-1">
-            <div className="text-2xl font-black text-slate-900 font-mono leading-none">
-              {taxSummary?.effectiveTaxRate || 0}% <span className="text-xs font-bold text-slate-500">Net</span>
+            <div className="text-xl font-black text-blue-700 font-mono leading-none">
+              {(taxSummary?.netIncomeAfterTax || 0).toLocaleString()} <span className="text-xs font-bold text-slate-500">ETB</span>
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              Progressive marginal scale (0% – 35%)
+              Gains minus accrued tax
             </p>
+            <div className="text-[10px] text-blue-600 mt-1">
+              Retained landlord profit
+            </div>
           </div>
         </div>
 
-        {/* Card 4: Settlement Status */}
+        {/* Card 6: Settlement Status */}
         <div className={`border rounded-xl p-4 shadow-2xs space-y-2 ${isCleared ? "bg-emerald-50/50 border-emerald-300" : "bg-white border-slate-200"}`}>
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Settlement Status
+              MOR Status
             </span>
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isCleared ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
               {isCleared ? <CheckCircle2 className="w-4 h-4 text-emerald-700" /> : <Clock className="w-4 h-4 text-amber-700" />}
@@ -434,11 +453,14 @@ export default function TaxRecordPage() {
           </div>
           <div className="pt-1">
             <div className={`text-base font-black leading-tight ${isCleared ? "text-emerald-800" : "text-amber-800"}`}>
-              {isCleared ? "Tax Cleared & Certified" : "Accruing for Summer Payment"}
+              {isCleared ? "Cleared & Settled" : "Accruing Monthly"}
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              {isCleared ? `Ref: ${certNumber}` : "Payable Hamle 1 – Nehase 30"}
+              {isCleared ? `Ref: ${certNumber}` : "Summer MOR Window"}
             </p>
+            <div className="text-[10px] text-slate-400 mt-1">
+              {taxSummary?.fiscalYear || "EFY 2018"}
+            </div>
           </div>
         </div>
       </div>
@@ -464,46 +486,79 @@ export default function TaxRecordPage() {
 
         {/* Schedule B Bracket Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 text-xs">
-          <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-center space-y-0.5">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase">እስከ 24,000 ብር</span>
-            <span className="block text-base font-black text-emerald-700 font-mono">0%</span>
-            <span className="block text-[10px] text-slate-500">ግብር ነፃ</span>
+          <div className={`p-2.5 rounded-xl text-center space-y-0.5 ${taxSummary?.taxBracketPercentage === 0 ? "bg-emerald-50 border border-emerald-200 ring-1 ring-emerald-300" : "bg-white border border-slate-200"}`}>
+            <span className={`block text-[10px] font-bold uppercase ${taxSummary?.taxBracketPercentage === 0 ? "text-emerald-800" : "text-slate-400"}`}>እስከ 24,000 ብር</span>
+            <span className={`block text-base font-black font-mono ${taxSummary?.taxBracketPercentage === 0 ? "text-emerald-800" : "text-slate-900"}`}>0%</span>
+            <span className={`block text-[10px] ${taxSummary?.taxBracketPercentage === 0 ? "text-emerald-700" : "text-slate-500"}`}>ግብር ነፃ</span>
           </div>
 
-          <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-center space-y-0.5">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase">24,001 - 48,000</span>
-            <span className="block text-base font-black text-slate-900 font-mono">15%</span>
-            <span className="block text-[10px] text-slate-500">መቀነሻ 3,600 ብር</span>
+          <div className={`p-2.5 rounded-xl text-center space-y-0.5 ${taxSummary?.taxBracketPercentage === 15 ? "bg-emerald-50 border border-emerald-200 ring-1 ring-emerald-300" : "bg-white border border-slate-200"}`}>
+            <span className={`block text-[10px] font-bold uppercase ${taxSummary?.taxBracketPercentage === 15 ? "text-emerald-800" : "text-slate-400"}`}>24,001 - 48,000</span>
+            <span className={`block text-base font-black font-mono ${taxSummary?.taxBracketPercentage === 15 ? "text-emerald-800" : "text-slate-900"}`}>15%</span>
+            <span className={`block text-[10px] ${taxSummary?.taxBracketPercentage === 15 ? "text-emerald-700" : "text-slate-500"}`}>መቀነሻ 3,600 ብር</span>
           </div>
 
-          <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-center space-y-0.5">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase">48,001 - 84,000</span>
-            <span className="block text-base font-black text-slate-900 font-mono">20%</span>
-            <span className="block text-[10px] text-slate-500">መቀነሻ 6,000 ብር</span>
+          <div className={`p-2.5 rounded-xl text-center space-y-0.5 ${taxSummary?.taxBracketPercentage === 20 ? "bg-emerald-50 border border-emerald-200 ring-1 ring-emerald-300" : "bg-white border border-slate-200"}`}>
+            <span className={`block text-[10px] font-bold uppercase ${taxSummary?.taxBracketPercentage === 20 ? "text-emerald-800" : "text-slate-400"}`}>48,001 - 84,000</span>
+            <span className={`block text-base font-black font-mono ${taxSummary?.taxBracketPercentage === 20 ? "text-emerald-800" : "text-slate-900"}`}>20%</span>
+            <span className={`block text-[10px] ${taxSummary?.taxBracketPercentage === 20 ? "text-emerald-700" : "text-slate-500"}`}>መቀነሻ 6,000 ብር</span>
           </div>
 
-          <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-center space-y-0.5">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase">84,001 - 120,000</span>
-            <span className="block text-base font-black text-slate-900 font-mono">25%</span>
-            <span className="block text-[10px] text-slate-500">መቀነሻ 10,200 ብር</span>
+          <div className={`p-2.5 rounded-xl text-center space-y-0.5 ${taxSummary?.taxBracketPercentage === 25 ? "bg-emerald-50 border border-emerald-200 ring-1 ring-emerald-300" : "bg-white border border-slate-200"}`}>
+            <span className={`block text-[10px] font-bold uppercase ${taxSummary?.taxBracketPercentage === 25 ? "text-emerald-800" : "text-slate-400"}`}>84,001 - 120,000</span>
+            <span className={`block text-base font-black font-mono ${taxSummary?.taxBracketPercentage === 25 ? "text-emerald-800" : "text-slate-900"}`}>25%</span>
+            <span className={`block text-[10px] ${taxSummary?.taxBracketPercentage === 25 ? "text-emerald-700" : "text-slate-500"}`}>መቀነሻ 10,200 ብር</span>
           </div>
 
-          <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-center space-y-0.5">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase">120,001 - 168,000</span>
-            <span className="block text-base font-black text-slate-900 font-mono">30%</span>
-            <span className="block text-[10px] text-slate-500">መቀነሻ 16,200 ብር</span>
+          <div className={`p-2.5 rounded-xl text-center space-y-0.5 ${taxSummary?.taxBracketPercentage === 30 ? "bg-emerald-50 border border-emerald-200 ring-1 ring-emerald-300" : "bg-white border border-slate-200"}`}>
+            <span className={`block text-[10px] font-bold uppercase ${taxSummary?.taxBracketPercentage === 30 ? "text-emerald-800" : "text-slate-400"}`}>120,001 - 168,000</span>
+            <span className={`block text-base font-black font-mono ${taxSummary?.taxBracketPercentage === 30 ? "text-emerald-800" : "text-slate-900"}`}>30%</span>
+            <span className={`block text-[10px] ${taxSummary?.taxBracketPercentage === 30 ? "text-emerald-700" : "text-slate-500"}`}>መቀነሻ 16,200 ብር</span>
           </div>
 
-          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-0.5">
-            <span className="block text-[10px] font-bold text-emerald-800 uppercase">ከ 168,000 በላይ</span>
-            <span className="block text-base font-black text-emerald-800 font-mono">35%</span>
-            <span className="block text-[10px] text-emerald-700">መቀነሻ 24,600 ብር</span>
+          <div className={`p-2.5 rounded-xl text-center space-y-0.5 ${taxSummary?.taxBracketPercentage === 35 ? "bg-emerald-50 border border-emerald-200 ring-1 ring-emerald-300" : "bg-white border border-slate-200"}`}>
+            <span className={`block text-[10px] font-bold uppercase ${taxSummary?.taxBracketPercentage === 35 ? "text-emerald-800" : "text-slate-400"}`}>ከ 168,000 በላይ</span>
+            <span className={`block text-base font-black font-mono ${taxSummary?.taxBracketPercentage === 35 ? "text-emerald-800" : "text-slate-900"}`}>35%</span>
+            <span className={`block text-[10px] ${taxSummary?.taxBracketPercentage === 35 ? "text-emerald-700" : "text-slate-500"}`}>መቀነሻ 24,600 ብር</span>
           </div>
         </div>
 
         <div className="text-[11px] text-slate-500 pt-1 flex items-center justify-between">
           <span>* የሕግ ሰውነት ያላቸው ድርጅቶች/ተቋማት ከጠቅላላ የኪራይ ገቢያቸው ላይ ቋሚ 30% ጠፍጣፋ ግብር (Flat 30%) ይከፍላሉ።</span>
           <span className="font-semibold text-[#00450d]">የገቢዎች ሚኒስቴር / MOR</span>
+        </div>
+
+        {/* Proclamation Principles: 50% Deduction, Multi-Contract Aggregation & 30% Corporate Rate */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
+          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>50% Statutory Relief (አንቀጽ 15(5)(ለ))</span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Under Proclamation No. 979/2016 Article 15(5)(b), individual landlords without accounting books receive an automatic 50% gross deduction for depreciation and maintenance. Tax applies only to the remaining 50%.
+            </p>
+          </div>
+
+          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#00450d]">
+              <Layers className="w-3.5 h-3.5 text-[#00450d]" />
+              <span>Multi-Contract Aggregation (የኪራይ ውሎች ድምር)</span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Rental tax is assessed per taxpayer, not per unit. When new active agreements are registered, their contracted rents and collected revenues are automatically combined into your consolidated Schedule B ledger.
+            </p>
+          </div>
+
+          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <Building className="w-3.5 h-3.5 text-slate-600" />
+              <span>Flat 30% Corporate Tax (የድርጅት ቋሚ ተመን)</span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Bodies and corporate entities pay a flat 30% rental tax on net rental income. Progressive brackets (0% – 35%) apply strictly to individual citizen landlords.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -541,18 +596,35 @@ export default function TaxRecordPage() {
       {/* TAB 1: AGREEMENT-BY-AGREEMENT TABLE */}
       {activeTab === "agreements" && (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900">
-                Registered Rental Agreements & Tax Accrual
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Registered Rental Agreements & Multi-Contract Aggregation
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#00450d] text-[10px] font-bold font-mono">
+                  {taxSummary?.totalAgreementsCount || taxSummary?.agreements?.length || 0} Active
+                </span>
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Every rent cycle collected counts toward your annual Schedule B gross rental income.
+                Every active agreement and completed payment is aggregated to determine your combined monthly rent and annual tax tier.
               </p>
             </div>
-            <span className="text-xs font-bold text-slate-600 font-mono">
-              Total Accrued: {(taxSummary?.totalEstimatedAnnualTax || 0).toLocaleString()} ETB
-            </span>
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <div className="text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Combined Monthly Rent</div>
+                <div className="text-sm font-black text-slate-900">
+                  {(taxSummary?.totalContractedMonthlyRent || 0).toLocaleString()} ETB/mo
+                </div>
+              </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div className="text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-500">Projected Annual Gross</div>
+                <div className="text-sm font-black text-[#00450d]">
+                  {(taxSummary?.projectedAnnualGrossIncome || 0).toLocaleString()} ETB/yr
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

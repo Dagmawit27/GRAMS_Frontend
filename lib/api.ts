@@ -286,7 +286,7 @@ export interface PropertyRequest {
   specificLandmark?: string;
   cadastralParcelId?: string;
   titleDeedNumber?: string;
-  securityDepositMonths?: number;
+  advanceRent?: number;
   minLeasePeriod?: string;
   availableFrom?: string;
 }
@@ -314,12 +314,12 @@ export interface PropertyResponse {
   areaSqMeter?: number;
   monthlyRent: number;
   furnishingStatus?: string;
-  description?: string;
+  description?: string; 
   ownershipType?: string;
   specificLandmark?: string;
   cadastralParcelId?: string;
   titleDeedNumber?: string;
-  securityDepositMonths?: number;
+  advanceRent?: number;
   minLeasePeriod?: string;
   availableFrom?: string;
   status: PropertyStatus;
@@ -1317,6 +1317,12 @@ export interface TaxSummaryResponse {
   totalGrossRentalIncome: number;
   totalEstimatedAnnualTax: number;
   effectiveTaxRate: number;
+  netIncomeAfterTax: number;
+  taxBracketPercentage: number;
+  totalMonthsPaid: number;
+  totalAgreementsCount?: number;
+  totalContractedMonthlyRent?: number;
+  projectedAnnualGrossIncome?: number;
   filingStatus: string;
   summerFilingDeadline: string;
   isSummerWindowOpen: boolean;

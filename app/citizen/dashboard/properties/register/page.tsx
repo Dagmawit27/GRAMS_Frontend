@@ -123,7 +123,7 @@ export const RegisterPropertyPage: React.FC = () => {
     }
   }, []);
   const [monthlyRent, setMonthlyRent] = useState("45000");
-  const [securityDepositMonths, setSecurityDepositMonths] = useState("2");
+  const [advanceRent, setAdvanceRent] = useState("2");
   const [minLeasePeriod, setMinLeasePeriod] = useState("2 Year");
   // Step 2: Property Details
   const [propertyType, setPropertyType] = useState<MainPropertyType>("Villa");
@@ -777,7 +777,7 @@ export const RegisterPropertyPage: React.FC = () => {
       specificLandmark: specificLandmark?.trim() || undefined,
       cadastralParcelId: cadastralParcelId?.trim() || undefined,
       titleDeedNumber: titleDeedNumber?.trim() || undefined,
-      securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
+      advanceRent: parseInt(advanceRent, 10) || 2,
       minLeasePeriod: minLeasePeriod || "2 Year",
       units: propertyType === "Shopping Mall" && commercialSubType === "shopping-mall"
         ? mallUnits.map((unit) => ({
@@ -833,7 +833,7 @@ export const RegisterPropertyPage: React.FC = () => {
           : propertyImages.map((i) => i.url),
         description,
         amenities: [],
-        securityDepositMonths: parseInt(securityDepositMonths, 10) || 2,
+        advanceRent: parseInt(advanceRent, 10) || 2,
         minLeasePeriod,
         utilitiesIncluded: false,
         landlordName: landlordName || "Landlord",
@@ -1126,8 +1126,8 @@ export const RegisterPropertyPage: React.FC = () => {
                       Advance Rent
                     </label>
                     <select
-                      value={securityDepositMonths}
-                      onChange={(e) => setSecurityDepositMonths(e.target.value)}
+                      value={advanceRent}
+                      onChange={(e) => setAdvanceRent(e.target.value)}
                       className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#00450d]"
                     >
                       <option value="1">1 Month Rent</option>
@@ -2713,7 +2713,7 @@ export const RegisterPropertyPage: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Deposit & Lease:</span>
-                      <span className="font-semibold text-slate-900">{securityDepositMonths} Mo. / {minLeasePeriod}</span>
+                      <span className="font-semibold text-slate-900">{advanceRent} Mo. / {minLeasePeriod}</span>
                     </div>
                   </div>
                 </div>

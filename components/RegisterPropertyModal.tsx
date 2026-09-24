@@ -37,6 +37,7 @@ export const RegisterPropertyModal: React.FC<RegisterPropertyModalProps> = ({
   const [houseNo, setHouseNo] = useState("456/A");
   const [ownershipType, setOwnershipType] = useState("Private");
   const [area, setArea] = useState("120");
+  const [advanceRent, setAdvanceRent] = useState(1);
   const [description, setDescription] = useState("");
 
   // Villa Specs
@@ -189,7 +190,7 @@ export const RegisterPropertyModal: React.FC<RegisterPropertyModalProps> = ({
       galleryImages: [],
       description: description || `Government registered ${propType} property under GRAMS municipal verification.`,
       amenities: ["Backup Generator", "Dedicated Water Tank", "24/7 Security", "Compound Parking"],
-      securityDepositMonths: 2,
+      advanceRent: advanceRent,
       minLeasePeriod: "1 Year",
       utilitiesIncluded: false,
       availableFrom: "Immediate",
@@ -695,6 +696,40 @@ export const RegisterPropertyModal: React.FC<RegisterPropertyModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Advance Rent Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Advance Rent Payment (Months)
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAdvanceRent(1)}
+                className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${
+                  advanceRent === 1
+                    ? "bg-[#00450d] text-white border-[#00450d]"
+                    : "bg-white text-slate-700 border-slate-200"
+                }`}
+              >
+                1 Month
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdvanceRent(2)}
+                className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${
+                  advanceRent === 2
+                    ? "bg-[#00450d] text-white border-[#00450d]"
+                    : "bg-white text-slate-700 border-slate-200"
+                }`}
+              >
+                2 Months
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1">
+              Tenant pays this amount upfront when agreement is activated
+            </p>
+          </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="h-9 text-xs">
