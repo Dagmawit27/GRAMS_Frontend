@@ -60,7 +60,8 @@ export interface Property {
   galleryImages: string[];
   description: string;
   amenities: string[];
-  advanceRent: number;
+  advanceRent?: number;
+  securityDepositMonths?: number;
   minLeasePeriod: string;
   utilitiesIncluded: boolean;
   availableFrom?: string;
@@ -108,6 +109,7 @@ export interface LeaseRequest {
   proposedRent: number;
   advanceRent?: number;
   advancePaymentMonths?: number;
+  securityDeposit?: number;
   leaseDuration?: string;
   startDate?: string;
   endDate?: string;

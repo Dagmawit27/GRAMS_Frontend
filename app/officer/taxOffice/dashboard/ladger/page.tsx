@@ -24,6 +24,58 @@ import {
   AlertCircle,
   FileCheck2,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const TaxLedgerSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* Header & KPI Summary Skeleton */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-7 w-80" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+        </div>
+        <div className="flex items-center gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-slate-200/90 rounded-xl px-4 py-2.5 shadow-2xs space-y-1.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filter Bar Skeleton */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <Skeleton className="h-9 w-72 rounded-lg" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-28 rounded-lg" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Table Skeleton */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden p-4 space-y-3">
+        {[1, 2, 3, 4, 5, 6].map((j) => (
+          <div key={j} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-8 w-20 rounded-lg" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface LandlordRecord {
   id: string;
@@ -176,6 +228,19 @@ export default function LandlordTaxLedgerPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  const [isReady, setIsReady] = useState(false);
+  React.useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <TaxOfficerLayout activeNav="tax-landlord-ledger">
+        <TaxLedgerSkeleton />
+      </TaxOfficerLayout>
+    );
+  }
 
   return (
     <TaxOfficerLayout activeNav="tax-landlord-ledger">

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Property } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -434,22 +435,27 @@ export const SearchHousePage: React.FC<SearchHousePageProps> = (props) => {
         </div>
       ) : isLoading ? (
         /* Loading State */
-        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 space-y-4 shadow-xs">
-          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto">
-            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-          <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="text-base font-semibold text-slate-900">
-              Searching Registry
-            </h3>
-            <p className="text-xs text-slate-500">
-              Looking up property code{" "}
-              <span className="font-mono font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
-                {submittedCode}
-              </span>
-            </p>
-          </div>
-        </div>
+        <Card className="bg-white border-slate-200 rounded-2xl overflow-hidden shadow-2xs animate-in fade-in duration-100">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Skeleton className="h-44 w-full rounded-xl" />
+              <div className="md:col-span-2 space-y-3">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                </div>
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ) : error ? (
         /* Error State */
         <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 space-y-4 shadow-xs">

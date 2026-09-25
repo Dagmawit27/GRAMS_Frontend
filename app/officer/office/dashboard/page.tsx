@@ -19,6 +19,69 @@ import {
   XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const OfficerDashboardSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* 3 Metrics Cards Skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="flex justify-between items-start">
+              <Skeleton className="h-3.5 w-36" />
+              <Skeleton className="w-8 h-8 rounded-lg" />
+            </div>
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ))}
+      </div>
+
+      {/* 2-Column Queues Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {[1, 2].map((col) => (
+          <div key={col} className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3.5 w-16" />
+            </div>
+            <div className="space-y-2.5">
+              {[1, 2, 3, 4].map((j) => (
+                <div key={j} className="p-3.5 rounded-xl border border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-3.5 w-44" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Forwarded to Supervisor Skeleton */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3.5">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-3.5 w-20" />
+        </div>
+        <div className="space-y-2">
+          {[1, 2, 3].map((k) => (
+            <div key={k} className="p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+              <Skeleton className="h-4 w-56" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function OfficerDashboardPage() {
   const router = useRouter();
@@ -96,6 +159,10 @@ export default function OfficerDashboardPage() {
   }).length;
   const agreementsToReview = rejectedProperties.length;
   const allForwarded = verifiedProperties;
+
+  if (loading) {
+    return <OfficerDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">

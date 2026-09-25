@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -538,9 +539,29 @@ export const PropertiesPage: React.FC = () => {
       {/* ========================================================================= */}
 
       {loading && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-16 flex flex-col items-center justify-center text-slate-400 gap-3">
-          <RefreshCw className="w-6 h-6 animate-spin text-[#00450d]" />
-          <p className="text-sm font-semibold text-slate-700">Loading Municipal Property Portfolio...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+              <Skeleton className="w-full h-48 rounded-none" />
+              <div className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <div className="grid grid-cols-3 gap-2 py-2 border-y border-slate-100">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-full" />
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <Skeleton className="h-6 w-28" />
+                  <Skeleton className="h-8 w-20 rounded-xl" />
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 

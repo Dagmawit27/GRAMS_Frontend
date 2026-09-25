@@ -27,6 +27,59 @@ import {
   ChevronRight,
   ChevronDown
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const TaxAssessmentsSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* Top Banner Skeleton */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-7 w-80" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </div>
+          <div className="flex gap-2.5">
+            <Skeleton className="h-9 w-28 rounded-xl" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      {/* 2-Column Assessment Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7 space-y-5">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+            <Skeleton className="h-5 w-56" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="lg:col-span-5 space-y-5">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+            <Skeleton className="h-5 w-44" />
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((j) => (
+                <div key={j} className="flex justify-between py-2 border-b border-slate-100">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function TaxAssessmentsPage() {
   const router = useRouter();
@@ -77,6 +130,19 @@ export default function TaxAssessmentsPage() {
       bankingVerified: true
     }
   ];
+
+  const [isReady, setIsReady] = useState(false);
+  React.useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <TaxOfficerLayout activeNav="tax-assessments">
+        <TaxAssessmentsSkeleton />
+      </TaxOfficerLayout>
+    );
+  }
 
   return (
     <TaxOfficerLayout activeNav="tax-assessments">

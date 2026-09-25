@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Invoice } from "@/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,69 @@ export interface LandlordCollectionItem {
   landlordAccountHolderName?: string;
   hasPayoutConfigured: boolean;
 }
+
+export const PaymentsSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* Top Banner / Role switcher Skeleton */}
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <Skeleton className="h-9 w-64 rounded-xl" />
+        <Skeleton className="h-8 w-32 rounded-lg" />
+      </div>
+
+      {/* 3 Summary Cards Skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="bg-white border-slate-200/90 rounded-2xl p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="w-8 h-8 rounded-xl" />
+            </div>
+            <Skeleton className="h-8 w-40 my-3" />
+            <Skeleton className="h-3 w-48" />
+          </Card>
+        ))}
+      </div>
+
+      {/* Filter / Search Bar Skeleton */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <Skeleton className="h-9 w-72 rounded-xl" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-28 rounded-xl" />
+          <Skeleton className="h-9 w-28 rounded-xl" />
+        </div>
+      </div>
+
+      {/* Obligations List Skeleton */}
+      <Card className="bg-white border-slate-200 rounded-2xl shadow-clean overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+        <div className="p-4 space-y-3">
+          {[1, 2, 3, 4].map((j) => (
+            <div key={j} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-xl" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-3 w-64" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="space-y-1 text-right">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <Skeleton className="h-8 w-24 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
 
 interface PaymentsPageProps {
   invoices?: Invoice[];
@@ -833,6 +897,10 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
   const handleOpenPay = (invoice: Invoice) => {
     router.push(`/citizen/dashboard/payments/${invoice.id}`);
   };
+
+  if (isLoadingAgreements) {
+    return <PaymentsSkeleton />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">

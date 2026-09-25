@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   RefreshCw,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getSession,
   getNotifications,
@@ -1082,12 +1083,20 @@ export default function NotificationPage() {
         {/* =================================================================== */}
         <div className="lg:col-span-8 space-y-6">
           {loading ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-2xs">
-              <RefreshCw className="w-8 h-8 text-emerald-700 animate-spin mx-auto mb-3" />
-              <p className="text-sm font-bold text-slate-800">Synchronizing Notifications...</p>
-              <p className="text-xs text-slate-400 mt-1">
-                Checking municipal real-time channels and lease registry records
-              </p>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((k) => (
+                <div key={k} className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex items-start gap-4">
+                  <Skeleton className="w-10 h-10 rounded-xl shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-3.5 w-full max-w-lg" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-2xs space-y-3">

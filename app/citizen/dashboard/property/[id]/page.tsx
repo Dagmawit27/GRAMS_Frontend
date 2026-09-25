@@ -226,7 +226,7 @@ export const PropertyDetailsPage: React.FC<PropertyDetailsPageProps> = (props) =
               <div className="space-y-2.5 text-xs">
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="text-slate-500">Advance Rent</span>
-                  <span className="font-medium text-slate-900">{property.securityDepositMonths} Months (ETB {(property.price * property.securityDepositMonths).toLocaleString()})</span>
+                  <span className="font-medium text-slate-900">{property.securityDepositMonths ?? 2} Months (ETB {(property.price * (property.securityDepositMonths ?? 2)).toLocaleString()})</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="text-slate-500">Min. Lease Period</span>

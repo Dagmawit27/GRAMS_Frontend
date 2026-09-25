@@ -37,6 +37,7 @@ import {
   Scale,
   AlertTriangle,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getSession,
   UserSummary,
@@ -48,6 +49,66 @@ import {
   getMyAgreements,
   getMyProperties,
 } from "@/lib/api";
+
+export const ProfileSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 pb-12 font-sans antialiased animate-in fade-in duration-100">
+      {/* Profile Header Banner Skeleton */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <Skeleton className="w-20 h-20 rounded-full shrink-0" />
+            <div className="space-y-2.5">
+              <Skeleton className="h-6 w-56" />
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-5 w-32 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Skeleton className="h-9 w-28 rounded-xl" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      {/* 4 Stats Cards Skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-2">
+            <Skeleton className="h-3.5 w-20" />
+            <Skeleton className="h-6 w-28" />
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs Skeleton */}
+      <div className="flex gap-2 border-b border-slate-200 pb-3">
+        {[1, 2, 3, 4, 5].map((j) => (
+          <Skeleton key={j} className="h-8 w-24 rounded-lg" />
+        ))}
+      </div>
+
+      {/* Form Content Skeleton */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-3.5 w-72" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((k) => (
+            <div key={k} className="space-y-1.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 import { useCitizenData } from "@/hooks/useCitizenData";
 
 export const ProfilePage: React.FC = () => {
@@ -557,6 +618,10 @@ export const ProfilePage: React.FC = () => {
       setNotifSaving(false);
     }
   };
+
+  if (pageLoading) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <div className="space-y-6 pb-12 font-sans antialiased text-slate-800 text-[13px]">

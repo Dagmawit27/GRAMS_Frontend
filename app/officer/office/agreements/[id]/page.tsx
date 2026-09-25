@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { LeaseRequestResponse, getLeaseRequestById, verifyLeaseRequest, approveLeaseRequest, getSession } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -96,8 +97,39 @@ export default function OfficerOfficeAgreementDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-[#00450d] border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-100">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <Card className="bg-white border-slate-200 shadow-2xs overflow-hidden">
+          <CardHeader className="border-b border-slate-100 p-6 space-y-2">
+            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3 p-4 border border-slate-100 rounded-xl">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+              <div className="space-y-3 p-4 border border-slate-100 rounded-xl">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-36" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((k) => (
+                  <Skeleton key={k} className="h-16 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

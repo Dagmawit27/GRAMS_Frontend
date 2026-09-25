@@ -30,6 +30,7 @@ import {
   Check,
   Layers,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   getSession,
   getRentalTaxSummary,
@@ -40,6 +41,69 @@ import {
   MonthlyTaxAccrual,
   TaxSettlementResponse,
 } from "@/lib/api";
+
+export const TaxPageSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* Breadcrumb Skeleton */}
+      <div className="flex items-center justify-between pb-1">
+        <Skeleton className="h-5 w-72" />
+        <Skeleton className="h-6 w-28 rounded-lg" />
+      </div>
+
+      {/* Hero Banner Skeleton */}
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <Skeleton className="w-12 h-12 rounded-xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-80" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-44 rounded-xl" />
+        </div>
+      </div>
+
+      {/* 4 Tax Metrics Cards Skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="w-8 h-8 rounded-xl" />
+            </div>
+            <Skeleton className="h-7 w-36" />
+            <Skeleton className="h-2 w-full rounded-full" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs & Table Skeleton */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-clean overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <Skeleton className="h-8 w-64 rounded-xl" />
+          <Skeleton className="h-8 w-32 rounded-xl" />
+        </div>
+        <div className="p-4 space-y-3">
+          {[1, 2, 3, 4, 5].map((j) => (
+            <div key={j} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-9 h-9 rounded-lg" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </div>
+              <Skeleton className="h-6 w-24" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function TaxRecordPage() {
   const [loading, setLoading] = useState(true);
@@ -155,6 +219,10 @@ export default function TaxRecordPage() {
     settlementSuccess?.clearanceCertificateNumber ||
     taxSummary?.clearanceCertificateNumber ||
     "MOR-REV-2026-8812";
+
+  if (loading && !taxSummary) {
+    return <TaxPageSkeleton />;
+  }
 
   return (
     <div className="space-y-6 pb-16 font-sans antialiased text-slate-800 text-[13px]">

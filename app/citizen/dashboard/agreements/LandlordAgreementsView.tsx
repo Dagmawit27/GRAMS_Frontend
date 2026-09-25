@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LeaseRequestResponse, getLandlordLeaseRequests, getSession } from "@/lib/api";
 import { sseManager } from "@/lib/sseManager";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -147,8 +148,30 @@ export const LandlordAgreementsView: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-6 animate-in fade-in duration-100">
+        <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
+          <CardHeader className="p-4 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-8 w-24 rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }

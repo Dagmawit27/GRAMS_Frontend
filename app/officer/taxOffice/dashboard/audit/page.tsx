@@ -25,6 +25,62 @@ import {
   ArrowRight,
   Printer
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const TaxAuditSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* Top Banner Skeleton */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-7 w-72" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+        </div>
+        <div className="flex items-center gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-slate-200/90 rounded-xl px-4 py-2.5 shadow-2xs space-y-1.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filter Bar Skeleton */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
+        <Skeleton className="h-9 w-64 rounded-lg" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-28 rounded-lg" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Cases List Skeleton */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden p-4 space-y-3">
+        {[1, 2, 3, 4, 5].map((j) => (
+          <div key={j} className="p-4 border border-slate-100 rounded-xl flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-4 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-3.5 w-64" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="space-y-1 text-right">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface AuditCase {
   id: string;
@@ -150,6 +206,19 @@ export default function TaxDiscrepanciesPage() {
     }
     return true;
   });
+
+  const [isReady, setIsReady] = useState(false);
+  React.useEffect(() => {
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <TaxOfficerLayout activeNav="tax-discrepancies">
+        <TaxAuditSkeleton />
+      </TaxOfficerLayout>
+    );
+  }
 
   return (
     <TaxOfficerLayout activeNav="tax-discrepancies">

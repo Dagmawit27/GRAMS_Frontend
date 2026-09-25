@@ -35,6 +35,55 @@ import {
   PaymentResponseDto,
 } from "@/lib/api";
 import { sseManager } from "@/lib/sseManager";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export const BillsSkeleton: React.FC = () => {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-100">
+      {/* Summary KPI Banner Skeleton */}
+      <Card className="bg-white border-slate-200 shadow-clean">
+        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <Skeleton className="w-12 h-12 rounded-xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-44" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-32 rounded-xl" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Filter Bar Skeleton */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-clean flex items-center justify-between gap-3">
+        <div className="flex gap-3">
+          <Skeleton className="h-8 w-32 rounded-lg" />
+          <Skeleton className="h-8 w-36 rounded-lg" />
+        </div>
+        <Skeleton className="h-8 w-56 rounded-lg" />
+      </div>
+
+      {/* Table Skeleton */}
+      <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
+        <CardContent className="p-4 space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-8 w-20 rounded-lg" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 interface BillsPageProps {
   receipts?: Receipt[];
@@ -289,6 +338,10 @@ export const BillsPage: React.FC<BillsPageProps> = (props) => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredReceipts.slice(start, start + itemsPerPage);
   }, [filteredReceipts, currentPage, itemsPerPage]);
+
+  if (isLoading) {
+    return <BillsSkeleton />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">

@@ -320,6 +320,7 @@ export interface PropertyResponse {
   cadastralParcelId?: string;
   titleDeedNumber?: string;
   advanceRent?: number;
+  securityDepositMonths?: number;
   minLeasePeriod?: string;
   availableFrom?: string;
   status: PropertyStatus;

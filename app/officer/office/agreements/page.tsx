@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LeaseRequestResponse, getLeaseRequestsByStatus, getSession } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -105,8 +106,28 @@ export default function OfficerAgreementReviewsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-[#00450d] border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-6 animate-in fade-in duration-100">
+        <div className="flex items-center justify-between pb-2">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-56" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <Card className="bg-white border-slate-200 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-20 rounded-md" />
+                <Skeleton className="h-8 w-20 rounded-lg" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }

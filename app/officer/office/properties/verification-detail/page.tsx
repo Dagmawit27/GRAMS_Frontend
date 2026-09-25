@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getPropertyForOfficer, updatePropertyStatus, PropertyResponse, getUnitById, PropertyUnitResponse } from "@/lib/api";
 import { getOfficerJurisdiction } from "@/app/officer/useOfficerJurisdiction";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -195,8 +196,37 @@ function DetailContent() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-24 gap-2 text-slate-400 text-sm">
-          <RefreshCw className="w-5 h-5 animate-spin text-[#00450d]" /> Loading property...
+        <div className="space-y-6 animate-in fade-in duration-100">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 pb-3 border-b border-slate-200">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-5">
+              <Skeleton className="h-64 w-full rounded-2xl" />
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                <Skeleton className="h-5 w-40" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                <Skeleton className="h-5 w-44" />
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((j) => (
+                    <Skeleton key={j} className="h-12 w-full rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

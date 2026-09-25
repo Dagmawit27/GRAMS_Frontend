@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PropertyResponse, getPropertyById, updatePropertyStatus, getSession, getUnitById, PropertyUnitResponse } from "@/lib/api";
 
 function VerificationDetailPageContent() {
@@ -88,10 +89,36 @@ function VerificationDetailPageContent() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00450d] mx-auto mb-3"></div>
-          <p className="text-sm text-slate-600">Loading property details...</p>
+      <div className="space-y-6 max-w-5xl mx-auto p-4 sm:p-6 animate-in fade-in duration-100">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-60" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+              <Skeleton className="h-5 w-48" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+              <Skeleton className="h-5 w-40" />
+              <div className="space-y-3">
+                {[1, 2, 3].map((j) => (
+                  <Skeleton key={j} className="h-12 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
