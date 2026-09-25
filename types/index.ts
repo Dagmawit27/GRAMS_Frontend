@@ -7,6 +7,7 @@ export type NavPage =
   | 'agreements-pending'
   | 'agreements-active'
   | 'agreements-t'
+  | 'agreements-t-active'
   | 'properties' 
   | 'register-property'
   | 'payments' 
@@ -28,17 +29,26 @@ export type NavPage =
   | 'tax-landlord-ledger'
   | 'tax-assessments'
   | 'tax-discrepancies'
-  | 'tax-reports';
+  | 'tax-reports'
+  | 'city-dashboard'
+  | 'city-benchmarking'
+  | 'city-telemetry'
+  | 'city-revenue'
+  | 'city-enforcement'
+  | 'city-alerts';
 
 export type UserRole =
   | 'landlord'
   | 'tenant'
+  | 'both'
   | 'citizen'
   | 'woreda_officer'
   | 'woreda_supervisor'
   | 'tax_officer'
   | 'taxofficer'
-  | 'taxOfficer';
+  | 'taxOfficer'
+  | 'city_administrator'
+  | 'city_admin';
 
 export interface Property {
   id: string;

@@ -14,7 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-const OFFICER_ROLES = ["WOREDA_OFFICER", "WOREDA_SUPERVISOR"];
+const OFFICER_ROLES = ["WOREDA_OFFICER", "WOREDA_SUPERVISOR", "TAX_OFFICER", "CITY_ADMINISTRATOR", "CITY_ADMIN"];
 
 function isOfficerSession(): boolean {
   if (typeof window === "undefined") return false;
@@ -38,9 +38,10 @@ export const OfficerPage: React.FC = () => {
     const role = (localStorage.getItem("userRole") ?? "").toLowerCase();
     const token = localStorage.getItem("accessToken");
     if (!token) { setChecking(false); return; }
+    if (role === "city_administrator") { router.replace("/officer/city/dashboard"); return; }
     if (role === "woreda_officer") { router.replace("/officer/office/dashboard"); return; }
     if (role === "woreda_supervisor") { router.replace("/officer/supervisor/dashboard"); return; }
-    if (role === "tax_officer" || role === "taxofficer") { router.replace("/officer/taxOfficer/dashboard"); return; }
+    if (role === "tax_officer") { router.replace("/officer/taxOfficer/dashboard"); return; }
     setChecking(false);
   }, [router]);
 
@@ -52,9 +53,11 @@ export const OfficerPage: React.FC = () => {
       const result = await loginOfficer({ email: email.trim(), password });
       // Role is already saved in localStorage by loginOfficer → saveSession
       const role = (result.user.roles?.[0] ?? "").toLowerCase();
-      if (role === "woreda_supervisor") {
+      if (role === "city_administrator") {
+        router.push("/officer/city/dashboard");
+      } else if (role === "woreda_supervisor") {
         router.push("/officer/supervisor/dashboard");
-      } else if (role === "tax_officer" || role === "taxofficer") {
+      } else if (role === "tax_officer") {
         router.push("/officer/taxOfficer/dashboard");
       } else {
         router.push("/officer/office/dashboard");
@@ -163,12 +166,22 @@ export const OfficerPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
+                  setEmail("cityadmin@gmail.com");
+                  setPassword("12345678");
+                }}
+                className="text-[11px] px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-md border border-emerald-800 font-semibold cursor-pointer shadow-xs"
+              >
+                City Admin (cityadmin@gmail.com)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setEmail("taxOfficer@gmail.com");
                   setPassword("12345678");
                 }}
                 className="text-[11px] px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-md border border-emerald-300 font-medium cursor-pointer"
               >
-                Tax Officer (taxOfficer@gmail.com)
+                Tax Officer
               </button>
               <button
                 type="button"

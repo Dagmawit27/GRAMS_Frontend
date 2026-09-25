@@ -23,6 +23,14 @@ export default function OfficerLayout({ children }: { children: React.ReactNode 
     }
 
     // Route based on role
+    if (role === "city_administrator" || role === "city_admin") {
+      // City Administrator may only be under /officer/city/**
+      if (!pathname.startsWith("/officer/city")) {
+        router.replace("/officer/city/dashboard");
+      }
+      return;
+    }
+
     if (role === "woreda_officer") {
       // Officers may only be under /officer/office/**
       if (!pathname.startsWith("/officer/office")) {

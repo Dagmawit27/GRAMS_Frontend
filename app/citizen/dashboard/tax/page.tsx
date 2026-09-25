@@ -226,34 +226,7 @@ export default function TaxRecordPage() {
 
   return (
     <div className="space-y-6 pb-16 font-sans antialiased text-slate-800 text-[13px]">
-      {/* --------------------------------------------------------------------- */}
-      {/* 1. BREADCRUMBS                                                        */}
-      {/* --------------------------------------------------------------------- */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-xs">
-          <Link
-            href="/citizen/dashboard"
-            className="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#00450d] transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span>DASHBOARD</span>
-          </Link>
-          <ChevronRight className="w-3 h-3 text-slate-400" />
-          <span className="font-mono font-bold text-slate-800 uppercase">
-            TAX RECORDS (SCHEDULE B / ሰንጠረዥ «ለ»)
-          </span>
-        </div>
-
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#00450d] transition-colors p-1.5"
-          title="Refresh Tax Ledger"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#00450d]" : ""}`} />
-          <span className="hidden sm:inline">Refresh Records</span>
-        </button>
-      </div>
+     
 
       {toastMessage && (
         <div className="p-3 bg-emerald-50 border border-emerald-300 text-[#00450d] rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
@@ -269,7 +242,7 @@ export default function TaxRecordPage() {
 
       {/* --------------------------------------------------------------------- */}
       {/* 2. OFFICIAL HERO BANNER: FISCAL YEAR & SUMMER SETTLEMENT WINDOW       */}
-      {/* --------------------------------------------------------------------- */}
+      {/* --------------------------------------------------------------------- 
       <div className="bg-gradient-to-r from-[#00450d] via-[#06380c] to-[#0b2710] text-white p-6 rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
@@ -290,9 +263,9 @@ export default function TaxRecordPage() {
                 Rental revenue is counted month-by-month and the accumulated annual tax is paid during the summer window (Hamle – Nehase).
               </p>
             </div>
-          </div>
+          </div> */}
 
-          {/* Action Button */}
+          {/* Action Button
           <div className="shrink-0 flex items-center gap-2.5">
             {isCleared ? (
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 border border-emerald-400/40 rounded-xl text-xs font-bold text-emerald-100">
@@ -310,9 +283,9 @@ export default function TaxRecordPage() {
               </button>
             )}
           </div>
-        </div>
+        </div>*/}
 
-        {/* Status Strip */}
+        {/* Status Strip 
         <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-100/90">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
@@ -335,7 +308,7 @@ export default function TaxRecordPage() {
               type="button"
               onClick={() => {
                 const current = taxSummary?.tinNumber && !taxSummary.tinNumber.includes("Pending")
-                  ? taxSummary.tinNumber.replace(/TIN:\s*/, "")
+                  ? taxSummary.tinNumber.replace(/TIN:\s*/} {/* , "")
                   : "";
                 setTinInput(current);
                 setIsTinModalOpen(true);
@@ -346,7 +319,7 @@ export default function TaxRecordPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div>*/}
 
       {/* Missing / Pending TIN Alert Banner */}
       {(!taxSummary?.tinNumber || taxSummary.tinNumber.includes("Pending")) && (

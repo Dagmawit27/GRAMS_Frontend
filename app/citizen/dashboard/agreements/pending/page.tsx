@@ -15,6 +15,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Building, FileText, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
+import { UnauthorizedAccess } from "@/components/UnauthorizedAccess";
 
 /**
  * /citizen/dashboard/agreements/pending
@@ -186,11 +187,7 @@ export default function PendingAgreementsPage() {
 
   // Show access denied for non-landlord users
   if (userRole === "tenant") {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <p className="text-red-800 text-sm font-medium">Access Denied: This page is for landlords only</p>
-      </div>
-    );
+    return <UnauthorizedAccess requiredRole="landlord" currentRole="tenant" path="/citizen/dashboard/agreements/pending" />;
   }
 
   if (isLoading) {

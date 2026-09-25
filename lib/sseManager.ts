@@ -39,6 +39,8 @@ function getBackendBaseUrl(): string {
         // ignore
       }
     }
+    // In the browser, fall back to relative path so Next.js proxies to backend on mobile/LAN
+    return "";
   }
   return "http://localhost:8080";
 }

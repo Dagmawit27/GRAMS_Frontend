@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { LeaseRequestResponse, getLeaseRequestById, getSession } from "@/lib/api";
 import { LandlordReviewDetailsView } from "../../LandlordReviewDetailsView";
 import { useCitizenData } from "@/hooks/useCitizenData";
+import { UnauthorizedAccess } from "@/components/UnauthorizedAccess";
 
 export default function LeaseReviewPage() {
   const params = useParams();
@@ -15,15 +16,6 @@ export default function LeaseReviewPage() {
   const [leaseRequest, setLeaseRequest] = useState<LeaseRequestResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
-  // Redirect tenants to their lease page
-  useEffect(() => {
-    if (userRole === "tenant") {
-      setIsRedirecting(true);
-      router.push("/citizen/dashboard/leases");
-    }
-  }, [userRole, router]);
 
   useEffect(() => {
     const fetchLeaseRequest = async () => {
@@ -57,11 +49,13 @@ export default function LeaseReviewPage() {
   }, [requestCode]);
 
   // Show access denied for non-landlord users
-  if (isRedirecting || (userRole === "tenant")) {
+  if (userRole === "tenant") {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <p className="text-red-800 text-sm font-medium">Access Denied: This page is for landlords only</p>
-      </div>
+      <UnauthorizedAccess
+        requiredRole="landlord"
+        currentRole="tenant"
+        path={`/citizen/dashboard/agreements/lease-review/${requestCode}`}
+      />
     );
   }
 

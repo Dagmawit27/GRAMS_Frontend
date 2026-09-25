@@ -34,6 +34,9 @@ import {
   AlertTriangle,
   Building,
   Landmark,
+  Scale,
+  Coins,
+  Download,
 } from "lucide-react";
 
 interface SideNavBarProps {
@@ -47,6 +50,7 @@ interface SideNavBarProps {
   pendingAgreementsCount?: number;
   userRole?: UserRole;
   onToggleRole?: (role: UserRole) => void;
+  isLoading?: boolean;
 }
 
 
@@ -60,16 +64,20 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   onLogoutClick,
   pendingAgreementsCount = 2,
   userRole: propUserRole = "citizen",
+  isLoading = false,
 }) => {
   const session = getSession();
   const displayRole = propUserRole.toLowerCase() as UserRole;
   const pathname = usePathname();
 
+  const [isMounted, setIsMounted] = useState(false);
+  const [isCityAdmin, setIsCityAdmin] = useState(false);
   const [isOfficer, setIsOfficer] = useState(false);
   const [isSupervisor, setIsSupervisor] = useState(false);
   const [isTaxOfficer, setIsTaxOfficer] = useState(false);
   const [isTenant, setIsTenant] = useState(false);
   const [isLandlord, setIsLandlord] = useState(false);
+  const [isBoth, setIsBoth] = useState(false);
   const [userName, setUserName] = useState("");
   const [accountType, setAccountType] = useState("Citizen Account");
   const [isAgreementsDropdownOpen, setIsAgreementsDropdownOpen] = useState(false);
@@ -78,6 +86,17 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   const isPathActive = (href: string) => {
     if (href === "/citizen/dashboard") {
       return pathname === "/citizen/dashboard" || pathname === "/citizen/dashboard/";
+    }
+    if (href === "/citizen/dashboard/leases") {
+      return (
+        (pathname === "/citizen/dashboard/leases" ||
+          pathname === "/citizen/dashboard/leases/" ||
+          pathname.startsWith("/citizen/dashboard/leases/")) &&
+        !pathname.startsWith("/citizen/dashboard/leases/active")
+      );
+    }
+    if (href.startsWith("/officer/city/dashboard")) {
+      return pathname.startsWith("/officer/city");
     }
     if (href.includes("/ledger")) {
       return pathname.includes("/ledger") || pathname.includes("/ladger");
@@ -98,45 +117,75 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const role = displayRole;
     const sessionRoles = (session?.user?.roles ?? []).map((r) => r.toLowerCase());
 
-    const taxRole =
-      role === "tax_officer" ||
-      role === "taxofficer" ||
-      (role as string) === "taxOfficer" ||
-      sessionRoles.includes("tax_officer") ||
-      sessionRoles.includes("taxofficer") ||
+    const cityRole =
+      role === "city_administrator" ||
+      role === "city_admin" ||
+      (role as string) === "cityAdministrator" ||
+      sessionRoles.includes("city_administrator") ||
+      sessionRoles.includes("city_admin") ||
       (typeof window !== "undefined" &&
-        (localStorage.getItem("userRole") === "tax_officer" ||
-          localStorage.getItem("userRole") === "taxofficer"));
+        (localStorage.getItem("userRole") === "city_administrator" ||
+          localStorage.getItem("userRole") === "city_admin"));
+
+    setIsCityAdmin(Boolean(cityRole));
+
+    const taxRole =
+      !cityRole &&
+      (role === "tax_officer" ||
+        role === "taxofficer" ||
+        (role as string) === "taxOfficer" ||
+        sessionRoles.includes("tax_officer") ||
+        sessionRoles.includes("taxofficer") ||
+        (typeof window !== "undefined" &&
+          (localStorage.getItem("userRole") === "tax_officer" ||
+            localStorage.getItem("userRole") === "taxofficer")));
 
     setIsTaxOfficer(Boolean(taxRole));
 
     setIsOfficer(
-      !taxRole &&
+      !cityRole &&
+        !taxRole &&
         (role === "woreda_officer" ||
           role === "woreda_supervisor" ||
           session?.user?.userType === "GOVERNMENT_EMPLOYEE")
     );
     setIsSupervisor(
-      role === "woreda_supervisor" ||
-        session?.user?.roles?.some(
-          (r) => r.toLowerCase() === "supervisor" || r.toLowerCase() === "woreda_supervisor"
-        ) === true
+      !cityRole &&
+        (role === "woreda_supervisor" ||
+          session?.user?.roles?.some(
+            (r) => r.toLowerCase() === "supervisor" || r.toLowerCase() === "woreda_supervisor"
+          ) === true)
     );
 
-    // isTenant: role is tenant, citizen, or both (can search & request leases)
-    setIsTenant(
-      role === "tenant" || role === "citizen" || (role as string) === "both" ||
-      sessionRoles.includes("tenant") || sessionRoles.includes("citizen") || sessionRoles.includes("both")
-    );
+    // Strict role detection for Citizen portal
+    const hasBoth =
+      role === "both" ||
+      sessionRoles.includes("both") ||
+      (sessionRoles.includes("landlord") && sessionRoles.includes("tenant"));
 
-    // isLandlord: role is landlord, citizen, or both (can register properties & manage agreements)
-    setIsLandlord(
-      role === "landlord" || role === "citizen" || (role as string) === "both" ||
-      sessionRoles.includes("landlord") || sessionRoles.includes("citizen") || sessionRoles.includes("both")
-    );
+    setIsBoth(Boolean(hasBoth));
+
+    const isExplicitLandlord = role === "landlord" || sessionRoles.includes("landlord");
+    const isExplicitTenant = role === "tenant" || sessionRoles.includes("tenant");
+
+    if (hasBoth) {
+      setIsTenant(true);
+      setIsLandlord(true);
+    } else if (isExplicitLandlord && !isExplicitTenant) {
+      setIsTenant(false);
+      setIsLandlord(true);
+    } else if (isExplicitTenant && !isExplicitLandlord) {
+      setIsTenant(true);
+      setIsLandlord(false);
+    } else {
+      // Default citizen with no landlord designation is tenant
+      setIsTenant(true);
+      setIsLandlord(false);
+    }
 
     setAccountType(
       session?.user?.userType === "GOVERNMENT_EMPLOYEE" ? "Government Employee" : "Citizen Account"
@@ -288,13 +337,22 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       ? [
           { id: "search" as NavPage, label: "Search House", icon: Search, category: "Rentals", href: "/citizen/dashboard/search" },
           { id: "agreements-t" as NavPage, label: "My Lease Requests", icon: FileText, category: "Rentals", badge: pendingAgreementsCount, href: "/citizen/dashboard/leases" },
-          { id: "agreements-active" as NavPage, label: "Active Agreements", icon: ShieldCheck, category: "Rentals", href: "/citizen/dashboard/agreements/active" },
+          ...(!isBoth
+            ? [
+                {
+                  id: "agreements-t-active" as NavPage,
+                  label: "Active Agreements",
+                  icon: ShieldCheck,
+                  category: "Rentals",
+                  href: "/citizen/dashboard/leases/active",
+                },
+              ]
+            : []),
         ]
       : []),
     ...(isLandlord
       ? [
           { id: "properties" as NavPage, label: "My Properties", icon: Building2, category: "Management", href: "/citizen/dashboard/properties" },
-          { id: "register-property" as NavPage, label: "Register Property", icon: PlusCircle, category: "Management", href: "/citizen/dashboard/properties/register" },
           {
             id: "agreements" as NavPage,
             label: "Rental Agreements",
@@ -321,7 +379,66 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
     { id: "profile", label: "My Profile", icon: User, category: "Account", href: "/citizen/dashboard/profile" },
   ];
 
-  const currentNavItems = isTaxOfficer ? taxOfficerNavItems : isOfficer ? officerNavItems : citizenNavItems;
+  const cityNavItems: Array<{
+    id: NavPage;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    category?: string;
+    badge?: number | string;
+    href: string;
+  }> = [
+    {
+      id: "city-dashboard" as NavPage,
+      label: "Executive Overview",
+      icon: LayoutDashboard,
+      href: "/officer/city/dashboard",
+      category: "Overview",
+    },
+    {
+      id: "city-benchmarking" as NavPage,
+      label: "Sub-City Benchmarking",
+      icon: BarChart3,
+      href: "/officer/city/dashboard#subcities",
+      category: "Municipal Intelligence",
+    },
+    {
+      id: "city-telemetry" as NavPage,
+      label: "Woreda Performance",
+      icon: Building2,
+      href: "/officer/city/dashboard#telemetry",
+      category: "Municipal Intelligence",
+    },
+    {
+      id: "city-revenue" as NavPage,
+      label: "Revenue & Statutory",
+      icon: Coins,
+      href: "/officer/city/dashboard#revenue",
+      category: "Compliance & Audits",
+    },
+    {
+      id: "city-enforcement" as NavPage,
+      label: "Proclamation Enforcement",
+      icon: Scale,
+      href: "/officer/city/dashboard#enforcement",
+      category: "Compliance & Audits",
+    },
+    {
+      id: "city-alerts" as NavPage,
+      label: "Civic Alerts",
+      icon: AlertTriangle,
+      badge: 3,
+      href: "/officer/city/dashboard#alerts",
+      category: "Compliance & Audits",
+    },
+  ];
+
+  const currentNavItems = isCityAdmin
+    ? cityNavItems
+    : isTaxOfficer
+    ? taxOfficerNavItems
+    : isOfficer
+    ? officerNavItems
+    : citizenNavItems;
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white border-r border-slate-200/90 text-slate-900">
@@ -330,11 +447,35 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => {
-              onNavigate(isTaxOfficer ? "tax-dashboard" : isOfficer ? "officer-dashboard" : "dashboard");
+              onNavigate(isCityAdmin ? "city-dashboard" : isTaxOfficer ? "tax-dashboard" : isOfficer ? "officer-dashboard" : "dashboard");
               onCloseMobile?.();
             }}
           >
-            {isTaxOfficer || isOfficer ? (
+            {isCityAdmin ? (
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#00450d] text-white flex items-center justify-center shadow-xs shrink-0">
+                    <Star className="w-5 h-5 fill-current text-white" />
+                  </div>
+                  {!collapsed && (
+                    <div className="min-w-0">
+                      <h1 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
+                        GRAMS Executive
+                      </h1>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+                        Addis Ababa Municipal Portal
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {!collapsed && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200/80 text-[10px] font-bold text-emerald-800">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Proclamation 1284/2016 Enforced</span>
+                  </div>
+                )}
+              </div>
+            ) : isTaxOfficer || isOfficer ? (
               /* Government Official Header (Unified across Woreda Officer, Supervisor & Tax Officer) */
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 shadow-2xs shrink-0 overflow-hidden">
@@ -499,12 +640,16 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
                   {!collapsed && (
                     <span className="flex-1 truncate text-xs">{item.label}</span>
                   )}
-                  {!collapsed && "badge" in item && (item as any).badge !== undefined && (item as any).badge > 0 && (
+                  {!collapsed && "badge" in item && (item as any).badge !== undefined && (
                     <span className={cn(
-                      "px-1.5 py-0.2 text-[10px] font-bold rounded-full",
-                      isActive ? "bg-[#00450d] text-white" : "bg-slate-200 text-slate-700"
+                      "px-2 py-0.5 text-[10px] font-bold rounded-full leading-none",
+                      item.id === "city-alerts"
+                        ? "bg-rose-500 text-white"
+                        : isActive
+                        ? "bg-[#00450d] text-white"
+                        : "bg-slate-200 text-slate-700"
                     )}>
-                      {(item as any).badge}
+                      {item.id === "city-alerts" ? `${(item as any).badge} Active` : (item as any).badge}
                     </span>
                   )}
                 </Link>
@@ -513,6 +658,47 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
           );
         })}
       </nav>
+
+      {/* Executive Quick Actions for City Admin */}
+      {isCityAdmin && !collapsed && (
+        <div className="p-3 border-t border-slate-100 bg-slate-50/70 space-y-2.5 shrink-0">
+          <button
+            onClick={() => {
+              const csvContent = "data:text/csv;charset=utf-8,SubCity,RegisteredUnits,CertifiedTitleDeeds,AvgUnitRent,FreezeCompliance\nBole,34180,22038,16450,99.4%\nKirkos,26920,11667,14200,98.9%\nYeka,23410,14260,11100,99.1%\nArada,12800,5140,9450,97.4%\nLideta,14250,4890,8760,98.2%\nNifas Silk,21500,5910,10185,98.7%\nGullele,12150,3890,7650,98.0%\nKolfe Keranio,15400,4200,7600,97.9%\nAddis Ketema,11000,1980,8200,96.1%\nAkaki Kality,10600,2280,6400,98.4%\nLemi Kura,16100,4720,9390,98.7%";
+              const encodedUri = encodeURI(csvContent);
+              const link = document.createElement("a");
+              link.setAttribute("href", encodedUri);
+              link.setAttribute("download", "GRAMS_Executive_Audit_Dossier_2017.csv");
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="w-full h-9 rounded-lg bg-[#00450d] hover:bg-[#164e23] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Audit Dossier</span>
+          </button>
+          <div className="space-y-0.5">
+            <Link
+              href="/officer/city/dashboard#settings"
+              className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-600 hover:text-slate-900 rounded-md hover:bg-slate-100 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5 text-slate-400" />
+              <span>System Settings</span>
+            </Link>
+            <Link
+              href="/officer/city/dashboard#directives"
+              className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-600 hover:text-slate-900 rounded-md hover:bg-slate-100 transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+              <span>Support & Legal Directives</span>
+            </Link>
+          </div>
+          <p className="text-[9px] text-slate-400 leading-tight pt-1 border-t border-slate-200/60">
+            FDRE Federal Cadastre Integration v4.0 · Encrypted State Database
+          </p>
+        </div>
+      )}
 
       {/* Sidebar Footer */}
       <div className="p-3.5 border-t border-slate-100 bg-slate-50/50">
@@ -539,6 +725,17 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
       </div>
     </div>
   );
+
+  if (isLoading || !isMounted) {
+    return (
+      <SideNavSkeleton
+        collapsed={collapsed}
+        isCityAdmin={displayRole === "city_administrator" || displayRole === "city_admin"}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={onCloseMobile}
+      />
+    );
+  }
 
   return (
     <>
@@ -567,6 +764,173 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
     </>
   );
 };
+
+export interface SideNavSkeletonProps {
+  collapsed?: boolean;
+  isCityAdmin?: boolean;
+  className?: string;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
+  asFixedSidebar?: boolean;
+}
+
+export const SideNavSkeleton: React.FC<SideNavSkeletonProps> = ({
+  collapsed = false,
+  isCityAdmin = false,
+  className,
+  isMobileOpen = false,
+  onCloseMobile,
+  asFixedSidebar = true,
+}) => {
+  const content = (
+    <div className="flex flex-col h-full bg-white border-r border-slate-200/90 text-slate-900 select-none">
+      {/* Brand Header Skeleton */}
+      <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 w-full">
+          <div className="w-9 h-9 rounded-xl bg-slate-200 animate-pulse shrink-0" />
+          {!collapsed && (
+            <div className="flex-1 space-y-1.5 min-w-0">
+              <div className="h-4 w-28 bg-slate-200 animate-pulse rounded" />
+              <div className="h-2.5 w-20 bg-slate-100 animate-pulse rounded" />
+              {isCityAdmin && (
+                <div className="h-5 w-36 bg-emerald-50/80 border border-emerald-100 animate-pulse rounded mt-1.5" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation Links Skeleton */}
+      <div className="flex-1 overflow-hidden py-3 px-2.5 space-y-4">
+        {/* Category 1 Skeleton */}
+        <div className="space-y-1.5">
+          {!collapsed && (
+            <div className="pt-2 pb-1 px-3">
+              <div className="h-2.5 w-16 bg-slate-100 animate-pulse rounded" />
+            </div>
+          )}
+          {/* Active Item Skeleton */}
+          <div
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 border-[#00450d]/40 bg-[#d8edd9]/40",
+              collapsed && "justify-center px-0 border-l-0"
+            )}
+          >
+            <div className="w-4 h-4 rounded bg-[#00450d]/30 animate-pulse shrink-0" />
+            {!collapsed && (
+              <div className="h-3.5 w-28 bg-[#00450d]/20 animate-pulse rounded flex-1" />
+            )}
+          </div>
+
+          {/* Normal Items */}
+          {[1, 2].map((i) => (
+            <div
+              key={`skel-cat1-${i}`}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <div className="w-4 h-4 rounded bg-slate-200 animate-pulse shrink-0" />
+              {!collapsed && (
+                <div
+                  className="h-3.5 bg-slate-200 animate-pulse rounded"
+                  style={{ width: i === 1 ? "68%" : "54%" }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Category 2 Skeleton */}
+        <div className="space-y-1.5 pt-2">
+          {!collapsed && (
+            <div className="pt-2 pb-1 px-3">
+              <div className="h-2.5 w-24 bg-slate-100 animate-pulse rounded" />
+            </div>
+          )}
+          {[1, 2, 3].map((i) => (
+            <div
+              key={`skel-cat2-${i}`}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <div className="w-4 h-4 rounded bg-slate-200 animate-pulse shrink-0" />
+              {!collapsed && (
+                <div
+                  className="h-3.5 bg-slate-200 animate-pulse rounded"
+                  style={{ width: i === 1 ? "75%" : i === 2 ? "60%" : "82%" }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* City Admin Action Footer Skeleton */}
+      {isCityAdmin && !collapsed && (
+        <div className="p-3 border-t border-slate-100 bg-slate-50/60 space-y-2 shrink-0">
+          <div className="h-9 w-full bg-[#00450d]/20 animate-pulse rounded-lg" />
+          <div className="space-y-1 py-1">
+            <div className="h-3.5 w-24 bg-slate-200 animate-pulse rounded" />
+            <div className="h-3.5 w-32 bg-slate-200 animate-pulse rounded" />
+          </div>
+        </div>
+      )}
+
+      {/* Logout Footer Skeleton */}
+      <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 shrink-0">
+        {!collapsed ? (
+          <div className="h-9 w-full rounded-lg border border-slate-200 bg-slate-100 animate-pulse flex items-center justify-center gap-2">
+            <div className="w-4 h-4 rounded bg-slate-200" />
+            <div className="w-12 h-3 rounded bg-slate-200" />
+          </div>
+        ) : (
+          <div className="w-8 h-8 mx-auto rounded-md bg-slate-200 animate-pulse" />
+        )}
+      </div>
+    </div>
+  );
+
+  if (!asFixedSidebar) {
+    return (
+      <div className={cn("h-full", collapsed ? "w-[68px]" : "w-[260px]", className)}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <aside
+        className={cn(
+          "hidden md:block h-screen fixed left-0 top-0 bottom-0 z-40 transition-all duration-200",
+          collapsed ? "w-[68px]" : "w-[260px]",
+          className
+        )}
+      >
+        {content}
+      </aside>
+
+      {isMobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+          />
+          <div className="fixed inset-y-0 left-0 w-[260px] z-50 bg-white shadow-xl animate-in slide-in-from-left duration-200">
+            {content}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export const SideNavBarSkeleton = SideNavSkeleton;
+
 
 
 

@@ -393,145 +393,240 @@ export const PropertiesPage: React.FC = () => {
         </div>
       )}
 
-     
-
       {/* ========================================================================= */}
-      {/* 3. COMPREHENSIVE FILTERING & SEARCH CONTROL BAR                          */}
+      {/* 2. COMPREHENSIVE FILTERING & SEARCH CONTROL BAR                          */}
       {/* ========================================================================= */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
-        {/* Row 1: Status Tab Pills (Listed, Verified, Approved, Pending, Rented) */}
-        
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-           {/* View Mode Toggle (Grid / List) */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setViewMode("GRID")}
-              className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                viewMode === "GRID" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Grid View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("LIST")}
-              className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                viewMode === "LIST" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Table / List View"
-            >
-              <ListIcon className="w-4 h-4" />
-            </button>
+        {/* Row 1: Search Input, Type Dropdown, Sub-City Dropdown, Sort By, View Mode */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by property code, title, woreda, sub-city, street..."
+              className="pl-9 pr-8 h-10 text-xs bg-slate-50 border-slate-200 rounded-xl focus-visible:ring-1 focus-visible:ring-emerald-600 focus-visible:bg-white transition-all w-full"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          
-          <button
-            onClick={() => setStatusFilter("ALL")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              statusFilter === "ALL"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>All Properties</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "ALL" ? "bg-white/20 text-white" : "bg-white text-slate-700"}`}>
-              {counts.total}
-            </span>
-          </button>
 
-          {/* LISTED FILTER */}
-          <button
-            onClick={() => setStatusFilter("LISTED")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              statusFilter === "LISTED"
-                ? "bg-[#00450d] text-white shadow-xs"
-                : "bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border border-emerald-200/70"
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Listed</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "LISTED" ? "bg-white/20 text-white" : "bg-white text-emerald-800"}`}>
-              {counts.listed}
-            </span>
-          </button>
-
-          {/* VERIFIED FILTER */}
-          <button
-            onClick={() => setStatusFilter("VERIFIED")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              statusFilter === "VERIFIED"
-                ? "bg-blue-700 text-white shadow-xs"
-                : "bg-blue-50 hover:bg-blue-100/80 text-blue-800 border border-blue-200/70"
-            }`}
-          >
-            <FileCheck2 className="w-3.5 h-3.5" />
-            <span>Verified</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "VERIFIED" ? "bg-white/20 text-white" : "bg-white text-blue-800"}`}>
-              {counts.verified}
-            </span>
-          </button>
-
-          {/* APPROVED FILTER */}
-          <button
-            onClick={() => setStatusFilter("APPROVED")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              statusFilter === "APPROVED"
-                ? "bg-[#00450d] text-white shadow-xs"
-                : "bg-emerald-50 hover:bg-emerald-100/80 text-[#00450d] border border-emerald-300 font-semibold"
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Approved</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "APPROVED" ? "bg-white/20 text-white" : "bg-white text-[#00450d]"}`}>
-              {counts.approved}
-            </span>
-          </button>
-
-          {/* PENDING FILTER */}
-          <button
-            onClick={() => setStatusFilter("PENDING")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              statusFilter === "PENDING"
-                ? "bg-amber-600 text-white shadow-xs"
-                : "bg-amber-50 hover:bg-amber-100/80 text-amber-800 border border-amber-200/70"
-            }`}
-          >
-            <Hourglass className="w-3.5 h-3.5" />
-            <span>Pending</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "PENDING" ? "bg-white/20 text-white" : "bg-white text-amber-800"}`}>
-              {counts.pending}
-            </span>
-          </button>
-
-          {/* RENTED FILTER */}
-          <button
-            onClick={() => setStatusFilter("RENTED")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              statusFilter === "RENTED"
-                ? "bg-indigo-700 text-white shadow-xs"
-                : "bg-indigo-50 hover:bg-indigo-100/80 text-indigo-800 border border-indigo-200/70"
-            }`}
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Rented</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "RENTED" ? "bg-white/20 text-white" : "bg-white text-indigo-800"}`}>
-              {counts.rented}
-            </span>
-          </button>
-
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             
-            <Button
-              size="sm"
-              id="btn-register-new-property"
-              onClick={() => router.push("/citizen/dashboard/properties/register")}
-              className="h-10 px-2 bg-[#00450d] hover:bg-[#1b5e20] text-white font-bold text-xs rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Register Property</span>
-            </Button>
+            {/* Sort Selector */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                aria-label="Sort properties"
+                className="h-10 pl-3 pr-8 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-hidden focus:border-[#00450d] focus:bg-white cursor-pointer appearance-none transition-all"
+              >
+                <option value="NEWEST">Newest First</option>
+                <option value="RENT_HIGH">Rent: High to Low</option>
+                <option value="RENT_LOW">Rent: Low to High</option>
+                <option value="AREA_DESC">Floor Area (m²)</option>
+                <option value="CODE_ASC">Code: A to Z</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* View Mode Toggle (Grid / List) */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+              <button
+                onClick={() => setViewMode("GRID")}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  viewMode === "GRID" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                }`}
+                title="Grid View"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("LIST")}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  viewMode === "LIST" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-800"
+                }`}
+                title="Table / List View"
+              >
+                <ListIcon className="w-4 h-4" />
+              </button>
+            </div>
+            <div>
+              
+
+          <Button
+            size="default"
+            id="btn-register-new-property"
+            onClick={() => router.push("/citizen/dashboard/properties/register")}
+            className="h-10 px-4 bg-[#00450d] hover:bg-[#1b5e20] text-white font-bold text-xs rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Register Property</span>
+          </Button>
+            </div>
           </div>
         </div>
+
+        {/* Row 2: Status Tab Pills & Count */}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {/* ALL FILTER */}
+            <button
+              onClick={() => setStatusFilter("ALL")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                statusFilter === "ALL"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>All Properties</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "ALL" ? "bg-white/20 text-white" : "bg-white text-slate-700"}`}>
+                {counts.total}
+              </span>
+            </button>
+
+            {/* LISTED FILTER */}
+            <button
+              onClick={() => setStatusFilter("LISTED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                statusFilter === "LISTED"
+                  ? "bg-[#00450d] text-white shadow-xs"
+                  : "bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border border-emerald-200/70"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Listed</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "LISTED" ? "bg-white/20 text-white" : "bg-white text-emerald-800"}`}>
+                {counts.listed}
+              </span>
+            </button>
+
+            {/* VERIFIED FILTER */}
+            <button
+              onClick={() => setStatusFilter("VERIFIED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                statusFilter === "VERIFIED"
+                  ? "bg-blue-700 text-white shadow-xs"
+                  : "bg-blue-50 hover:bg-blue-100/80 text-blue-800 border border-blue-200/70"
+              }`}
+            >
+              <FileCheck2 className="w-3.5 h-3.5" />
+              <span>Verified</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "VERIFIED" ? "bg-white/20 text-white" : "bg-white text-blue-800"}`}>
+                {counts.verified}
+              </span>
+            </button>
+
+            {/* APPROVED FILTER */}
+            <button
+              onClick={() => setStatusFilter("APPROVED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                statusFilter === "APPROVED"
+                  ? "bg-[#00450d] text-white shadow-xs"
+                  : "bg-emerald-50 hover:bg-emerald-100/80 text-[#00450d] border border-emerald-300 font-semibold"
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Approved</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "APPROVED" ? "bg-white/20 text-white" : "bg-white text-[#00450d]"}`}>
+                {counts.approved}
+              </span>
+            </button>
+
+            {/* PENDING FILTER */}
+            <button
+              onClick={() => setStatusFilter("PENDING")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                statusFilter === "PENDING"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "bg-amber-50 hover:bg-amber-100/80 text-amber-800 border border-amber-200/70"
+              }`}
+            >
+              <Hourglass className="w-3.5 h-3.5" />
+              <span>Pending</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "PENDING" ? "bg-white/20 text-white" : "bg-white text-amber-800"}`}>
+                {counts.pending}
+              </span>
+            </button>
+
+            {/* RENTED FILTER */}
+            <button
+              onClick={() => setStatusFilter("RENTED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                statusFilter === "RENTED"
+                  ? "bg-indigo-700 text-white shadow-xs"
+                  : "bg-indigo-50 hover:bg-indigo-100/80 text-indigo-800 border border-indigo-200/70"
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Rented</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === "RENTED" ? "bg-white/20 text-white" : "bg-white text-indigo-800"}`}>
+                {counts.rented}
+              </span>
+            </button>
+          </div>
+
+          <div className="text-xs text-slate-500 font-medium shrink-0">
+            Showing <span className="font-bold text-slate-800">{filteredProperties.length}</span> of {counts.total} properties
+          </div>
+        </div>
+
+        {/* Row 3: Active Filter Chips Bar */}
+        {(statusFilter !== "ALL" || typeFilter !== "ALL" || subCityFilter !== "ALL" || searchQuery.trim()) && (
+          <div className="flex items-center justify-between text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/80 animate-in fade-in-50">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-slate-500 font-medium text-[11px]">Active Filters:</span>
+              {statusFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 font-semibold text-slate-800 text-[11px]">
+                  Status: {statusFilter}
+                  <button onClick={() => setStatusFilter("ALL")} className="hover:text-red-500 cursor-pointer">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {typeFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 font-semibold text-slate-800 text-[11px]">
+                  Type: {typeFilter}
+                  <button onClick={() => setTypeFilter("ALL")} className="hover:text-red-500 cursor-pointer">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {subCityFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 font-semibold text-slate-800 text-[11px]">
+                  Sub-City: {subCityFilter}
+                  <button onClick={() => setSubCityFilter("ALL")} className="hover:text-red-500 cursor-pointer">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-slate-200 font-semibold text-slate-800 text-[11px]">
+                  "{searchQuery}"
+                  <button onClick={() => setSearchQuery("")} className="hover:text-red-500 cursor-pointer">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={handleResetFilters}
+              className="text-[11px] font-bold text-slate-500 hover:text-slate-900 underline ml-2 cursor-pointer"
+            >
+              Reset All
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}

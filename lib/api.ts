@@ -155,10 +155,10 @@ export async function loginOfficer(data: {
   });
   const json = await parseResponse(res);
   if (!res.ok) throw new Error(json.message || "Invalid officer credentials.");
-  // Guard: only WOREDA_OFFICER, WOREDA_SUPERVISOR, or TAX_OFFICER may use this portal
+  // Guard: only WOREDA_OFFICER, WOREDA_SUPERVISOR, TAX_OFFICER, or CITY_ADMINISTRATOR may use this portal
   const roles: string[] = (json.user?.roles ?? []).map((r: string) => r.toUpperCase());
-  if (!roles.some((r) => r === "WOREDA_OFFICER" || r === "WOREDA_SUPERVISOR" || r === "TAX_OFFICER")) {
-    throw new Error("Access denied. Only Woreda Officers, Supervisors, and Tax Officers may sign in here.");
+  if (!roles.some((r) => r === "WOREDA_OFFICER" || r === "WOREDA_SUPERVISOR" || r === "TAX_OFFICER" || r === "CITY_ADMINISTRATOR" || r === "SUB_CITY_ADMINISTRATOR" || r === "CITY_ADMIN")) {
+    throw new Error("Access denied. Only Woreda Officers, Supervisors, Tax Officers, and City Administrators may sign in here.");
   }
   saveSession(json);
   return json;
@@ -184,7 +184,18 @@ export function saveSession(result: AuthResult) {
   localStorage.setItem("accessToken", result.accessToken);
   localStorage.setItem("user", JSON.stringify(result.user));
   if (result.user.roles && result.user.roles.length > 0) {
-    localStorage.setItem("userRole", result.user.roles[0].toLowerCase());
+    const roles = result.user.roles.map((r: string) => r.toLowerCase().replace("role_", ""));
+    const isLandlord = roles.includes("landlord");
+    const isTenant = roles.includes("tenant");
+    if (roles.includes("both") || (isLandlord && isTenant)) {
+      localStorage.setItem("userRole", "both");
+    } else if (isLandlord) {
+      localStorage.setItem("userRole", "landlord");
+    } else if (isTenant) {
+      localStorage.setItem("userRole", "tenant");
+    } else {
+      localStorage.setItem("userRole", roles[0]);
+    }
   }
   localStorage.setItem("userType", result.user.userType);
 }
@@ -957,6 +968,15 @@ export async function getTenantAgreements(token: string): Promise<AgreementRespo
   });
   const json = await parseResponse(res);
   if (!res.ok) throw new Error(json.message || "Failed to load tenant agreements.");
+  return json;
+}
+
+export async function getTenantActiveAgreements(token: string): Promise<AgreementResponse[]> {
+  const res = await apiFetch(`${BASE_URL}/agreements/tenant/active`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.message || "Failed to load active tenant agreements.");
   return json;
 }
 

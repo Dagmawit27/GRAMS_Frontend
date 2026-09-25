@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home, LogOut, Settings, ChevronDown, ArrowRight } from "lucide-react";
+import { Bell, Moon, Sun, Menu, CheckCircle2, FileText, AlertCircle, Sparkles, Building2, User, Home, LogOut, Settings, ChevronDown, ArrowRight, Search, ShieldCheck } from "lucide-react";
 import { ActivityNotification, NavPage, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/api";
@@ -105,15 +105,20 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
     };
   }, [onClearNotifications]);
 
+  const isCityAdmin = userRole === "city_administrator" || userRole === "city_admin";
+
   const isOfficerUser =
     userRole === "woreda_officer" ||
     userRole === "woreda_supervisor" ||
     userRole === "tax_officer" ||
     userRole === "taxofficer" ||
-    userRole === "taxOfficer";
+    userRole === "taxOfficer" ||
+    isCityAdmin;
 
   const settingsHref =
-    userRole === "woreda_supervisor"
+    isCityAdmin
+      ? "/officer/city/dashboard"
+      : userRole === "woreda_supervisor"
       ? "/officer/supervisor/settings"
       : isOfficerUser
       ? "/officer/office/settings"
@@ -131,13 +136,15 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         .map((n) => n[0].toUpperCase())
         .join("")
         .slice(0, 2)
+    : isCityAdmin
+    ? "YG"
     : "OF";
 
 
   return (
     <header className="bg-white sticky top-0 z-30 shadow-2xs border-b border-slate-200/90 h-16 px-4 md:px-8 flex items-center justify-between transition-colors">
       {/* Left: Mobile menu button + Title */}
-      <div className="flex items-center gap-3 flex-1">
+      <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onOpenMobileMenu}
           className="md:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
@@ -156,6 +163,34 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           </div>
         )}
       </div>
+
+      {/* Center: Search & Status Pills for City Admin */}
+      {isCityAdmin && (
+        <div className="hidden xl:flex items-center gap-3 flex-1 max-w-xl mx-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search Parcel / Title Deed..."
+              className="w-full pl-8 pr-10 py-1.5 text-xs bg-slate-50/90 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#00450d] focus:bg-white transition-all"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+              ⌘K
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              FY 2024 Q3 Active
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              <ShieldCheck className="w-3 h-3 text-[#00450d]" />
+              Proclamation 1284 Compliant
+            </span>
+          </div>
+        </div>
+      )}
+      {!isCityAdmin && <div className="flex-1" />}
 
       {/* Right Controls */}
       <div className="flex items-center gap-2 md:gap-3 relative">
@@ -306,8 +341,13 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           >
             <div className="text-right hidden sm:block">
               <span className="text-xs font-semibold text-slate-900 group-hover:text-[#00450d] block leading-tight">
-                {userName || "User"}
+                {userName || (isCityAdmin ? "Ato Yohannes Girma" : "User")}
               </span>
+              {isCityAdmin && (
+                <span className="text-[10px] text-slate-400 font-medium block leading-tight">
+                  Municipal Director General
+                </span>
+              )}
             </div>
             <div className="relative">
               <img

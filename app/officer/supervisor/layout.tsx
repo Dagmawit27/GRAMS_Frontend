@@ -7,10 +7,11 @@ import { clearSession, validateSession, getSession } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TopAppBar } from "@/components/TopAppBar";
+import { SideNavSkeleton } from "@/components/SideNavBar";
 
 const OfficerSidebarWrapper = dynamic(
   () => import("@/app/officer/supervisor/sidebar-wrapper").then((m) => m.OfficerSidebarWrapper),
-  { ssr: false }
+  { ssr: false, loading: () => <SideNavSkeleton collapsed={false} /> }
 );
 
 function resolveCurrentPage(pathname: string): NavPage {
@@ -46,7 +47,19 @@ export default function SupervisorLayout({ children }: { children: React.ReactNo
     setReady(true);
   }, [router]);
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex font-sans">
+        <SideNavSkeleton collapsed={collapsed} />
+        <div className={`flex-1 flex flex-col ${collapsed ? "md:pl-[68px]" : "md:pl-[260px]"}`}>
+          <div className="h-16 bg-white border-b border-slate-200/90 px-6 flex items-center justify-between animate-pulse">
+            <div className="h-4 w-44 bg-slate-200 rounded" />
+            <div className="h-8 w-24 bg-slate-200 rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const currentPage = resolveCurrentPage(pathname);
 

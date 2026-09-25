@@ -5,6 +5,8 @@ import { useCitizenData } from "@/hooks/useCitizenData";
 import { LandlordAgreementsView } from "../LandlordAgreementsView";
 import { getSession } from "@/lib/api";
 
+import { UnauthorizedAccess } from "@/components/UnauthorizedAccess";
+
 /**
  * /citizen/dashboard/agreements/new
  * Shows new lease requests (PENDING status) for landlords
@@ -13,27 +15,9 @@ export default function NewRequestsPage() {
   const { userRole } = useCitizenData();
   const router = useRouter();
 
-  // Redirect tenants to their lease page
-  React.useEffect(() => {
-    const session = getSession();
-    if (!session?.token) {
-      router.push("/citizen");
-      return;
-    }
-    
-    const userRole = session.user.roles?.[0]?.toLowerCase();
-    if (userRole === "tenant") {
-      router.push("/citizen/dashboard/leases");
-    }
-  }, [router]);
-
-  // Show access denied for non-landlord users
+  // If tenant reaches here, show UnauthorizedAccess
   if (userRole === "tenant") {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-        <p className="text-red-800 text-sm font-medium">Access Denied: This page is for landlords only</p>
-      </div>
-    );
+    return <UnauthorizedAccess requiredRole="landlord" currentRole="tenant" path="/citizen/dashboard/agreements/new" />;
   }
 
   return (

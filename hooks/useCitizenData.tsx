@@ -104,6 +104,7 @@ const VALID_ROLES: UserRole[] = [
   "citizen",
   "tenant",
   "landlord",
+  "both",
   "woreda_officer",
   "woreda_supervisor",
 ];
@@ -126,10 +127,17 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (rawUser) {
       try {
         const user = JSON.parse(rawUser);
-        const role = user.roles?.[0]?.toLowerCase();
-
-        if (role && VALID_ROLES.includes(role as UserRole)) {
-          setUserRoleState(role as UserRole);
+        const roles = (user.roles || []).map((r: string) => r.toLowerCase().replace("role_", ""));
+        const isLandlord = roles.includes("landlord");
+        const isTenant = roles.includes("tenant");
+        if (roles.includes("both") || (isLandlord && isTenant)) {
+          setUserRoleState("both");
+        } else if (isLandlord) {
+          setUserRoleState("landlord");
+        } else if (isTenant) {
+          setUserRoleState("tenant");
+        } else if (roles[0] && VALID_ROLES.includes(roles[0] as UserRole)) {
+          setUserRoleState(roles[0] as UserRole);
         }
       } catch {
         // Ignore invalid user data

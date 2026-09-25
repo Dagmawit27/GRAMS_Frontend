@@ -18,6 +18,7 @@ import { AgreementViewModal } from "@/components/AgreementViewModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { CitizenRoleGuard, getResolvedCitizenRole } from "@/components/CitizenRoleGuard";
 
 export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
@@ -82,10 +83,8 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
       return;
     }
 
-    // Derive the correct role from the session, normalised to lowercase
-    const storedRole = localStorage.getItem("userRole");
-    const sessionRole = session.user.roles?.[0]?.toLowerCase();
-    const resolvedRole = (storedRole || sessionRole || "citizen") as UserRole;
+    // Derive the correct role from getResolvedCitizenRole
+    const resolvedRole = (getResolvedCitizenRole() || "citizen") as UserRole;
 
     if (resolvedRole !== userRole) {
       setUserRole(resolvedRole);
@@ -118,7 +117,9 @@ export const CitizenDashboardLayout: React.FC<{ children: React.ReactNode }> = (
 
         {/* Dynamic Page Views */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {children}
+          <CitizenRoleGuard>
+            {children}
+          </CitizenRoleGuard>
         </main>
       </div>
 

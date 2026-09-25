@@ -22,6 +22,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Building, FileText, CheckCircle2, Eye, ShieldCheck, UserCheck } from "lucide-react";
+import { UnauthorizedAccess } from "@/components/UnauthorizedAccess";
 
 interface DisplayAgreement {
   id: string;
@@ -42,7 +43,7 @@ interface DisplayAgreement {
 
 /**
  * /citizen/dashboard/agreements/active
- * Shows fully approved active rental agreements for both landlords and tenants.
+ * Shows fully approved active rental agreements for landlords
  */
 export default function ActiveAgreementsPage() {
   const { userRole } = useCitizenData();
@@ -52,6 +53,10 @@ export default function ActiveAgreementsPage() {
   const [error, setError] = useState("");
 
   const isTenant = userRole === "tenant";
+
+  if (userRole === "tenant") {
+    return <UnauthorizedAccess requiredRole="landlord" currentRole="tenant" path="/citizen/dashboard/agreements/active" />;
+  }
 
   const fetchAgreements = useCallback(async () => {
     try {
@@ -190,16 +195,6 @@ export default function ActiveAgreementsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-1 border-b border-slate-200/70">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Active Agreements
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Legally binding rental agreements approved by Woreda Administration.
-          </p>
-        </div>
-      </div>
 
       <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
         <CardHeader className="p-4 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
