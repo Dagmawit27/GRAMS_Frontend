@@ -209,6 +209,16 @@ export default function PendingAgreementsPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       <Card className="bg-white border-slate-200 shadow-clean overflow-hidden">
+        <CardHeader className="p-4 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <CardTitle className="text-base font-semibold text-slate-900">
+              Pending Agreements
+            </CardTitle>
+            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+              {pendingAgreements.length} Pending
+            </span>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>

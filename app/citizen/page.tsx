@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCitizenData } from "@/hooks/useCitizenData";
 import Navbar from "@/components/Navbar";
-import { motion, AnimatePresence } from "motion/react";
 import {
   ShieldCheck,
   Smartphone,
@@ -372,106 +371,80 @@ const router = useRouter();
         onOpenRegister={() => openAuth("register")}
       />
 
-      {/* Main Container with Smooth AnimatePresence */}
+      {/* Main Container */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-white px-4 sm:px-6 pt-24 pb-12 w-full">
-        <AnimatePresence mode="wait">
-          {!isAuthOpen ? (
-            /* ========================================================================= */
-            /* VIEW 1: FULL HERO CITIZEN LANDING PAGE (Matches Image 1)                   */
-            /* ========================================================================= */
-            <motion.div
-              key="hero-view"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className="max-w-4xl mx-auto text-center flex flex-col items-center space-y-6 w-full"
+        {!isAuthOpen ? (
+          /* ========================================================================= */
+          /* VIEW 1: FULL HERO CITIZEN LANDING PAGE                                    */
+          /* ========================================================================= */
+          <div
+            key="hero-view"
+            className="max-w-4xl mx-auto text-center flex flex-col items-center space-y-6 w-full animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Government Badge */}
+            <div
+              className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg text-emerald-300 text-xs sm:text-sm font-medium tracking-wide animate-in fade-in slide-in-from-top-2 duration-200"
             >
-              {/* Government Badge */}
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.4 }}
-                className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-lg text-emerald-300 text-xs sm:text-sm font-medium tracking-wide"
-              >
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Federal Democratic Republic of Ethiopia</span>
-                <span className="text-white/40">•</span>
-                <span className="text-white/80 font-normal">Official Citizen Portal</span>
-              </motion.div>
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Federal Democratic Republic of Ethiopia</span>
+              <span className="text-white/40">•</span>
+              <span className="text-white/80 font-normal">Official Citizen Portal</span>
+            </div>
 
-              {/* Main Title in Display Serif / Typography */}
-              <motion.h1
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.45 }}
-                className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] text-white drop-shadow-lg text-balance"
-              >
-                Digital Rental Agreement <br className="hidden sm:inline" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-emerald-400">
-                  Management System
-                </span>
-              </motion.h1>
-
-              {/* Subtitle / Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.4 }}
-                className="text-base sm:text-lg md:text-xl text-white/85 max-w-2xl font-light leading-relaxed drop-shadow"
-              >
-                The national digital platform for Ethiopian citizens to register rental properties,
-                legally sign lease agreements, and manage secure tenancy payments online.
-              </motion.p>
-
-              {/* Action CTAs */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.4 }}
-                className="flex flex-col sm:flex-row items-center gap-4 pt-2 w-full sm:w-auto"
-              >
-                <button
-                  type="button"
-                  onClick={() => openAuth("register")}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold text-base shadow-xl shadow-emerald-950/50 hover:shadow-emerald-900/60 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
-                >
-                  <UserPlus className="w-5 h-5" />
-                  <span>Create Citizen Account</span>
-                  <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => openAuth("signin")}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-base backdrop-blur-md border border-white/25 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
-                >
-                  <LogIn className="w-5 h-5 opacity-80" />
-                  <span>Sign In to Portal</span>
-                </button>
-              </motion.div>
-
-              
-            </motion.div>
-          ) : (
-            /* ========================================================================= */
-            /* VIEW 2: 2-COLUMN SPLIT GRID LAYOUT WITH REGISTRATION & SIGN IN FORM       */
-            /* ========================================================================= */
-            <motion.div
-              key="grid-auth-view"
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-2"
+            {/* Main Title in Display Serif / Typography */}
+            <h1
+              className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.15] text-white drop-shadow-lg text-balance animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
-              {/* LEFT COLUMN: Brand, System Title & Information */}
-              <motion.div
-                initial={{ opacity: 0, x: -25 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1, duration: 0.45 }}
-                className="lg:col-span-5 xl:col-span-5 flex flex-col space-y-5 text-left"
+              Digital Rental Agreement <br className="hidden sm:inline" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-emerald-400">
+                Management System
+              </span>
+            </h1>
+
+            {/* Subtitle / Description */}
+            <p
+              className="text-base sm:text-lg md:text-xl text-white/85 max-w-2xl font-light leading-relaxed drop-shadow animate-in fade-in slide-in-from-bottom-2 duration-200"
+            >
+              The national digital platform for Ethiopian citizens to register rental properties,
+              legally sign lease agreements, and manage secure tenancy payments online.
+            </p>
+
+            {/* Action CTAs */}
+            <div
+              className="flex flex-col sm:flex-row items-center gap-4 pt-2 w-full sm:w-auto animate-in fade-in slide-in-from-bottom-3 duration-200"
+            >
+              <button
+                type="button"
+                onClick={() => openAuth("register")}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold text-base shadow-xl shadow-emerald-950/50 hover:shadow-emerald-900/60 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
               >
+                <UserPlus className="w-5 h-5" />
+                <span>Create Citizen Account</span>
+                <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openAuth("signin")}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-base backdrop-blur-md border border-white/25 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
+              >
+                <LogIn className="w-5 h-5 opacity-80" />
+                <span>Sign In to Portal</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* VIEW 2: 2-COLUMN SPLIT GRID LAYOUT WITH REGISTRATION & SIGN IN FORM       */
+          /* ========================================================================= */
+          <div
+            key="grid-auth-view"
+            className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center py-2 animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* LEFT COLUMN: Brand, System Title & Information */}
+            <div
+              className="lg:col-span-5 xl:col-span-5 flex flex-col space-y-5 text-left animate-in fade-in slide-in-from-left-4 duration-200"
+            >
                 {/* Government Pill Badge */}
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-md text-emerald-300 text-xs font-medium w-fit">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -543,14 +516,11 @@ const router = useRouter();
                   <span className="w-2.5 h-2.5 rounded-full bg-white/40" />
                   <span className="w-2.5 h-2.5 rounded-full bg-white/40" />
                 </div>
-              </motion.div>
+              </div>
 
               {/* RIGHT COLUMN: Interactive Form Card with 'X' Close Icon */}
-              <motion.div
-                initial={{ opacity: 0, x: 25, scale: 0.98 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                transition={{ delay: 0.15, duration: 0.45 }}
-                className="lg:col-span-7 xl:col-span-7"
+              <div
+                className="lg:col-span-7 xl:col-span-7 animate-in fade-in slide-in-from-right-4 duration-200"
               >
                 <div className="relative bg-white text-slate-900 rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/40 backdrop-blur-xl overflow-hidden">
                   {/* Top Right 'X' Close Button */}
@@ -1358,10 +1328,9 @@ const router = useRouter();
                   )}
                   
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           )}
-        </AnimatePresence>
       </main>
     </div>
   );

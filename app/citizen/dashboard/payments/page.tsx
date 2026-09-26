@@ -964,7 +964,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
           /* Tenant Only View Header */
           <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
             <CreditCard className="w-4 h-4 text-blue-700" />
-            <span className="text-xs font-bold text-blue-900">Bills to Pay (Tenant View)</span>
+            <span className="text-xs font-bold text-blue-900">Bills to Pay</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-blue-200 text-blue-900">
               {pendingTenantInvoices.length} Pending
             </span>
@@ -973,7 +973,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
           /* Landlord Only View Header */
           <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg">
             <Landmark className="w-4 h-4 text-emerald-700" />
-            <span className="text-xs font-bold text-emerald-900">Rental Collections (Landlord View)</span>
+            <span className="text-xs font-bold text-emerald-900">Rental Collections</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-200 text-emerald-900">
               {resolvedLandlordCollections.length} Total{pendingLandlordCollections.length > 0 ? ` • ${pendingLandlordCollections.length} Due` : ""}
             </span>
