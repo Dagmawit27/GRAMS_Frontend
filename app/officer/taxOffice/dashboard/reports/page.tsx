@@ -27,10 +27,27 @@ import {
   ChevronDown,
   Info
 } from "lucide-react";
+import { getTaxAnalytics, TaxAnalyticsResponse } from "@/lib/api";
 
 export default function TaxReportsPage() {
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<TaxAnalyticsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await getTaxAnalytics();
+        setAnalytics(data);
+      } catch (err) {
+        console.error("Failed to fetch tax analytics:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const [fiscalPeriod, setFiscalPeriod] = useState("2016 E.C. (Current Tax Year)");
   const [subCityScope, setSubCityScope] = useState("All Addis Ababa (11 Sub-Cities)");
@@ -43,21 +60,27 @@ export default function TaxReportsPage() {
   };
 
   // Monthly collection trajectory (Ethiopian Calendar months)
-  // Mes, Tik, Hid, Tah, Tir, Yak, Meg, Mia, Gin, Sen (peak), Ham, Neh
-  const monthlyData = [
-    { month: "Mes", actual: 28, target: 35 },
-    { month: "Tik", actual: 32, target: 35 },
-    { month: "Hid", actual: 39, target: 40 },
-    { month: "Tah", actual: 44, target: 42 },
-    { month: "Tir", actual: 36, target: 40 },
-    { month: "Yak", actual: 42, target: 42 },
-    { month: "Meg", actual: 48, target: 45 },
-    { month: "Mia", actual: 45, target: 45 },
-    { month: "Gin", actual: 49, target: 50 },
-    { month: "Sen", actual: 58.2, target: 52, isPeak: true },
-    { month: "Ham", actual: 39, target: 40 },
-    { month: "Neh", actual: 22, target: 30 },
-  ];
+  const monthlyData = analytics?.monthlyCollections && analytics.monthlyCollections.length > 0
+    ? analytics.monthlyCollections.map(m => ({
+        month: m.month,
+        actual: Number(m.actual),
+        target: Number(m.target),
+        isPeak: m.isPeak
+      }))
+    : [
+        { month: "Mes", actual: 28, target: 35 },
+        { month: "Tik", actual: 32, target: 35 },
+        { month: "Hid", actual: 39, target: 40 },
+        { month: "Tah", actual: 44, target: 42 },
+        { month: "Tir", actual: 36, target: 40 },
+        { month: "Yak", actual: 42, target: 42 },
+        { month: "Meg", actual: 48, target: 45 },
+        { month: "Mia", actual: 45, target: 45 },
+        { month: "Gin", actual: 49, target: 50 },
+        { month: "Sen", actual: 58.2, target: 52, isPeak: true },
+        { month: "Ham", actual: 39, target: 40 },
+        { month: "Neh", actual: 22, target: 30 },
+      ];
 
   // Recent generated reports table items (Image 4)
   const recentReports = [
@@ -259,73 +282,81 @@ export default function TaxReportsPage() {
                 Rental Tax Yield (Schedule B)
               </span>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                92% of Target
+                {analytics ? `${analytics.collectionRate}% Collected` : "92% of Target"}
               </span>
             </div>
             <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-black text-slate-900">394.1M</span>
+              <span className="text-2xl font-black text-slate-900">
+                {analytics ? (Number(analytics.totalTaxAccrued) > 1000000 ? (Number(analytics.totalTaxAccrued) / 1000000).toFixed(1) + "M" : Number(analytics.totalTaxAccrued).toLocaleString()) : "394.1M"}
+              </span>
               <span className="text-xs font-bold text-slate-500">ETB</span>
             </div>
             <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-              Goal: 428.0M ETB • Remaining: 33.9M ETB
+              Gross Declared: ETB {analytics ? Number(analytics.totalGrossRentalIncome).toLocaleString() : "428.0M"}
             </div>
           </div>
 
-          {/* Card 2: YEAR-OVER-YEAR GROWTH */}
+          {/* Card 2: PAID VS UNPAID LANDLORDS */}
           <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
               <span className="uppercase tracking-wider text-[10px] font-bold text-slate-600">
-                Year-Over-Year Growth
+                Tax Paid & Compliance
               </span>
-              <span className="text-[11px] font-bold text-emerald-800">
-                ↗ +18.4%
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                {analytics ? `${analytics.paidCount} Paid • ${analytics.unpaidCount} Unpaid` : "99.4% Verified"}
               </span>
             </div>
             <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-black text-slate-900">+61.2M</span>
-              <span className="text-xs font-bold text-slate-500">ETB vs 2015 E.C.</span>
+              <span className="text-2xl font-black text-slate-900">
+                {analytics ? (Number(analytics.totalTaxPaid) > 1000000 ? (Number(analytics.totalTaxPaid) / 1000000).toFixed(1) + "M" : Number(analytics.totalTaxPaid).toLocaleString()) : "+61.2M"}
+              </span>
+              <span className="text-xs font-bold text-slate-500">ETB Remitted</span>
             </div>
             <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-              Highest acceleration in commercial lease declaration formalization.
+              {analytics ? `${analytics.paidCount} Landlords Cleared / ${analytics.unpaidCount} Pending Arrears` : "Highest acceleration in commercial lease declaration formalization."}
             </div>
           </div>
 
-          {/* Card 3: AVERAGE EFFECTIVE TAX RATE */}
+          {/* Card 3: OUTSTANDING ARREARS */}
           <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
               <span className="uppercase tracking-wider text-[10px] font-bold text-slate-600">
-                Average Effective Tax Rate
+                Outstanding Tax Arrears
               </span>
               <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
-                Statutory Bracket
+                Pending Summer Window
               </span>
             </div>
             <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-black text-slate-900">21.3%</span>
-              <span className="text-xs text-slate-500 font-medium">Gross Yield / Declared</span>
+              <span className="text-2xl font-black text-slate-900">
+                {analytics ? (Number(analytics.totalTaxArrears) > 1000000 ? (Number(analytics.totalTaxArrears) / 1000000).toFixed(1) + "M" : Number(analytics.totalTaxArrears).toLocaleString()) : "33.9M"}
+              </span>
+              <span className="text-xs text-slate-500 font-medium">ETB Balance</span>
             </div>
             <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-              Standard progressive tax scale applied (10% min to 35% ceiling).
+              Recovery Rate: {analytics ? analytics.collectionRate : "21.3"}% • Proclamation No. 979/2016
             </div>
           </div>
 
-          {/* Card 4: DIGITAL RECEIPTS ISSUED */}
+          {/* Card 4: DIGITAL RECEIPTS & LEASES TRACKED */}
           <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
               <span className="uppercase tracking-wider text-[10px] font-bold text-slate-600">
-                Digital Receipts Issued
+                Landlords & Leases Tracked
               </span>
               <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded">
-                Telebirr & CBE
+                Active Tax Roll
               </span>
             </div>
             <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-black text-slate-900">98,420</span>
-              <span className="text-xs text-slate-500 font-medium">Receipts</span>
+              <span className="text-2xl font-black text-slate-900">
+                {analytics ? analytics.totalLandlordsAssessed.toLocaleString() : "98,420"}
+              </span>
+              <span className="text-xs text-slate-500 font-medium">Landlords</span>
             </div>
             <div className="text-[11px] text-emerald-700 font-medium pt-1 border-t border-slate-100 flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              <span>99.4% instant bank settlement parity</span>
+              <span>{analytics ? analytics.totalAgreementsTracked.toLocaleString() : "142,500"} Active registered leases in system</span>
             </div>
           </div>
         </div>

@@ -1103,13 +1103,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
                     : "Jan – Dec (12 Months)"}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {viewMode === "tenant"
-                  ? "Aggregated lease payments and utility settlements across verified tenancies"
-                  : viewMode === "landlord"
-                  ? "Aggregated revenue collected from verified leased units"
-                  : "Consolidated comparison of rental income collected (Landlord) vs lease rent paid (Tenant)"}
-              </p>
+              
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -1249,7 +1243,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
                       formatter={(value, name) => (
                         <div className="flex items-center justify-between gap-4 font-mono font-bold text-xs">
                           <span className="text-slate-500 font-sans font-normal">
-                            {name === "inflow" ? "Inflow (Landlord):" : "Outflow (Tenant):"}
+                            {name === "inflow" ? "Inflow:" : "Outflow :"}
                           </span>
                           <span>ETB {Number(value).toLocaleString()}</span>
                         </div>
@@ -1285,7 +1279,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
             {/* Interactive Month Strip: Display all 12 months with interactive selection */}
             <div className="mt-4 pt-3 border-t border-slate-100">
               <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mb-2">
-                <span>Displaying Months (Click to filter):</span>
+                <span>Displaying Months:</span>
                 {selectedMonth !== "all" ? (
                   <span className="text-emerald-800 font-bold">
                     Active: {allMonthsList.find((m) => m.key === selectedMonth)?.fullName}
@@ -1328,13 +1322,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
           <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-semibold text-slate-900">Recent Activity</CardTitle>
-              <p className="text-xs text-slate-500">
-                {viewMode === "tenant"
-                  ? "Tenancy updates & rent receipts"
-                  : viewMode === "landlord"
-                  ? "Lease applications & remittances"
-                  : "Latest events across your portal"}
-              </p>
+              
             </div>
             {loadingData && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-400" />}
           </CardHeader>
@@ -1391,9 +1379,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = (props) => {
                 <div className="text-center py-8 text-slate-400">
                   <CheckCircle2 className="w-7 h-7 mx-auto mb-2 text-slate-300" />
                   <p className="text-xs font-semibold text-slate-700">No Recent Activity</p>
-                  <p className="text-[11px] text-slate-400 mt-1 max-w-[220px] mx-auto">
-                    Verified agreements, rent settlements, and municipal notices will appear here.
-                  </p>
                 </div>
               )}
             </div>

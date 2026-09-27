@@ -110,8 +110,16 @@ const VALID_ROLES: UserRole[] = [
 ];
 
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Role & Navigation State — always start with a stable SSR default, then sync from localStorage on mount
-  const [userRole, setUserRoleState] = useState<UserRole>("citizen");
+  // Role & Navigation State — initialize from localStorage if in browser to prevent false initial role
+  const [userRole, setUserRoleState] = useState<UserRole>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("userRole");
+      if (saved && VALID_ROLES.includes(saved as UserRole)) {
+        return saved as UserRole;
+      }
+    }
+    return "citizen";
+  });
   const [userEmail, setUserEmail] = useState<string>("");
 
   useEffect(() => {

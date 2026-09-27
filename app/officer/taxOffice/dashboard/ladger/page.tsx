@@ -25,6 +25,7 @@ import {
   FileCheck2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAllLandlordLedgers, LandlordTaxLedgerDto } from "@/lib/api";
 
 export const TaxLedgerSkeleton: React.FC = () => {
   return (
@@ -204,10 +205,72 @@ export default function LandlordTaxLedgerPage() {
   const [fiscalYearFilter, setFiscalYearFilter] = useState("2016 E.C. (Current Tax Year)");
   const [selectedIds, setSelectedIds] = useState<string[]>(["rec-1", "rec-2", "rec-3", "rec-4", "rec-5"]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [apiLedgers, setApiLedgers] = useState<LandlordTaxLedgerDto[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isReady, setIsReady] = useState(false);
 
-  const filteredRecords = INITIAL_RECORDS.filter((rec) => {
-    if (activeTab === "all") return true;
-    return rec.category === activeTab;
+  React.useEffect(() => {
+    async function fetchLedgers() {
+      try {
+        const data = await getAllLandlordLedgers();
+        if (data && data.length > 0) {
+          setApiLedgers(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch landlord tax ledgers:", err);
+      } finally {
+        setIsReady(true);
+      }
+    }
+    fetchLedgers();
+  }, []);
+
+  const recordsToUse: LandlordRecord[] = apiLedgers.length > 0
+    ? apiLedgers.map((l) => {
+        const isSettled = l.taxStatus === "SETTLED_CLEARED" || (Number(l.totalTaxAccrued) > 0 && Number(l.totalTaxPaid) >= Number(l.totalTaxAccrued));
+        const initials = l.landlordName.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "LD";
+        const complianceStatus: LandlordRecord["complianceStatus"] = isSettled ? "Fully Paid" : (Number(l.taxArrears) > 0 ? "Overdue Notice #2" : "Pending Review");
+        const category: LandlordRecord["category"] = isSettled ? "compliant" : (Number(l.taxArrears) > 0 ? "delinquent" : "pending");
+        const badgeStyle = isSettled
+          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+          : (Number(l.taxArrears) > 0 ? "bg-red-50 text-red-700 border border-red-200 font-bold" : "bg-amber-50 text-amber-800 border border-amber-200");
+
+        return {
+          id: l.id,
+          initials,
+          name: l.landlordName,
+          nationalId: l.landlordPhone ? `Phone: ${l.landlordPhone}` : `ID: ${l.id.slice(0, 8)}`,
+          tin: l.tinNumber || "Pending TIN",
+          isTinVerified: Boolean(l.tinNumber),
+          propertiesCount: `${l.totalAgreements || 0} Leases`,
+          unitsDescription: `${l.subCity || "Addis Ababa"}${l.woreda ? ` (Woreda ${l.woreda})` : ""}`,
+          grossRentalRevenue: `ETB ${Number(l.totalGrossIncome || 0).toLocaleString()}`,
+          grossRentalSource: "Declared (GRAMS)",
+          assessedTax: `ETB ${Number(l.totalTaxAccrued || 0).toLocaleString()}`,
+          taxRateNote: `Rate: ${l.taxBracketPercentage || 0}% bracket`,
+          paidBalance: `ETB ${Number(l.totalTaxPaid || 0).toLocaleString()}`,
+          paidSubNote: `Arrears: ETB ${Number(l.taxArrears || 0).toLocaleString()}`,
+          complianceStatus,
+          complianceBadgeStyle: badgeStyle,
+          category,
+        };
+      })
+    : INITIAL_RECORDS;
+
+  const filteredRecords = recordsToUse.filter((rec) => {
+    if (activeTab !== "all" && rec.category !== activeTab) return false;
+    if (subCityFilter !== "All Sub-Cities (Addis Ababa)") {
+      const targetSub = subCityFilter.replace(" Sub-City", "").toLowerCase();
+      if (!rec.unitsDescription.toLowerCase().includes(targetSub)) return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = rec.name.toLowerCase().includes(q);
+      const matchTin = rec.tin.toLowerCase().includes(q);
+      const matchId = rec.nationalId.toLowerCase().includes(q);
+      if (!matchName && !matchTin && !matchId) return false;
+    }
+    return true;
   });
 
   const toggleSelectAll = () => {
@@ -228,11 +291,6 @@ export default function LandlordTaxLedgerPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
-
-  const [isReady, setIsReady] = useState(false);
-  React.useEffect(() => {
-    setIsReady(true);
-  }, []);
 
   if (!isReady) {
     return (

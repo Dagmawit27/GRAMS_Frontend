@@ -7,6 +7,7 @@ import {
   AgreementResponse,
   getTenantActiveAgreements,
   getTenantAgreements,
+  getMyAgreements,
   getSession,
 } from "@/lib/api";
 import { useCitizenData } from "@/hooks/useCitizenData";
@@ -60,7 +61,8 @@ export default function TenantActiveAgreementsPage() {
 
   // If user is "both", seamlessly redirect to /citizen/dashboard/agreements/active
   useEffect(() => {
-    if (userRole === "both") {
+    const storedRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : userRole;
+    if (userRole === "both" || storedRole === "both") {
       router.replace("/citizen/dashboard/agreements/active");
     }
   }, [userRole, router]);
@@ -80,10 +82,19 @@ export default function TenantActiveAgreementsPage() {
         data = await getTenantActiveAgreements(session.token);
       } catch (err) {
         console.warn("Primary getTenantActiveAgreements failed, attempting fallback:", err);
-        const allTenantAgreements = await getTenantAgreements(session.token);
-        data = allTenantAgreements.filter(
-          (a) => (a.status || "").toUpperCase() === "ACTIVE"
-        );
+        try {
+          const allTenantAgreements = await getTenantAgreements(session.token);
+          data = allTenantAgreements.filter(
+            (a) => (a.status || "").toUpperCase() === "ACTIVE"
+          );
+        } catch {
+          const myAgreements = await getMyAgreements(session.token);
+          data = myAgreements.filter(
+            (a) =>
+              (a.status || "").toUpperCase() === "ACTIVE" &&
+              (!session.user?.email || a.tenantEmail?.toLowerCase() === session.user.email.toLowerCase())
+          );
+        }
       }
 
       setAgreements(data);
@@ -95,7 +106,9 @@ export default function TenantActiveAgreementsPage() {
   }, []);
 
   useEffect(() => {
-    if (userRole !== "landlord" && userRole !== "both") {
+    const storedRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : userRole;
+    const effectiveRole = storedRole || userRole;
+    if (effectiveRole !== "landlord" && effectiveRole !== "both") {
       fetchTenantAgreements();
     }
   }, [fetchTenantAgreements, userRole]);
@@ -383,9 +396,6 @@ export default function TenantActiveAgreementsPage() {
               <h3 className="text-base font-bold text-slate-900">
                 No Active Tenancy Contracts
               </h3>
-              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                You do not currently have any active certified rental agreements. When a landlord approves your application and the Woreda supervisor certifies it, your contract will be displayed here.
-              </p>
               <div className="mt-5 flex items-center justify-center gap-2.5">
                 <Link href="/citizen/dashboard/search">
                   <Button size="sm" className="bg-[#00450d] hover:bg-[#164e23] text-white text-xs font-semibold">

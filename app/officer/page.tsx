@@ -14,7 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-const OFFICER_ROLES = ["WOREDA_OFFICER", "WOREDA_SUPERVISOR", "TAX_OFFICER", "CITY_ADMINISTRATOR", "CITY_ADMIN"];
+const OFFICER_ROLES = ["WOREDA_OFFICER", "WOREDA_SUPERVISOR", "TAX_OFFICER", "CITY_ADMINISTRATOR", "CITY_ADMIN", "SUB_CITY_ADMINISTRATOR", "SUB_CITY_ADMIN"];
 
 function isOfficerSession(): boolean {
   if (typeof window === "undefined") return false;
@@ -38,7 +38,8 @@ export const OfficerPage: React.FC = () => {
     const role = (localStorage.getItem("userRole") ?? "").toLowerCase();
     const token = localStorage.getItem("accessToken");
     if (!token) { setChecking(false); return; }
-    if (role === "city_administrator") { router.replace("/officer/city/dashboard"); return; }
+    if (role === "city_administrator" || role === "city_admin") { router.replace("/officer/city/dashboard"); return; }
+    if (role === "sub_city_administrator" || role === "sub_city_admin") { router.replace("/officer/subcity/reports"); return; }
     if (role === "woreda_officer") { router.replace("/officer/office/dashboard"); return; }
     if (role === "woreda_supervisor") { router.replace("/officer/supervisor/dashboard"); return; }
     if (role === "tax_officer") { router.replace("/officer/taxOfficer/dashboard"); return; }
@@ -53,8 +54,10 @@ export const OfficerPage: React.FC = () => {
       const result = await loginOfficer({ email: email.trim(), password });
       // Role is already saved in localStorage by loginOfficer → saveSession
       const role = (result.user.roles?.[0] ?? "").toLowerCase();
-      if (role === "city_administrator") {
+      if (role === "city_administrator" || role === "city_admin") {
         router.push("/officer/city/dashboard");
+      } else if (role === "sub_city_administrator" || role === "sub_city_admin") {
+        router.push("/officer/subcity/reports");
       } else if (role === "woreda_supervisor") {
         router.push("/officer/supervisor/dashboard");
       } else if (role === "tax_officer") {

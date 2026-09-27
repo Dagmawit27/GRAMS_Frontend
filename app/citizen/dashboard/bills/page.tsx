@@ -356,14 +356,11 @@ export const BillsPage: React.FC<BillsPageProps> = (props) => {
             </div>
             <div>
               <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                {selectedYear === "all" ? "Total Paid (All Time)" : `Total Paid in ${selectedYear}`}
+                {selectedYear === "all" ? "Total Paid" : `Total Paid in ${selectedYear}`}
               </span>
               <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">
                 ETB {totalPaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Official receipts recorded with FDRE Housing &amp; Revenues clearance
-              </p>
             </div>
           </div>
 
@@ -448,9 +445,7 @@ export const BillsPage: React.FC<BillsPageProps> = (props) => {
           </div>
           <div>
             <h4 className="text-base font-bold text-slate-900">No Paid Bills or Receipts Yet</h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-              You do not have any paid rental bills or completed payment receipts on record. When you complete advance rent settlements, official electronic receipts will be recorded and displayed here.
-            </p>
+            
           </div>
           <div className="pt-2">
             <Button

@@ -168,9 +168,6 @@ export default function OfficerPropertiesListPage() {
             placeholder="Search property ID, type..."
             className="h-8 pl-3 pr-3 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#00450d] w-48"
           />
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 text-xs h-8">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          </Button>
         </div>
       </div>
 
@@ -195,9 +192,7 @@ export default function OfficerPropertiesListPage() {
             <Building2 className="w-7 h-7" />
           </div>
           <p className="text-sm font-semibold text-slate-700">No pending registrations</p>
-          <p className="text-xs text-slate-500 max-w-xs">
-            All properties in {jurisdiction.subCity} Woreda {jurisdiction.woreda} have been processed.
-          </p>
+          
         </div>
       )}
 

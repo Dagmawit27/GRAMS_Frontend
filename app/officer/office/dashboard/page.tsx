@@ -800,7 +800,6 @@ export function OfficerOfficeDashboardPage() {
               Pending Field Check
             </Badge>
           </div>
-          <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Submitted in {subCity} W{woreda}</p>
         </div>
 
         {/* KPI 2: AGREEMENTS TO REVIEW */}
@@ -826,7 +825,6 @@ export function OfficerOfficeDashboardPage() {
               Statutory
             </Badge>
           </div>
-          <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Awaiting officer verification</p>
         </div>
 
         {/* KPI 3: VERIFIED TODAY */}
@@ -847,7 +845,6 @@ export function OfficerOfficeDashboardPage() {
               Forwarded
             </Badge>
           </div>
-          <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Forwarded to Supervisor</p>
         </div>
 
         {/* KPI 4: TOTAL LISTED IN REGISTRY */}
@@ -868,7 +865,6 @@ export function OfficerOfficeDashboardPage() {
               Active Leases
             </Badge>
           </div>
-          <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Published in this jurisdiction</p>
         </div>
       </div>
 

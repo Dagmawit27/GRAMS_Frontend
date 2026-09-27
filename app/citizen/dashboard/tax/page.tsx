@@ -564,43 +564,6 @@ export default function TaxRecordPage() {
           </div>
         </div>
 
-        <div className="text-[11px] text-slate-500 pt-1 flex items-center justify-between">
-          <span>* የሕግ ሰውነት ያላቸው ድርጅቶች/ተቋማት ከጠቅላላ የኪራይ ገቢያቸው ላይ ቋሚ 30% ጠፍጣፋ ግብር (Flat 30%) ይከፍላሉ።</span>
-          <span className="font-semibold text-[#00450d]">የገቢዎች ሚኒስቴር / MOR</span>
-        </div>
-
-        {/* Proclamation Principles: 50% Deduction, Multi-Contract Aggregation & 30% Corporate Rate */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>50% Statutory Relief (አንቀጽ 15(5)(ለ))</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Under Proclamation No. 979/2016 Article 15(5)(b), individual landlords without accounting books receive an automatic 50% gross deduction for depreciation and maintenance. Tax applies only to the remaining 50%.
-            </p>
-          </div>
-
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#00450d]">
-              <Layers className="w-3.5 h-3.5 text-[#00450d]" />
-              <span>Multi-Contract Aggregation (የኪራይ ውሎች ድምር)</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Rental tax is assessed per taxpayer, not per unit. When new active agreements are registered, their contracted rents and collected revenues are automatically combined into your consolidated Schedule B ledger.
-            </p>
-          </div>
-
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-              <Building className="w-3.5 h-3.5 text-slate-600" />
-              <span>Flat 30% Corporate Tax (የድርጅት ቋሚ ተመን)</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Bodies and corporate entities pay a flat 30% rental tax on net rental income. Progressive brackets (0% – 35%) apply strictly to individual citizen landlords.
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* --------------------------------------------------------------------- */}
@@ -647,9 +610,6 @@ export default function TaxRecordPage() {
                   {taxSummary?.totalAgreementsCount || taxSummary?.agreements?.length || 0} Active
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Every active agreement and completed payment is aggregated to determine your combined monthly rent and annual tax tier.
-              </p>
             </div>
             <div className="flex items-center gap-4 text-xs font-mono">
               <div className="text-right">

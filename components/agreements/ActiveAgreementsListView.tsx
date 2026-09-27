@@ -133,9 +133,6 @@ export const ActiveAgreementsListView: React.FC<ActiveAgreementsListViewProps> =
               Read-Only
             </Badge>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Official government repository of legally binding active lease agreements in Addis Ababa.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1">
@@ -223,9 +220,7 @@ export const ActiveAgreementsListView: React.FC<ActiveAgreementsListViewProps> =
                   <TableCell colSpan={8} className="text-center py-16 text-slate-400">
                     <ShieldCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                     <p className="text-sm font-semibold text-slate-700">No active agreements found</p>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                      Once lease requests are verified by officers and approved by supervisors, they are recorded as official active agreements and will appear here.
-                    </p>
+                    
                   </TableCell>
                 </TableRow>
               ) : (

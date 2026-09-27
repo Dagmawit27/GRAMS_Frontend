@@ -1,7 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LeaseRequestResponse, getLeaseRequestsByStatus, approveLeaseRequest, getSession } from "@/lib/api";
+import {
+  LeaseRequestResponse,
+  getLeaseRequestsByStatus,
+  approveLeaseRequest,
+  getSession,
+  AgreementResponse,
+  getActiveAgreements,
+} from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -24,13 +31,17 @@ import {
   ShieldCheck,
   CheckCircle2,
   Clock,
+  FileText,
 } from "lucide-react";
 import { sseManager } from "@/lib/sseManager";
 
 export default function SupervisorAgreementApprovalsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"PENDING_SUPERVISOR_APPROVAL" | "SUPERVISOR_APPROVED">("PENDING_SUPERVISOR_APPROVAL");
+  const [activeTab, setActiveTab] = useState<
+    "PENDING_SUPERVISOR_APPROVAL" | "SUPERVISOR_APPROVED" | "ACTIVE_AGREEMENTS"
+  >("PENDING_SUPERVISOR_APPROVAL");
   const [leaseRequests, setLeaseRequests] = useState<LeaseRequestResponse[]>([]);
+  const [activeAgreements, setActiveAgreements] = useState<AgreementResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -46,10 +57,15 @@ export default function SupervisorAgreementApprovalsPage() {
         setError("Authentication required. Please log in.");
         return;
       }
-      const data = await getLeaseRequestsByStatus(session.token, statusToFetch);
-      setLeaseRequests(data);
+      if (statusToFetch === "ACTIVE_AGREEMENTS") {
+        const ags = await getActiveAgreements(session.token);
+        setActiveAgreements(ags);
+      } else {
+        const data = await getLeaseRequestsByStatus(session.token, statusToFetch);
+        setLeaseRequests(data);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load lease requests");
+      setError(err instanceof Error ? err.message : "Failed to load agreements data");
     } finally {
       setIsLoading(false);
     }
@@ -148,10 +164,11 @@ export default function SupervisorAgreementApprovalsPage() {
     );
   };
 
-  const totalPages = Math.ceil(leaseRequests.length / itemsPerPage);
+  const listToPaginate = activeTab === "ACTIVE_AGREEMENTS" ? activeAgreements : leaseRequests;
+  const totalPages = Math.max(1, Math.ceil(listToPaginate.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentItems = leaseRequests.slice(startIndex, endIndex);
+  const currentItems = listToPaginate.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -160,13 +177,15 @@ export default function SupervisorAgreementApprovalsPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
             <ShieldCheck className="w-6 h-6 text-amber-600" />
-            Agreement Approvals
+            {activeTab === "ACTIVE_AGREEMENTS" ? "Active Tenancy Agreements" : "Agreement Approvals"}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Agreements verified by Woreda Officers awaiting final Supervisor signature & municipal registration
+            {activeTab === "ACTIVE_AGREEMENTS"
+              ? "Certified active lease agreements operating under municipal jurisdiction in your woreda"
+              : "Agreements verified by Woreda Officers awaiting final Supervisor signature & municipal registration"}
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
           <button
             onClick={() => { setActiveTab("PENDING_SUPERVISOR_APPROVAL"); setCurrentPage(1); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -175,7 +194,7 @@ export default function SupervisorAgreementApprovalsPage() {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Verified / Pending ({activeTab === "PENDING_SUPERVISOR_APPROVAL" ? leaseRequests.length : "•"})
+            Pending Seal ({activeTab === "PENDING_SUPERVISOR_APPROVAL" ? leaseRequests.length : "•"})
           </button>
           <button
             onClick={() => { setActiveTab("SUPERVISOR_APPROVED"); setCurrentPage(1); }}
@@ -185,7 +204,18 @@ export default function SupervisorAgreementApprovalsPage() {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Approved ({activeTab === "SUPERVISOR_APPROVED" ? leaseRequests.length : "•"})
+            Approved Leases ({activeTab === "SUPERVISOR_APPROVED" ? leaseRequests.length : "•"})
+          </button>
+          <button
+            onClick={() => { setActiveTab("ACTIVE_AGREEMENTS"); setCurrentPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === "ACTIVE_AGREEMENTS"
+                ? "bg-white text-[#00450d] font-black shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 text-[#00450d]" />
+            <span>Active Agreements ({activeTab === "ACTIVE_AGREEMENTS" ? activeAgreements.length : "•"})</span>
           </button>
         </div>
       </div>
@@ -230,7 +260,7 @@ export default function SupervisorAgreementApprovalsPage() {
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b border-slate-200">
                   <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Request Code
+                    {activeTab === "ACTIVE_AGREEMENTS" ? "Agreement Number" : "Request Code"}
                   </TableHead>
                   <TableHead className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Property
@@ -253,76 +283,136 @@ export default function SupervisorAgreementApprovalsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentItems.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm">
-                      {activeTab === "PENDING_SUPERVISOR_APPROVAL"
-                        ? "No lease requests currently pending supervisor approval."
-                        : "No approved lease requests found."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  currentItems.map((req) => (
-                    <TableRow key={req.requestCode} className="border-b border-slate-100 hover:bg-slate-50">
-                      <TableCell className="text-xs font-mono font-medium text-slate-700">
-                        {req.requestCode}
+                {activeTab === "ACTIVE_AGREEMENTS" ? (
+                  currentItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm">
+                        No active agreements found for your woreda jurisdiction.
                       </TableCell>
-                      <TableCell className="text-xs text-slate-900">
-                        <div className="flex items-center gap-1.5">
-                          <Building className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="font-semibold">{req.propertyTitle}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">
-                          {req.propertyCode}
-                          {req.unitCode && ` • Unit: ${req.unitCode}`}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-900">
-                        <div className="flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{req.applicantName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-900">
-                        <div className="flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{req.landlordName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-semibold text-slate-900">
-                        {req.proposedRent?.toLocaleString()} ETB
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {getStatusBadge(req.status)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                    </TableRow>
+                  ) : (
+                    (currentItems as AgreementResponse[]).map((ag) => (
+                      <TableRow key={ag.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <TableCell className="text-xs font-mono font-bold text-slate-900">
+                          {ag.agreementNumber}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            <Building className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-semibold">{ag.propertyTitle}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">
+                            {ag.propertyCode} • Woreda {ag.propertyWoreda}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{ag.tenantName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{ag.landlordName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-bold text-[#00450d]">
+                          {ag.monthlyRent?.toLocaleString()} ETB/mo
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <Badge className="bg-emerald-100 text-emerald-800 font-bold border-emerald-200 text-[10px] uppercase tracking-wider">
+                            <CheckCircle2 className="w-3 h-3 mr-1 inline text-emerald-600" />
+                            Active Contract
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleViewDetail(req.requestCode)}
+                            onClick={() => handleViewDetail(ag.requestCode || ag.agreementNumber)}
                             className="h-8 text-xs font-medium border-slate-300 hover:bg-slate-50"
                           >
                             <Eye className="w-3.5 h-3.5 mr-1" />
                             View
                           </Button>
-                          {req.status === "PENDING_SUPERVISOR_APPROVAL" && (
-                            <Button
-                              size="sm"
-                              disabled={approvingCode === req.requestCode}
-                              onClick={() => handleQuickApprove(req.requestCode)}
-                              className="h-8 text-xs font-semibold bg-[#00450d] hover:bg-[#1b5e20] text-white"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                              {approvingCode === req.requestCode ? "Approving..." : "Approve"}
-                            </Button>
-                          )}
-                        </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )
+                ) : (
+                  currentItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm">
+                        {activeTab === "PENDING_SUPERVISOR_APPROVAL"
+                          ? "No lease requests currently pending supervisor approval."
+                          : "No approved lease requests found."}
                       </TableCell>
                     </TableRow>
-                  ))
+                  ) : (
+                    (currentItems as LeaseRequestResponse[]).map((req) => (
+                      <TableRow key={req.requestCode} className="border-b border-slate-100 hover:bg-slate-50">
+                        <TableCell className="text-xs font-mono font-medium text-slate-700">
+                          {req.requestCode}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            <Building className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="font-semibold">{req.propertyTitle}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">
+                            {req.propertyCode}
+                            {req.unitCode && ` • Unit: ${req.unitCode}`}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{req.applicantName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-900">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{req.landlordName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-slate-900">
+                          {req.proposedRent?.toLocaleString()} ETB
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {getStatusBadge(req.status)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetail(req.requestCode)}
+                              className="h-8 text-xs font-medium border-slate-300 hover:bg-slate-50"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              View
+                            </Button>
+                            {req.status === "PENDING_SUPERVISOR_APPROVAL" && (
+                              <Button
+                                size="sm"
+                                disabled={approvingCode === req.requestCode}
+                                onClick={() => handleQuickApprove(req.requestCode)}
+                                className="h-8 text-xs font-semibold bg-[#00450d] hover:bg-[#1b5e20] text-white"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                {approvingCode === req.requestCode ? "Approving..." : "Approve"}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )
                 )}
               </TableBody>
+
             </Table>
           )}
         </CardContent>

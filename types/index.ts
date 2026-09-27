@@ -48,7 +48,9 @@ export type UserRole =
   | 'taxofficer'
   | 'taxOfficer'
   | 'city_administrator'
-  | 'city_admin';
+  | 'city_admin'
+  | 'sub_city_administrator'
+  | 'sub_city_admin';
 
 export interface Property {
   id: string;

@@ -1398,3 +1398,223 @@ export async function settleAnnualRentalTax(token: string, payload: TaxSettlemen
   return json;
 }
 
+export interface SubCityTaxBreakdown {
+  subCity: string;
+  landlordCount: number;
+  grossIncome: number;
+  taxAccrued: number;
+  taxPaid: number;
+  arrears: number;
+  complianceRate: number;
+}
+
+export interface MonthlyCollectionTrajectory {
+  month: string;
+  actual: number;
+  target: number;
+  isPeak: boolean;
+}
+
+export interface TaxAnalyticsResponse {
+  totalLandlordsAssessed: number;
+  totalAgreementsTracked: number;
+  totalGrossRentalIncome: number;
+  totalTaxAccrued: number;
+  totalTaxPaid: number;
+  totalTaxArrears: number;
+  paidCount: number;
+  unpaidCount: number;
+  collectionRate: number;
+  subCityBreakdown: SubCityTaxBreakdown[];
+  monthlyCollections: MonthlyCollectionTrajectory[];
+}
+
+export interface LandlordTaxLedgerDto {
+  id: string;
+  landlordName: string;
+  landlordEmail: string;
+  landlordPhone: string;
+  tinNumber: string;
+  subCity: string;
+  woreda: string;
+  totalAgreements: number;
+  totalGrossIncome: number;
+  totalTaxAccrued: number;
+  totalTaxPaid: number;
+  taxArrears: number;
+  taxStatus: string;
+  effectiveTaxRate: number;
+  taxBracketPercentage: number;
+  clearanceCertificateNumber?: string;
+  settlementDate?: string;
+  fiscalYear: string;
+}
+
+export function getStoredToken(token?: string): string {
+  if (token) return token;
+  if (typeof window === "undefined") return "";
+  const session = getSession();
+  if (session?.token) return session.token;
+  return localStorage.getItem("accessToken") || localStorage.getItem("token") || "";
+}
+
+export async function getTaxAnalytics(token?: string): Promise<TaxAnalyticsResponse> {
+  const authToken = getStoredToken(token);
+  const res = await apiFetch(`${BASE_URL}/tax/reports/analytics`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load tax analytics.");
+  return json;
+}
+
+export async function getAllLandlordLedgers(
+  token?: string,
+  params?: { search?: string; status?: string; subCity?: string }
+): Promise<LandlordTaxLedgerDto[]> {
+  const authToken = getStoredToken(token);
+  const query = new URLSearchParams();
+  if (params?.search) query.set("search", params.search);
+  if (params?.status) query.set("status", params.status);
+  if (params?.subCity) query.set("subCity", params.subCity);
+
+  const res = await apiFetch(`${BASE_URL}/tax/ledgers/all?${query.toString()}`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load landlord tax ledgers.");
+  return json;
+}
+
+export async function getDeactivatedUsers(token?: string): Promise<{ totalDeactivated: number; inactiveEmployees: any[]; inactiveCitizens: any[] }> {
+  const authToken = getStoredToken(token);
+  const res = await apiFetch(`${BASE_URL}/admin/security/deactivated-users`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load deactivated users.");
+  return json;
+}
+
+export async function reactivateUser(email: string, token?: string): Promise<any> {
+  const authToken = getStoredToken(token);
+  const res = await apiFetch(`${BASE_URL}/admin/security/users/reactivate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify({ email }),
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to reactivate user.");
+  return json;
+}
+
+export async function getActiveAgreements(token?: string): Promise<AgreementResponse[]> {
+  const authToken = getStoredToken(token);
+  const res = await apiFetch(`${BASE_URL}/agreements/active`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load active agreements.");
+  return json;
+}
+
+export async function getComplaints(token?: string, status?: string): Promise<any[]> {
+  const authToken = getStoredToken(token);
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const res = await apiFetch(`${BASE_URL}/complaints${query}`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load complaints.");
+  return json;
+}
+
+export interface VerifiedPropertyHistoryItem {
+  verificationId: string;
+  propertyId?: string;
+  propertyCode: string;
+  title: string;
+  propertyType: string;
+  subCity: string;
+  woreda: string;
+  landlordName: string;
+  landlordEmail: string;
+  verificationStatus: string;
+  currentPropertyStatus: string;
+  remarks?: string;
+  verifiedAt: string;
+}
+
+export interface VerifiedAgreementHistoryItem {
+  agreementId: string;
+  agreementNumber: string;
+  requestCode: string;
+  propertyTitle: string;
+  propertyCode: string;
+  subCity: string;
+  woreda: string;
+  landlordName: string;
+  tenantName: string;
+  monthlyRent: number;
+  agreementStatus: string;
+  supervisorApproved: boolean;
+  verifiedAt: string;
+}
+
+export interface OfficerHistoryResponse {
+  verifiedProperties: VerifiedPropertyHistoryItem[];
+  verifiedAgreements: VerifiedAgreementHistoryItem[];
+  totalVerifiedProperties: number;
+  totalVerifiedAgreements: number;
+}
+
+export async function getOfficerHistory(token?: string): Promise<OfficerHistoryResponse> {
+  const authToken = getStoredToken(token);
+  const res = await apiFetch(`${BASE_URL}/officer/my-history`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load officer verification history.");
+  return json;
+}
+
+export interface WoredaMetricsDto {
+  woreda: string;
+  totalProperties: number;
+  listedProperties: number;
+  activeAgreements: number;
+  totalComplaints: number;
+  openComplaints: number;
+}
+
+export interface SubCityReportResponse {
+  subCity: string;
+  totalProperties: number;
+  listedProperties: number;
+  pendingProperties: number;
+  verifiedProperties: number;
+  rentedProperties: number;
+  totalAgreements: number;
+  activeAgreements: number;
+  totalMonthlyRentVolume: number;
+  totalComplaints: number;
+  openComplaints: number;
+  resolvedComplaints: number;
+  woredaBreakdowns: WoredaMetricsDto[];
+  generatedAt: string;
+}
+
+export async function getSubCityReport(token?: string, subCity?: string): Promise<SubCityReportResponse> {
+  const authToken = getStoredToken(token);
+  const url = subCity ? `${BASE_URL}/reports/subcity?subCity=${encodeURIComponent(subCity)}` : `${BASE_URL}/reports/subcity`;
+  const res = await apiFetch(url, {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  const json = await parseResponse(res);
+  if (!res.ok) throw new Error(json.error || json.message || "Failed to load sub-city report.");
+  return json;
+}
+

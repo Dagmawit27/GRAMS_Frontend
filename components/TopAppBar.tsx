@@ -348,18 +348,15 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
                   Municipal Director General
                 </span>
               )}
-            </div>
+            </div> 
             <div className="relative">
-              <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOeGxWiEl2NeKDuJV16b8MGWdq1uN--G_FLPzSrdoJLC5VPsEwf_UhVCtt6qeecVysb57w5n6kvUYdE4n8hL_RHukdIM8E8aI39k6ODc74SpAm4BJOZanJy-4qNGJ6cZjX3dotzJEwv-uYJ6VzGv-H1k_JS3TR8W2YujNBsMi1W6HFeDVP8NzopWHOfi_FUDcNA5TqKqXOSAEid3CvgiOAcESPWIFcTF_kbnrbXgnhIH1-Z7h5oTKMaQ"
-                alt="Dagmawit Mesfin"
-                className="w-8 h-8 rounded-full object-cover shadow-2xs border border-slate-200 group-hover:border-slate-400 transition-all"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  const next = e.currentTarget.nextElementSibling;
-                  if (next) (next as HTMLElement).style.display = 'flex';
-                }}
-              />
+              <div className="w-8 h-8 rounded-full object-cover shadow-2xs border border-slate-200 group-hover:border-slate-400 transition-all    bg-emerald-800 text-white font-black text-1xl flex items-center justify-center border-2 border-emerald-600 shadow-sm">
+                {userName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join("")}
+              </div>
               <div className="hidden w-8 h-8 rounded-full bg-slate-900 text-white font-semibold text-xs items-center justify-center">
                 {userInitials}
               </div>

@@ -1061,9 +1061,7 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-slate-900">All Rental Bills Settled!</h4>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                    You have no pending rental bills due. All completed advance payments and official receipts are safely archived in Bills &amp; Invoices.
-                  </p>
+                  
                 </div>
                 <div className="pt-2">
                   <Button
@@ -1403,9 +1401,6 @@ export const PaymentsPage: React.FC<PaymentsPageProps> = (props) => {
               <Card className="p-6 text-center text-xs text-slate-500 bg-white border-slate-200 space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                 <p className="font-semibold text-slate-800">No Pending Payments</p>
-                <p className="text-[11px] text-slate-400">
-                  All rental bills are settled. Review completed receipts in the Bills &amp; Invoices menu.
-                </p>
                 <div className="pt-2">
                   <Button
                     size="sm"

@@ -678,9 +678,7 @@ export const PropertiesPage: React.FC = () => {
           </div>
           <div className="space-y-1 max-w-sm mx-auto">
             <h3 className="text-base font-bold text-slate-900">No matching properties found</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              No property in your portfolio matches the selected status or search query. Try changing or clearing your filters.
-            </p>
+            
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Button variant="outline" size="sm" onClick={handleResetFilters} className="text-xs h-9">

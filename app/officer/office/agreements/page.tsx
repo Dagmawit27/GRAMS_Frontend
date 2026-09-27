@@ -159,9 +159,6 @@ export default function OfficerAgreementReviewsPage() {
             <ShieldCheck className="w-6 h-6 text-[#00450d]" />
             Agreement Reviews
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Lease agreements signed by both parties, pending Woreda Officer verification
-          </p>
         </div>
         <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 font-bold border-amber-300 text-xs px-3 py-1">
           {leaseRequests.length} Pending Verification

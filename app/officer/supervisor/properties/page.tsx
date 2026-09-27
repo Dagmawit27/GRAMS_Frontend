@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 export default function SupervisorPropertiesQueuePage() {
   const router = useRouter();
   const [jurisdiction, setJurisdiction] = useState<OfficerJurisdiction | null>(null);
+  const [activeTab, setActiveTab] = useState<"VERIFIED" | "LISTED">("VERIFIED");
   const [properties, setProperties] = useState<PropertyResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,11 +33,11 @@ export default function SupervisorPropertiesQueuePage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const load = useCallback(async (j: OfficerJurisdiction) => {
+  const load = useCallback(async (j: OfficerJurisdiction, statusToLoad: "VERIFIED" | "LISTED" = activeTab) => {
     setLoading(true);
     setError("");
     try {
-      const data = await getPropertiesByJurisdiction(j.token, j.subCity, j.woreda, "VERIFIED");
+      const data = await getPropertiesByJurisdiction(j.token, j.subCity, j.woreda, statusToLoad);
       setProperties(data);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load.";
@@ -49,7 +50,7 @@ export default function SupervisorPropertiesQueuePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     const j = getOfficerJurisdiction();
@@ -59,8 +60,8 @@ export default function SupervisorPropertiesQueuePage() {
       return;
     }
     setJurisdiction(j);
-    load(j);
-  }, [load]);
+    load(j, activeTab);
+  }, [load, activeTab]);
 
   // SSE connection for real-time property verification notifications
   useEffect(() => {
@@ -148,27 +149,67 @@ export default function SupervisorPropertiesQueuePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Final Approval Queue</h2>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">
+            {activeTab === "VERIFIED" ? "Final Approval Queue" : "Approved Properties within Woreda"}
+          </h2>
           <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
             <MapPin className="w-3.5 h-3.5 text-amber-600" />
             {jurisdiction.subCity} Sub-City · Woreda {jurisdiction.woreda}
-            <span className="ml-2 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-              {loading ? "…" : properties.length} awaiting approval
+            <span
+              className={`ml-2 text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                activeTab === "VERIFIED"
+                  ? "text-amber-800 bg-amber-50 border-amber-200"
+                  : "text-emerald-800 bg-emerald-50 border-emerald-200"
+              }`}
+            >
+              {loading ? "…" : properties.length}{" "}
+              {activeTab === "VERIFIED" ? "awaiting approval" : "approved & listed"}
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Tab Selector */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+            <button
+              onClick={() => setActiveTab("VERIFIED")}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                activeTab === "VERIFIED"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Pending Approval
+            </button>
+            <button
+              onClick={() => setActiveTab("LISTED")}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                activeTab === "LISTED"
+                  ? "bg-white text-emerald-800 font-black shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Approved Properties
+            </button>
+          </div>
+
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search property code, type..."
-            className="h-8 pl-3 pr-3 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#00450d] w-48"
+            className="h-8 pl-3 pr-3 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#00450d] w-44"
           />
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 text-xs h-8 border-slate-200">
             <FileSpreadsheet className="w-3.5 h-3.5" /> Export
           </Button>
-          <Button variant="outline" size="sm" onClick={() => jurisdiction && load(jurisdiction)} disabled={loading} className="gap-1.5 text-xs h-8">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => jurisdiction && load(jurisdiction, activeTab)}
+            disabled={loading}
+            className="gap-1.5 text-xs h-8"
+          >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
@@ -243,15 +284,21 @@ export default function SupervisorPropertiesQueuePage() {
                         {new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
                       <td className="py-4 px-6 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded text-[10px] font-semibold bg-[#e1effe] text-[#1e429f] border border-blue-200">
-                          Ready for Approval
-                        </span>
+                        {activeTab === "LISTED" ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Approved & Listed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded text-[10px] font-semibold bg-[#e1effe] text-[#1e429f] border border-blue-200">
+                            Ready for Approval
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-6 text-right whitespace-nowrap">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleReview(p.id); }}
                           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-200/70 transition-colors">
-                          Review <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                          {activeTab === "LISTED" ? "View Details" : "Review"} <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                         </button>
                       </td>
                     </tr>
